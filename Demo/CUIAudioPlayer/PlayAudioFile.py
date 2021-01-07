@@ -56,18 +56,25 @@ def fetch_files():
 
 
 class AudioPlayer:
+    ellipsis_ = ".."  # 3 dots 2 long
     # EXPECTING 5, 3 Layout!
 
     def __init__(self, root):
         self.root_ = root
 
         # X and Y axis is IN REVERSE??? Is it using Row/Col rather than X/Y?
+        # Doing a trick, putting button and scroll view at same position,
+        # then update scroll menu to re-draw over button.
         self.audio_list = self.root_.add_scroll_menu("Files", 0, 0, column_span=3, row_span=3)
+        self.hidden_btn = self.root_.add_button("U Nya", 0, 0, column_span=3, row_span=3, command=self.update_meta)
+
         self.meta_list = self.root_.add_scroll_menu("Meta", 0, 3, column_span=2, row_span=5)
         self.progress_blk = self.root_.add_block_label("Info", 3, 0, column_span=3)
         self.play_btn = self.root_.add_button("Play", 4, 0, command=self.play_cb)
         self.stop_btn = self.root_.add_button("Stop", 4, 1, command=self.stop_cb)
         self.reload_btn = self.root_.add_button("Reload", 4, 2, command=self.reload_cb)
+
+        self.hidden_btn.is_selectable = False
 
         # just for ease of clearing
         self.clear_target = [self.audio_list, self.meta_list, self.progress_blk]
@@ -114,7 +121,8 @@ class AudioPlayer:
     # TODO: add exception handling later
     # TODO: fetch metadata area's physical size and put ellipsis accordingly.
     def update_meta(self):
-        ellipsis_ = ".."  # 3 dots 2 long
+        # clear meta first
+        self.meta_list.clear()
 
         # Extract metadata
         ordered = extract_metadata(self.abs_dir(self.current))
@@ -123,8 +131,16 @@ class AudioPlayer:
         key_average = sum(map(len, ordered.keys())) // len(ordered)
 
         for key, val in ((k, v) for k, v in ordered.items() if v):
-            formatted = key[::key_average - len(ellipsis_)] + ellipsis_
+            formatted = key[::key_average - len(self.ellipsis_)] + self.ellipsis_
             self.meta_list.add_item(f"{formatted.ljust(key_average)}: {val}")
+
+        # redraw scroll_view
+        self.update_widget(self.audio_list)
+
+    @staticmethod
+    def update_widget(target):
+        # updating target to re-draw over overlapping widgets.
+        target.set_border_color(target.get_border_color())
 
     @property
     def current(self):
