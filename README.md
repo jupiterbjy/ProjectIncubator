@@ -1,8 +1,6 @@
 ## Project Incubator
 
----
-
-Thought that there was too many repositories I'm creating for something I can't assure it's future for.
+Thought that there was too many repositories I'm creating for something I can't assure its future for.
 
 Therefore, I've created this repository to literally live up to it's name.
 
