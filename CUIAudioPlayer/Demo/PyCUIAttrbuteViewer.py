@@ -30,3 +30,4 @@ if __name__ == '__main__':
     ref = TestSubject(root)
 
     # root.start()
+    # Forgot to use type hint, it would trigger pycharm to reveal all available attributes.
