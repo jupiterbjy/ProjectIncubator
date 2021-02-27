@@ -3,7 +3,7 @@ import pathlib
 import time
 
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileModifiedEvent
+from watchdog.events import FileSystemEventHandler
 from selenium import webdriver
 
 try:
@@ -24,14 +24,14 @@ args = parser.parse_args()
 
 
 def validate_path(file: str):
-    path = pathlib.Path(file)
+    path_ = pathlib.Path(file)
     try:
-        assert path.exists()
+        assert path_.exists()
     except AssertionError:
         print("No such file. Refer `AutoHTMLReload -h` for additional information.")
         exit(1)
     else:
-        return path
+        return path_
 
 
 class Handler(FileSystemEventHandler):
@@ -39,18 +39,18 @@ class Handler(FileSystemEventHandler):
 
     def on_modified(self, event):
         logger.debug(f"Event {event} on {event.src_path}")
-
-        if isinstance(event, FileModifiedEvent) and str(event.src_path) == self.driver.current_url:
-            self.driver.refresh()
+        self.driver.refresh()
 
 
 def html_closure():
-    path = validate_path(args.file_location)
+    path_ = validate_path(args.file_location)
     event_handler = Handler()
-    event_handler.driver.get(str(path.absolute()))
+
+    if path_.name.endswith((".html", ".php")):
+        event_handler.driver.get(str(path_.absolute()))
 
     observer = Observer()
-    observer.schedule(event_handler=event_handler, path=str(path.parent.absolute()))
+    observer.schedule(event_handler=event_handler, path=str(path_.parent.absolute()))
     return observer, event_handler.driver
 
 
@@ -60,5 +60,7 @@ if __name__ == '__main__':
         observer_instance.start()
         while True:
             time.sleep(1)
+    except KeyboardInterrupt:
+        pass
     finally:
         driver_.close()
