@@ -1,0 +1,13 @@
+#: kivy 2.0.0
+
+<ImageWidget>:
+    on_release: root.on_click()
+
+    Image:
+        id: image
+        source: root.source
+
+
+<MainUI>:
+    rows: 3
+    cols: 3
