@@ -2,10 +2,10 @@
 
 <ImageWidget>:
     on_release: root.on_click()
-
-    Image:
-        id: image
-        source: root.source
+    BoxLayout:
+        AsyncImage:
+            id: image
+            source: root.source
 
 
 <MainUI>:
