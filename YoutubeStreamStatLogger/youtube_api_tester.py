@@ -1,3 +1,9 @@
+"""
+Setting this up everytime in interpreter ain't fun. So just import this in interpreter.
+Will look for google api from file named `api_key` on cwd, will ask for api if there's
+no file.
+"""
+
 from googleapiclient.discovery import build
 
 

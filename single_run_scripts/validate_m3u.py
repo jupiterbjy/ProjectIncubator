@@ -16,6 +16,7 @@ parser.add_argument("-extensions", type=str, default=".ogg.mp3", help="files to 
 args = parser.parse_args()
 extensions = tuple("." + extension for extension in args.extensions.strip(".").split("."))
 
+
 target_path = pathlib.Path(args.path).absolute()
 if not target_path.exists():
     raise FileNotFoundError(f"No such file - {target_path.as_posix()}")
@@ -28,8 +29,10 @@ audio_filtered = itertools.chain(*tuple(target_path.glob("*" + ext) for ext in e
 
 audio_fn_only = set(file.name for file in audio_filtered)
 
+
 to_add = []
 to_remove = []
+
 
 with open(m3u_file, encoding="utf8") as fp:
     m3u_list = [line.strip("\n") for line in iter(fp.readline, "")]
@@ -38,10 +41,12 @@ with open(m3u_file, encoding="utf8") as fp:
     to_add.extend(audio_fn_only - m3u_set)
     to_remove.extend(m3u_set - audio_fn_only)
 
+
 print(f"Existing files: {len(audio_fn_only)}")
 print(f"Entries in m3u: {len(m3u_list)}\n")
 print(f"Files to add: {to_add}")
 print(f"Files absent: {to_remove}")
+
 
 if to_add or to_remove:
     while input_ := input("Fix automatically? (y/n): "):

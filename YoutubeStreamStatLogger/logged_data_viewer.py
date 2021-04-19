@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+"""
+Simple plot viewer for my own accumulated data.
+"""
+
 import pathlib
 import json
 from sys import argv, exit
@@ -19,12 +23,13 @@ def plot_main(mapping):
 
     pyplot.title(title, fontproperties=font)
 
-    pyplot.plot(data["viewCount"], color='cornflowerblue')
-    pyplot.plot(data["concurrentViewers"], color='orange')
-    pyplot.plot(data["likeCount"], color='green')
-    pyplot.plot(data["dislikeCount"], color='red')
+    pyplot.plot(data["viewCount"], color='cornflowerblue', label="Total viewers")
+    pyplot.plot(data["concurrentViewers"], color='orange', label="Live viewers")
+    pyplot.plot(data["likeCount"], color='green', label="Upvote")
+    pyplot.plot(data["dislikeCount"], color='red', label="Downvote")
 
     pyplot.xlabel(f"time({interval}sec unit)")
+    pyplot.legend()
 
     # determine min-max viewers
     max_val = max(data["viewCount"])
