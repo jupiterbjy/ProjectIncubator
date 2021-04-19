@@ -32,20 +32,24 @@ parser.add_argument(
     "video_id", metavar="V_ID", type=str, help="ID of live youtube video"
 )
 parser.add_argument(
-    "poll_interval",
-    metavar="INTERV",
-    type=int,
-    nargs="?",
-    default=5,
-    help="Interval between polls",
-)
-parser.add_argument(
     "api_key",
     metavar="API_KEY",
     type=str,
     nargs="?",
     default=None,
-    help="Google API key",
+    help="Google API key, can be omitted if you save it in file `api_key`. next to this script.",
+)
+parser.add_argument(
+    "--poll_interval",
+    type=int,
+    default=5,
+    help="Interval between polls",
+)
+parser.add_argument(
+    "--flush_interval",
+    type=int,
+    default=40,
+    help="Interval between file flush, will be flushed in every Nth polling.",
 )
 parser.add_argument(
     "--v",
@@ -91,35 +95,68 @@ def build_video_resource():
 
 async def data_gen(request_obj) -> Generator[dict, None, None]:
 
-    for iteration in itertools.count(0):
+    try:
+        for iteration in itertools.count(0):
 
-        try:
             response_dict = request_obj.execute()["items"][0]
 
-        except HttpError:
-            logger.warning(f"Stream ID {args.video_id} closed.")
-            return
+            statistics = response_dict["statistics"]
+            viewers = response_dict["liveStreamingDetails"]["concurrentViewers"]
 
-        statistics = response_dict["statistics"]
-        viewers = response_dict["liveStreamingDetails"]["concurrentViewers"]
+            new_dict = {"concurrentViewers": viewers}
+            new_dict.update(statistics)
 
-        new_dict = {"concurrentViewers": viewers}
-        new_dict.update(statistics)
+            yield new_dict
 
-        yield new_dict
+            logger.debug(
+                f"[{iteration}]"
+                + "Viewers(Cur/Tot):{concurrentViewers}/{viewCount} "
+                  "Likes:{likeCount}/{dislikeCount}".format(**new_dict)
+            )
 
-        logger.debug(
-            f"[{iteration}]"
-            + "Viewers(Cur/Tot):{concurrentViewers}/{viewCount} "
-              "Likes:{likeCount}/{dislikeCount}".format(**new_dict)
-        )
-
-        try:
             await trio.sleep(args.poll_interval)
 
-        except KeyboardInterrupt:
-            logger.warning("Got ctrl+c")
-            return
+    except (KeyError, HttpError):
+        logger.warning(f"Stream ID {args.video_id} closed.")
+        return
+
+    except KeyboardInterrupt:
+        logger.warning("Got ctrl+c")
+        return
+
+
+class Router:
+    def __init__(self):
+        self.concurrentViewers = []
+        self.viewCount = []
+        self.likeCount = []
+        self.dislikeCount = []
+
+    def __len__(self):
+        return len(self.concurrentViewers)
+
+    def append(self, value_dict: Mapping):
+        for key, val in value_dict.items():
+            self.__dict__[key].append(int(val))
+
+    def dump(self) -> dict:
+        return self.__dict__
+
+
+def write_json_closure(file_path, data: dict):
+
+    option = jsbeautifier.default_options()
+    option.indent_size = 2
+
+    def write():
+        with open(file_path, "w", encoding="utf8") as fp:
+            fp.write(
+                jsbeautifier.beautify(json.dumps(data, ensure_ascii=False), option)
+            )
+
+        logger.info(f"Written {len(data['data']['dislikeCount'])} data.")
+
+    return write
 
 
 async def main():
@@ -140,49 +177,29 @@ async def main():
         f"{start_time.date().isoformat()}_{args.video_id}_{int(start_time.timestamp())}.json"
     )
 
-    class Router:
-        def __init__(self):
-            self.concurrentViewers = []
-            self.viewCount = []
-            self.likeCount = []
-            self.dislikeCount = []
-
-        def __len__(self):
-            return len(self.concurrentViewers)
-
-        def append(self, value_dict: Mapping):
-            for key, val in value_dict.items():
-                self.__dict__[key].append(int(val))
-
-        def dump(self) -> dict:
-            return self.__dict__
-
     router_instance = Router()
 
     # We got a lot of time for appending, why not?
+    flush_interval_control = itertools.cycle(([False] * (args.flush_interval - 1)) + [True])
+    data = {"stream_title": video_title, "interval": args.poll_interval}
+    write_func = write_json_closure(file_path, data)
+
     async for fetched_dict in data_gen(combined_request):
         router_instance.append(fetched_dict)
 
-    data_dict = {"stream_title": video_title, "interval": args.poll_interval, "data": router_instance.dump()}
-
-    option = jsbeautifier.default_options()
-    option.indent_size = 2
-
-    with open(file_path, "w", encoding="utf8") as fp:
-        fp.write(
-            jsbeautifier.beautify(json.dumps(data_dict, ensure_ascii=False), option)
-        )
-
-    logger.info(f"Gathered {len(router_instance)} samples.")
+        if next(flush_interval_control):
+            logger.info(f"Saving, do not interrupt.")
+            data["data"] = router_instance.dump()
+            write_func()
 
     if args.s:
         try:
-            from youtube_viewer_count_reader import plot_main
+            from logged_data_viewer import plot_main
         except ImportError as err:
             logger.critical(f"Cannot import module - {err}")
             return
 
-        plot_main(data_dict)
+        plot_main(data)
 
 
 if __name__ == "__main__":

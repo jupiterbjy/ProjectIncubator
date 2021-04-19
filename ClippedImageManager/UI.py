@@ -77,7 +77,7 @@ class MainUI(BoxLayout, BackgroundManagerMixin):
 
     def _get_subwidget_size_target(self) -> Tuple[int, int]:
         """
-        Calculate subwidget size.
+        Calculate subwidget size. Using hardcoded ratio of 2:1 (approx. of 364:180)
         :return: (width: int, height: int)
         """
         widget_per_row = self.image_grid_layout.cols
@@ -86,7 +86,7 @@ class MainUI(BoxLayout, BackgroundManagerMixin):
         win_x, win_y = Window.size
 
         size_x = (win_x - spacing_x * 2) // widget_per_row
-        size_y = (win_x - spacing_y * 2) // widget_per_row
+        size_y = ((win_x//2) - spacing_y * 2) // widget_per_row
         logger.debug((size_x, size_y))
         return size_x, size_y
 
