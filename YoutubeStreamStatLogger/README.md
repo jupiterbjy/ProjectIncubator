@@ -9,10 +9,14 @@ Accumulated view count is increased when meeting following rules - according to 
 - A user intentionally initiates the watching of a video.
 - The user watches it on the platform for at least 30 seconds
 
-For above reason total view increase and net sum of Viewer gain may differ a bit. 
+For above reason total view count is not so reliable compared to concurrent viewers. 
 
-Not sure if this also works with streams, but according to plotted data I got below, it seems so.
+If total view count was reliable and unrestricted, one could estimate concurrent viewer gain/loss like this:
 
+1. Assume view count increment directly contributes to concurrent viewer increase.
+2. subtract concurrent viewer increment from view count increment, this will be estimated loss. 
+
+For above reasons I gave up this idea.
 
 ## Data structure
 
