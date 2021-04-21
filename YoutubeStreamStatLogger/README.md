@@ -4,6 +4,30 @@ Just a micro repo for collecting and visualizing live stream stats.
 
 Requires google cloud API to work. Very vague, possibly not so useful docs are included in each file.
 
+## Usage
+```commandline
+usage: log_stat.py [-h] [-v] [-g] [-o PATH] [-p INTERVAL] [-f INTERVAL] [-a KEY] VIDEO_ID
+
+Records livestream details using Google Data API.
+
+positional arguments:
+  VIDEO_ID              ID of live youtube stream.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         Enables debug logging.
+  -g, --graph           Show plot at the end of the program.
+  -o PATH, --output PATH
+                        Output folder, default is script's directory.
+  -p INTERVAL, --poll INTERVAL
+                        Changes interval between polls. Default is 5.
+  -f INTERVAL, --flush INTERVAL
+                        Interval between write flush. Flushes very Nth poll. Default is 40.
+  -a KEY, --api KEY     Google Data API key, can be omitted if you have it in file 'api_key' at script directory.
+```
+
+## Random ramble
+
 Accumulated view count is increased when meeting following rules - according to [source](https://www.tubics.com/blog/what-counts-as-a-view-on-youtube/).
 
 - A user intentionally initiates the watching of a video.
@@ -30,7 +54,7 @@ Mere json!
     # interval of every polling, in seconds
     "interval": 5,
     
-    # Accumulated integers below
+    # List of accumulated integers from Google Data API(youtube videos api)
     "data": {
         "concurrentViewers": [...],
         "viewCount": [...],

@@ -9,7 +9,6 @@ import pathlib
 import json
 from array import array
 from sys import argv
-from typing import Tuple
 
 from matplotlib import pyplot
 from matplotlib.font_manager import FontProperties
@@ -19,27 +18,24 @@ abs_dir = pathlib.Path(__file__).absolute().parent
 font = FontProperties(fname=abs_dir.joinpath("Font/NotoSansMonoCJKkr-Regular.otf"))
 
 
-def viewer_fluctuation_data(total_view, concurrent_view) -> Tuple[array, array]:
+def calculate_delta(source) -> array:
     """
     Calculate possible viewer gain/lose from fluctuation of total view and live-viewers.
 
-    :param total_view: Any sequence containing total views over time.
-    :param concurrent_view: Any sequence containing live viewers over time.
+    :param source: Any sequence containing data over time.
     :return: int array for each approximate gain/lose of live viewers.
     """
 
-    def view_diff_gen(source):
+    def view_diff_gen(source_):
         yield 0
 
-        iterator = zip(source, itertools.islice(source, 1, None))
+        iterator = zip(source_, itertools.islice(source_, 1, None))
 
         for previous, current in iterator:
             yield current - previous
 
-    total_diff = array("i", view_diff_gen(total_view))
-    live_diff_gen = array("i", view_diff_gen(concurrent_view))
-
-    return total_diff, live_diff_gen
+    # originally supplied data is unsigned long "L", but fluctuation won't be that huge.
+    return array("l", view_diff_gen(source))
 
 
 def plot_main(mapping):
@@ -57,9 +53,12 @@ def plot_main(mapping):
     data = mapping["data"]
     gain_total = max(data["viewCount"]) - min(data["viewCount"])
 
-    view_gain, fluctuation = viewer_fluctuation_data(data["viewCount"], data["concurrentViewers"])
+    view_gain = calculate_delta(data["viewCount"])
+    live_fluctuation = calculate_delta(data["concurrentViewers"])
+    like_cast = calculate_delta(data["likeCount"])
+    dislike_cast = calculate_delta(data["dislikeCount"])
 
-    figure, axes = pyplot.subplots(2, 1, figsize=(16, 8))
+    figure, axes = pyplot.subplots(3, 1, figsize=(16, 8))
     assert figure
 
     fig_manager = pyplot.get_current_fig_manager()
@@ -73,7 +72,6 @@ def plot_main(mapping):
     axes[0].plot(data["concurrentViewers"], color='orange', label="Live viewers")
     axes[0].plot(data["likeCount"], color='green', label="Upvote")
     axes[0].plot(data["dislikeCount"], color='red', label="Downvote")
-    axes[0].set_xlabel(f"time({interval}sec unit)")
     axes[0].legend()
 
     # determine min-max viewers
@@ -81,9 +79,18 @@ def plot_main(mapping):
     axes[0].set_yticks(tuple(n for n in range(0, max_val + 1, max_val // 10)))
 
     # Plot 2
-    axes[1].plot(view_gain, color="turquoise", label="View increment")
-    axes[1].plot(fluctuation, color="coral", label="Live delta")
+    axes[1].plot(view_gain, color="cornflowerblue", label="View increment")
+    axes[1].plot(live_fluctuation, color="coral", label="Live delta")
     axes[1].legend()
+
+    # Plot 3
+    axes[2].plot(like_cast, color="green", label="Upvote casted")
+    axes[2].plot(dislike_cast, color="red", label="Downvote casted")
+    axes[2].legend()
+
+    max_vote = max(itertools.chain(like_cast, dislike_cast))
+    axes[2].set_yticks(tuple(n for n in range(0, max_vote + 1)))
+    axes[2].set_xlabel(f"time({interval}sec unit)")
 
     pyplot.show()
 
