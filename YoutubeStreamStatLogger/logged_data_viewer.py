@@ -57,12 +57,15 @@ def plot_main(mapping):
     data = mapping["data"]
     gain_total = max(data["viewCount"]) - min(data["viewCount"])
 
-    view_gain, live_fluctuation = viewer_fluctuation_data(data["viewCount"], data["concurrentViewers"])
+    view_gain, fluctuation = viewer_fluctuation_data(data["viewCount"], data["concurrentViewers"])
 
     figure, axes = pyplot.subplots(2, 1, figsize=(16, 8))
     assert figure
 
-    pyplot.get_current_fig_manager().set_window_title(f"Gain total: {gain_total}")
+    fig_manager = pyplot.get_current_fig_manager()
+    fig_manager.set_window_title(f"Samples: {len(view_gain)} / "
+                                 f"Duration: {len(view_gain) * interval / 60:0.2f}h / "
+                                 f"Gain total: {gain_total}")
 
     # Plot 1
     axes[0].set_title(title, fontproperties=font)
@@ -79,7 +82,7 @@ def plot_main(mapping):
 
     # Plot 2
     axes[1].plot(view_gain, color="turquoise", label="View increment")
-    axes[1].plot(live_fluctuation, color="coral", label="Live delta")
+    axes[1].plot(fluctuation, color="coral", label="Live delta")
     axes[1].legend()
 
     pyplot.show()
