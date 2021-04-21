@@ -51,7 +51,7 @@ parser.add_argument(
     "--output",
     metavar="PATH",
     type=pathlib.Path,
-    default=API_FILE.parent,
+    default=API_FILE.parent.joinpath("Records"),
     help="Output folder, default is script's directory.",
 )
 parser.add_argument(
@@ -108,7 +108,7 @@ def init_logger():
     """
 
     handler = logging.StreamHandler()
-    formatter = logging.Formatter("[%(levelname)s] %(asctime)s <%(funcName)s> %(msg)s")
+    formatter = logging.Formatter("[%(levelname)s] %(asctime)s <%(funcName)s> %(message)s")
 
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -394,7 +394,7 @@ async def main():
     if args.graph:
         logger.info("Preparing graph.")
         try:
-            from logged_data_viewer import plot_main
+            from plot_data import plot_main
         except ImportError as err_:
             logger.critical("Cannot import module - %s", err_)
             return
