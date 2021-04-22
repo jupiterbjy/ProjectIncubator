@@ -5,7 +5,6 @@ This will run 24/7/365, polling periodically for upcoming streams.
 """
 
 import datetime
-import argparse
 import logging
 import pathlib
 import json
