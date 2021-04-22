@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 """
 Just a script using google Data API to fetch and accumulate live stream details.
@@ -28,24 +28,37 @@ YOUTUBE_API_VERSION = "v3"
 ROOT = pathlib.Path(__file__).parent.absolute()
 
 
-async def data_gen(request_obj) -> Generator[dict, None, None]:
+async def data_gen() -> Generator[dict, None, None]:
     """
     Polls Google Data API periodically and yields it.
 
-    :param request_obj: Data API client
-    :return: yields dict with key concurrentViewers, viewCount, likeCount, dislikeCount
+    :return: yields dict
     """
+    sub_view_request = client.channel_api.list(
+            id=client.get_channel_id(args.video_id),
+            part="statistics",
+            fields="items/statistics(subscriberCount,viewCount)",
+    )
+    combined_request = client.video_api.list(
+        id=args.video_id,
+        part=["statistics", "liveStreamingDetails"],
+        fields="items(statistics(likeCount,dislikeCount,viewCount),"
+        "liveStreamingDetails/concurrentViewers)",
+    )
+
+    def request_join():
+        dict_0 = sub_view_request.execute()["items"][0]["statistics"]
+        response = combined_request.execute()["items"][0]
+
+        for dict_ in response.values():
+            dict_0.update(dict_)
+
+        return dict_0
 
     try:
         for iteration in itertools.count(0):
 
-            response_dict = request_obj.execute()["items"][0]
-
-            statistics = response_dict["statistics"]
-            viewers = response_dict["liveStreamingDetails"]["concurrentViewers"]
-
-            new_dict = {"concurrentViewers": viewers}
-            new_dict.update(statistics)
+            new_dict = request_join()
 
             yield new_dict
 
@@ -80,6 +93,8 @@ class Router:
         self.viewCount = []
         self.likeCount = []
         self.dislikeCount = []
+        self.subscriberCount = []
+        self.viewCount = []
 
     def __len__(self):
         return len(self.concurrentViewers)
@@ -249,14 +264,6 @@ async def main():
         logger.warning("Removing empty json file %s", full_file_path.as_posix())
         raise
 
-    # Request object for data polling
-    combined_request = client.video_api.list(
-        id=args.video_id,
-        part=["statistics", "liveStreamingDetails"],
-        fields="items(statistics(likeCount,dislikeCount,viewCount),"
-        "liveStreamingDetails/concurrentViewers)",
-    )
-
     # initialize data dispatcher, and add __dict__ instance to data
     router_instance = Router()
     data["data"] = router_instance.__dict__
@@ -268,7 +275,7 @@ async def main():
 
     # We got a lot of time for appending, hope async sleep in async for works better!
     try:
-        async for fetched_dict in data_gen(combined_request):
+        async for fetched_dict in data_gen():
             router_instance.append(fetched_dict)
 
             if next(flush_interval_control):
@@ -284,25 +291,26 @@ async def main():
         write_func()
 
         if args.graph or args.save:
-            plot_data(data)
+            plot_data(data, full_file_path if args.save else None)
 
         raise
 
     write_func()
 
     if args.graph or args.save:
-        plot_data(data)
+        plot_data(data, full_file_path if args.save else None)
 
 
-def plot_data(data: dict):
+def plot_data(data: dict, file_path: Union[None, pathlib.Path]):
     """
     Separated function from main providing plot feature.
 
     :param data: accumulated data
+    :param file_path: path for PDF save, leave it None to disable it.
     """
 
     logger.info("Preparing graph.")
-    plot_main(data, args.save)
+    plot_main(data, file_path)
 
 
 if __name__ == "__main__":
@@ -317,13 +325,14 @@ if __name__ == "__main__":
         action="store_true",
         help="Enables debug logging.",
     )
-    parser.add_argument(
+    option = parser.add_mutually_exclusive_group()
+    option.add_argument(
         "-g",
         "--graph",
         action="store_true",
         help="Show plot at the end of the program.",
     )
-    parser.add_argument(
+    option.add_argument(
         "-s",
         "--save",
         action="store_true",

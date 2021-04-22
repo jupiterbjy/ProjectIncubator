@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 """
 This will run 24/7/365, polling periodically for upcoming streams.

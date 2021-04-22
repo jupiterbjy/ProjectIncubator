@@ -5,9 +5,8 @@ no file.
 """
 
 import pathlib
-import functools
 import datetime
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Callable
 
 from dateutil import parser as date_parser
 from googleapiclient.discovery import build
@@ -47,15 +46,21 @@ class Client:
         req = self.video_api.list(
             id=video_id, part="snippet", fields="items/snippet/title"
         )
-        return req.execute()["snippet"]["title"]
+        return req.execute()["items"][0]["snippet"]["title"]
 
-    def get_subscribers_count(self, channel_id) -> List[Dict[str, Any]]:
+    def get_channel_id(self, video_id) -> str:
+        req = self.video_api.list(
+            id=video_id, part="snippet", fields="items/snippet/channelId"
+        )
+        return req.execute()["items"][0]["snippet"]["channelId"]
+
+    def get_subscribers_count(self, channel_id) -> Callable:
         req = self.channel_api.list(
             id=channel_id,
             part="statistics",
-            fields="items/statistics(subscriberCount,viewCount)",
+            fields="items/statistics/subscriberCount",
         )
-        return req.execute()["items"]
+        return req.execute()["items"][0]["statistics"]["subscriberCount"]
 
     def check_upcoming(self, channel_id: str) -> Tuple[str, ...]:
         req = self.search_api.list(
