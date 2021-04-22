@@ -5,8 +5,10 @@ Just a micro repo for collecting and visualizing live stream stats.
 Requires google cloud API to work. Very vague, possibly not so useful docs are included in each file.
 
 ## Usage
+
+`log_stat.py`
 ```commandline
-usage: log_stat.py [-h] [-v] [-g] [-o PATH] [-p INTERVAL] [-f INTERVAL] [-a KEY] VIDEO_ID
+usage: log_stat.py [-h] [-v] [-g] [-s] [-o PATH] [-p INTERVAL] [-f INTERVAL] [-a KEY] VIDEO_ID
 
 Records livestream details using Google Data API.
 
@@ -17,13 +19,28 @@ optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         Enables debug logging.
   -g, --graph           Show plot at the end of the program.
+  -s, --save            Save plot as image. Will use same directory where json is saved.
   -o PATH, --output PATH
                         Output folder, default is script's directory.
   -p INTERVAL, --poll INTERVAL
                         Changes interval between polls. Default is 5.
   -f INTERVAL, --flush INTERVAL
-                        Interval between write flush. Flushes very Nth poll. Default is 40.
-  -a KEY, --api KEY     Google Data API key, can be omitted if you have it in file 'api_key' at script directory.
+                        Interval between write flush. Flushes very Nth poll. Default is 120.
+  -a KEY, --api KEY     Google Data API key, can be omitted if you store in file 'api_key' at script directory.
+```
+
+`plot_data.py`
+```commandline
+usage: plot_data.py [-h] [-s] [PATH]
+
+Opens generated .json data.
+
+positional arguments:
+  PATH        Path to .json file or folder contains it. Will use default path '__file__/Records' if omitted.
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -s, --save  Save as image, image name will be same as json file it opened.
 ```
 
 ## Random ramble

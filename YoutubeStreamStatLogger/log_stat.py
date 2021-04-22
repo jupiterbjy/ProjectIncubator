@@ -17,116 +17,15 @@ from typing import Generator, Mapping, List, Union
 
 import trio
 import jsbeautifier
-from dateutil import parser as date_parser
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from log_initalizer import init_logger
+from youtube_api_client import Client
+from plot_data import plot_main
 
 YOUTUBE_API_SERVICE = "youtube"
 YOUTUBE_API_VERSION = "v3"
-API_FILE = pathlib.Path(__file__).parent.joinpath("api_key").absolute()
-
-logger = logging.getLogger("MAIN")
-
-
-# parsing start =================================
-
-parser = argparse.ArgumentParser(
-    description="Records livestream details using Google Data API."
-)
-parser.add_argument(
-    "-v",
-    "--verbose",
-    action="store_true",
-    help="Enables debug logging.",
-)
-parser.add_argument(
-    "-g",
-    "--graph",
-    action="store_true",
-    help="Show plot at the end of the program.",
-)
-parser.add_argument(
-    "-o",
-    "--output",
-    metavar="PATH",
-    type=pathlib.Path,
-    default=API_FILE.parent.joinpath("Records"),
-    help="Output folder, default is script's directory.",
-)
-parser.add_argument(
-    "-p",
-    "--poll",
-    metavar="INTERVAL",
-    type=int,
-    default=5,
-    help="Changes interval between polls. Default is 5.",
-)
-parser.add_argument(
-    "-f",
-    "--flush",
-    metavar="INTERVAL",
-    type=int,
-    default=40,
-    help="Interval between write flush. Flushes very Nth poll. Default is 40.",
-)
-parser.add_argument(
-    "-a",
-    "--api",
-    metavar="KEY",
-    type=str,
-    default=None,
-    help="Google Data API key, can be omitted if you store in file 'api_key' at script directory.",
-)
-parser.add_argument(
-    "video_id", metavar="VIDEO_ID", type=str, help="ID of live youtube stream."
-)
-
-
-args = parser.parse_args()
-
-# Validate
-if args.api is None:
-    try:
-        with open(API_FILE) as _fp:
-            args.api = _fp.read()
-
-    except FileNotFoundError as err:
-        parser.print_help()
-
-        raise RuntimeError(
-            "[-a KEY, --api-key KEY] was omitted without providing api file."
-        ) from err
-
-
-# parsing end ===================================
-
-
-def init_logger():
-    """
-    Initialize logger.
-    """
-
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter("[%(levelname)s] %(asctime)s <%(funcName)s> %(message)s")
-
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-    level = logging.DEBUG if args.verbose else logging.DEBUG
-    handler.setLevel(level)
-    logger.setLevel(level)
-
-
-def build_video_resource():
-    """
-    Convenience function for building youtube api client.
-    """
-
-    youtube = build(YOUTUBE_API_SERVICE, YOUTUBE_API_VERSION, developerKey=args.api)
-    video_instance = youtube.videos()
-
-    return video_instance
+ROOT = pathlib.Path(__file__).parent.absolute()
 
 
 async def data_gen(request_obj) -> Generator[dict, None, None]:
@@ -150,15 +49,20 @@ async def data_gen(request_obj) -> Generator[dict, None, None]:
 
             yield new_dict
 
-            log_string = "Viewers(Cur/Tot):{concurrentViewers}/{viewCount}" \
-                         " Likes:{likeCount}/{dislikeCount}".format(**new_dict)
+            log_string = (
+                "Viewers(Cur/Tot):{concurrentViewers}/{viewCount}"
+                " Likes:{likeCount}/{dislikeCount}".format(**new_dict)
+            )
             logger.debug("[%s] %s", iteration, log_string)
 
             await trio.sleep(args.poll)
 
-    except (KeyError, HttpError):
-        logger.warning("Stream ID %s closed.", args.video_id)
+    except KeyError:
+        logger.info("Stream ID %s closed.", args.video_id)
         return
+
+    except HttpError as err:
+        logger.warning("HttpError: %s", err.error_details)
 
     except KeyboardInterrupt:
         logger.warning("Got ctrl+c")
@@ -170,6 +74,7 @@ class Router:
     Just a storage only to provide __dict__
     as this use key of given dict as self.__dict__'s key, pep8 violation is inevitable.
     """
+
     def __init__(self):
         self.concurrentViewers = []
         self.viewCount = []
@@ -218,7 +123,7 @@ def write_json_closure(file_path: Union[str, pathlib.Path], data: Mapping):
     except OSError:
         logger.critical(
             "Could not touch the file at %s! Is filename supported by os?",
-            file_path.as_posix()
+            file_path.as_posix(),
         )
         raise
 
@@ -230,7 +135,7 @@ def write_json_closure(file_path: Union[str, pathlib.Path], data: Mapping):
                 jsbeautifier.beautify(json.dumps(data, ensure_ascii=False), option)
             )
 
-        logger.info("Written %s sample(s).", len(data['data']['dislikeCount']))
+        logger.info("Written %s sample(s).", len(data["data"]["dislikeCount"]))
 
     return write
 
@@ -253,48 +158,30 @@ def fetch_api(request) -> dict:
     return new_dict
 
 
-async def wait_for_stream(api_client):
+async def wait_for_stream():
     """
     Literally does what it's named for.
-
-    :param api_client: google api request object
     """
 
-    # check if actually there is active/upcoming stream
-    stream_started_check = api_client.list(
-        id=args.video_id, part="snippet", fields="items/snippet/liveBroadcastContent"
-    )
-
-    def status_fetch():
-        return fetch_api(stream_started_check)["snippet"]["liveBroadcastContent"]
+    # check if actually it is active/upcoming stream
 
     # Dispatch cases
-    status = status_fetch()
+    status = client.stream_status(args.video_id)
 
     if status == "live":
         logger.debug(
-            "liveBroadcastContent returned `%s`, stream already active.",
-            status
+            "liveBroadcastContent returned `%s`, stream already active.", status
         )
         return
 
     if status == "none":
         logger.critical(
-            "liveBroadcastContent returned `%s`, is this a livestream?",
-            status
+            "liveBroadcastContent returned `%s`, is this a livestream?", status
         )
         raise RuntimeError("No upcoming/active stream.")
 
     # upcoming state, fetch scheduled start time
-    start_time_request = api_client.list(
-        id=args.video_id,
-        part="liveStreamingDetails",
-        fields="items/liveStreamingDetails/scheduledStartTime",
-    )
-    start_time_string = fetch_api(start_time_request)["liveStreamingDetails"][
-        "scheduledStartTime"
-    ]
-    start_time = date_parser.isoparse(start_time_string)
+    start_time = client.get_start_time(args.video_id)
 
     # get timedelta
     current = datetime.datetime.now(datetime.timezone.utc)
@@ -305,20 +192,19 @@ async def wait_for_stream(api_client):
         delta = (start_time - current).seconds
         logger.info(
             "Will wait for %s seconds until stream starts. Press Ctrl+C to terminate.",
-            delta
+            delta,
         )
 
         # Sleep until due time
         await trio.sleep((current - start_time).seconds)
 
     # Check if stream is actually started
-    while status := status_fetch():
+    while status := client.stream_status(args.video_id):
         logger.debug("Status check: %s", status)
 
         if status == "none":
             logger.critical(
-                "liveBroadcastContent returned `%s`, is stream canceled?",
-                status
+                "liveBroadcastContent returned `%s`, is stream canceled?", status
             )
             raise RuntimeError("No upcoming/active stream.")
 
@@ -333,28 +219,30 @@ async def main():
     Main coroutine
     """
 
-    video = build_video_resource()
-
     # validate api key and video ID
     try:
-        video_title = fetch_api(
-            video.list(id=args.video_id, part="snippet", fields="items/snippet/title")
-        )["snippet"]["title"]
-    except HttpError:
-        logger.critical("Request failed, check if API or video ID is correct.")
+        video_title = client.get_video_title(args.video_id)
+
+    except (HttpError, KeyError):
+        logger.critical(
+            "Request failed, check if API or video ID is valid, "
+            "or if Data API Quota limit is reached. Check traceback for more detail."
+        )
         raise
 
     # pre-bake file writer function. Will validate output path in process
     data = {"stream_title": video_title, "interval": args.poll}
     start_t = datetime.datetime.now()
-    file_name = f"{start_t.date().isoformat()}_{args.video_id}_{int(start_t.timestamp())}.json"
+    file_name = (
+        f"{start_t.date().isoformat()}_{args.video_id}_{int(start_t.timestamp())}.json"
+    )
     full_file_path: pathlib.Path = args.output.joinpath(pathlib.Path(file_name))
 
     write_func = write_json_closure(full_file_path, data)
 
     # Wait for stream to start
     try:
-        await wait_for_stream(video)
+        await wait_for_stream()
     except (Exception, KeyboardInterrupt):
         # Make sure to delete file
         full_file_path.unlink()
@@ -362,11 +250,11 @@ async def main():
         raise
 
     # Request object for data polling
-    combined_request = video.list(
+    combined_request = client.video_api.list(
         id=args.video_id,
         part=["statistics", "liveStreamingDetails"],
         fields="items(statistics(likeCount,dislikeCount,viewCount),"
-               "liveStreamingDetails/concurrentViewers)",
+        "liveStreamingDetails/concurrentViewers)",
     )
 
     # initialize data dispatcher, and add __dict__ instance to data
@@ -386,22 +274,104 @@ async def main():
             if next(flush_interval_control):
                 logger.info("Saving, do not interrupt.")
                 write_func()
+
     except KeyboardInterrupt:
         logger.warning("Got ctrl+c")
 
+    except Exception:
+        logger.critical("Got unexpected exception. Saving file.")
+
+        write_func()
+
+        if args.graph or args.save:
+            plot_data(data)
+
+        raise
+
     write_func()
 
-    if args.graph:
-        logger.info("Preparing graph.")
-        try:
-            from plot_data import plot_main
-        except ImportError as err_:
-            logger.critical("Cannot import module - %s", err_)
-            return
+    if args.graph or args.save:
+        plot_data(data)
 
-        plot_main(data)
+
+def plot_data(data: dict):
+    """
+    Separated function from main providing plot feature.
+
+    :param data: accumulated data
+    """
+
+    logger.info("Preparing graph.")
+    plot_main(data, args.save)
 
 
 if __name__ == "__main__":
-    init_logger()
+    # parsing start =================================
+
+    parser = argparse.ArgumentParser(
+        description="Records livestream details using Google Data API."
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enables debug logging.",
+    )
+    parser.add_argument(
+        "-g",
+        "--graph",
+        action="store_true",
+        help="Show plot at the end of the program.",
+    )
+    parser.add_argument(
+        "-s",
+        "--save",
+        action="store_true",
+        help="Save plot as image. Will use same directory where json is saved.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        metavar="PATH",
+        type=pathlib.Path,
+        default=ROOT.joinpath("Records"),
+        help="Output folder, default is script's directory.",
+    )
+    parser.add_argument(
+        "-p",
+        "--poll",
+        metavar="INTERVAL",
+        type=int,
+        default=5,
+        help="Changes interval between polls. Default is 5.",
+    )
+    parser.add_argument(
+        "-f",
+        "--flush",
+        metavar="INTERVAL",
+        type=int,
+        default=120,
+        help="Interval between write flush. Flushes very Nth poll. Default is 120.",
+    )
+    parser.add_argument(
+        "-a",
+        "--api",
+        metavar="KEY",
+        type=str,
+        default=None,
+        help="Google Data API key, can be omitted if you "
+             "store in file 'api_key' at script directory.",
+    )
+    parser.add_argument(
+        "video_id", metavar="VIDEO_ID", type=str, help="ID of live youtube stream."
+    )
+
+    args = parser.parse_args()
+
+    logger = logging.getLogger(f"log_stat/{args.video_id}")
+
+    # parsing end ===================================
+
+    client = Client(args.api)
+    init_logger(logger, args.verbose)
     trio.run(main)

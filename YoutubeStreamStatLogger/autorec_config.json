@@ -1,0 +1,11 @@
+{
+  "channels": {
+    "Akatsuki Yume": "UCwKirAYzzWUQRTC-aAB-aRQ",
+    "Cyan Nyan": "UC9wbdkwvYVSgKtOZ3Oov98g",
+    "Kujo Mashiro": "UCrD1uEL4nbp3LkPfowpCydA",
+    "Hoshino Charlotte": "UCdCczCYPOeP5hTfbx6tzz_A"
+  },
+  "check_interval_hour": 4,
+  "save_dir": "",
+  "log_stat_param": "-v -s"
+}
