@@ -28,7 +28,7 @@ YOUTUBE_API_VERSION = "v3"
 ROOT = pathlib.Path(__file__).parent.absolute()
 
 
-async def data_gen() -> Generator[dict, None, None]:
+async def data_gen(record_sub=False) -> Generator[dict, None, None]:
     """
     Polls Google Data API periodically and yields it.
 
@@ -46,14 +46,23 @@ async def data_gen() -> Generator[dict, None, None]:
         "liveStreamingDetails/concurrentViewers)",
     )
 
-    def request_join():
-        dict_0 = sub_view_request.execute()["items"][0]["statistics"]
-        response = combined_request.execute()["items"][0]
+    if record_sub:
+        def request_join():
+            dict_0 = sub_view_request.execute()["items"][0]["statistics"]
+            response = combined_request.execute()["items"][0]
 
-        for dict_ in response.values():
-            dict_0.update(dict_)
+            for dict_ in response.values():
+                dict_0.update(dict_)
 
-        return dict_0
+            return dict_0
+    else:
+        def request_join():
+            response = combined_request.execute()["items"][0]
+            dict_0 = {}
+            for dict_ in response.values():
+                dict_0.update(dict_)
+
+            return dict_0
 
     try:
         for iteration in itertools.count(0):

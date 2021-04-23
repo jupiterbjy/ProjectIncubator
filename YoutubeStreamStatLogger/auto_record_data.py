@@ -22,7 +22,7 @@ LOG_STAT_PATH = ROOT.joinpath("log_stat.py")
 LOG_PATH = ROOT.joinpath("Logs")
 logger = logging.getLogger("AutoRecord")
 
-
+LOG_PATH.mkdir(parents=True, exist_ok=True)
 client = Client()
 
 
