@@ -14,7 +14,8 @@ from typing import List, Tuple
 import trio
 
 from log_initalizer import init_logger
-from youtube_api_client import Client
+from youtube_api_client import Client, HttpError
+
 
 ROOT = pathlib.Path(__file__).parent.absolute()
 CONFIG_PATH = ROOT.joinpath("autorec_config.json")
@@ -64,8 +65,15 @@ class Manager:
         video_upcoming = []
 
         for channel, channel_id in self.channel_list.items():
-            upcoming = client.check_upcoming(channel_id)
-            live = client.check_live(channel_id)
+            try:
+                upcoming = client.check_upcoming(channel_id)
+                live = client.check_live(channel_id)
+            except HttpError as err:
+                if err.error_details == "quotaExceeded":
+                    logger.critical("Data API quota exceeded, cannot use the API.")
+                else:
+                    logger.critical("Unknown HttpError received, error detail: %s", err.error_details)
+                raise
 
             logger.debug("Checking channel %s %s", channel, channel_id)
 

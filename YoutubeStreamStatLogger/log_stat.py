@@ -17,10 +17,9 @@ from typing import Generator, Mapping, List, Union
 
 import trio
 import jsbeautifier
-from googleapiclient.errors import HttpError
 
 from log_initalizer import init_logger
-from youtube_api_client import Client
+from youtube_api_client import Client, HttpError
 from plot_data import plot_main
 
 YOUTUBE_API_SERVICE = "youtube"

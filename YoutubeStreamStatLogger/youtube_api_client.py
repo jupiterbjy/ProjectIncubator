@@ -6,12 +6,14 @@ no file.
 
 import pathlib
 import datetime
-from typing import List, Dict, Any, Tuple, Callable
+from typing import Tuple, Callable
 
 from dateutil import parser as date_parser
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 
+assert HttpError
 YOUTUBE_API_SERVICE = "youtube"
 YOUTUBE_API_VERSION = "v3"
 API_FILE = pathlib.Path(__file__).parent.joinpath("api_key").absolute()
