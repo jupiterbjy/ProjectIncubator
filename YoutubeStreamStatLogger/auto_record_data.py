@@ -5,6 +5,7 @@ This will run 24/7/365, polling periodically for upcoming streams.
 """
 
 import datetime
+import argparse
 import logging
 import pathlib
 import json
@@ -24,7 +25,6 @@ LOG_PATH = ROOT.joinpath("Logs")
 logger = logging.getLogger("AutoRecord")
 
 LOG_PATH.mkdir(parents=True, exist_ok=True)
-client = Client()
 
 
 def load_json(path):
@@ -33,7 +33,9 @@ def load_json(path):
 
 
 class Manager:
-    def __init__(self, config_path):
+    def __init__(self, config_path, client_: Client):
+        self.client = client_
+
         self.config_path = config_path
         self.loaded = dict()
 
@@ -44,7 +46,7 @@ class Manager:
         # will contain Tuple[abc. channel name / channel id / video id]
         self.video_in_task = set()
 
-        self.last_check = datetime.datetime.now()
+        self.last_check = datetime.datetime.now(datetime.timezone.utc)
         self.load_config()
 
     @property
@@ -66,8 +68,8 @@ class Manager:
 
         for channel, channel_id in self.channel_list.items():
             try:
-                upcoming = client.check_upcoming(channel_id)
-                live = client.check_live(channel_id)
+                upcoming = self.client.check_upcoming(channel_id)
+                live = self.client.check_live(channel_id)
             except HttpError as err:
                 if err.error_details == "quotaExceeded":
                     logger.critical("Data API quota exceeded, cannot use the API.")
@@ -93,7 +95,7 @@ class Manager:
 
         # check how much time we have for upcoming videos
         for channel, video_id in video_upcoming:
-            stream_start = client.get_start_time(video_id)
+            stream_start = self.client.get_start_time(video_id)
 
             # if it's due before next checkup, just consider it as live.
             if stream_start < self.get_next_checkup:
@@ -106,19 +108,18 @@ class Manager:
     def task_gen(self):
         def closure(ch_name, vid_id):
             path = LOG_STAT_PATH.parent.joinpath(ch_name)
+            path.mkdir(parents=True, exist_ok=True)
 
             async def task():
                 # add video id to running tasks list
                 self.video_in_task.add(vid_id)
-                path.mkdir(parents=True, exist_ok=True)
                 arg = f'python "{LOG_STAT_PATH.as_posix()}" -o "{path}" {self.loaded["log_stat_param"]} {vid_id}'
-                print(arg)
                 try:
                     await trio.run_process(arg)
                 except subprocess.CalledProcessError:
                     logger.critical(f"Subprocess %s failed.", vid_id)
-
-                self.video_in_task.remove(vid_id)
+                finally:
+                    self.video_in_task.remove(vid_id)
 
             return task
 
@@ -127,7 +128,7 @@ class Manager:
 
 
 async def main():
-    manager = Manager(CONFIG_PATH)
+    manager = Manager(CONFIG_PATH, client)
 
     async def main_loop_gen():
 
@@ -138,7 +139,7 @@ async def main():
         sleep_time = manager.get_next_checkup
         manager.last_check = sleep_time
         logger.info("Sleeping until next check at %s", sleep_time)
-        await trio.sleep((sleep_time - datetime.datetime.now()).seconds)
+        await trio.sleep((sleep_time - datetime.datetime.now(datetime.timezone.utc)).seconds)
 
         # reload config
         logger.debug("Reloading config")
@@ -154,6 +155,12 @@ async def main():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-a", "--api", metavar="KEY", type=str, default=None)
+
+    args = parser.parse_args()
+    client = Client(args.api)
+
     start_time = datetime.datetime.now()
     init_logger(logger, True, LOG_PATH.joinpath(f"{start_time.date().isoformat()}"))
     trio.run(main)
