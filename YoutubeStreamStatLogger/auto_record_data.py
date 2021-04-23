@@ -57,13 +57,17 @@ class Manager:
     def load_config(self):
         self.loaded = load_json(self.config_path)
 
+        self.channel_list = self.loaded["channels"]
+
     def fetch_live(self) -> List[Tuple[str, str]]:
         video_live = []
         video_upcoming = []
 
-        for channel, channel_id in self.channel_list:
+        for channel, channel_id in self.channel_list.items():
             upcoming = client.check_upcoming(channel_id)
             live = client.check_live(channel_id)
+
+            logger.debug("Checking channel %s %s", channel, channel_id)
 
             if live:
                 # Will there be two stream concurrently for a channel, unless it's association like NASA?
@@ -87,19 +91,20 @@ class Manager:
             if stream_start < self.get_next_checkup:
                 video_live.append((channel, video_id))
 
-        logger.info("Found %s upcoming stream(s), %s live/imminent stream(s)", video_upcoming, video_live)
+        logger.info("Found %s upcoming stream(s), %s live/imminent stream(s)", len(video_upcoming), len(video_live))
 
         return video_live
 
     def task_gen(self):
         def closure(ch_name, vid_id):
-            path = LOG_STAT_PATH.joinpath(ch_name)
+            path = LOG_STAT_PATH.parent.joinpath(ch_name)
 
             async def task():
                 # add video id to running tasks list
                 self.video_in_task.add(vid_id)
-
-                arg = f"{LOG_STAT_PATH.as_posix()} -o {path.as_posix()} {self.loaded['log_stat_param']} {vid_id}"
+                path.mkdir(parents=True, exist_ok=True)
+                arg = f'python "{LOG_STAT_PATH.as_posix()}" -o "{path}" {self.loaded["log_stat_param"]} {vid_id}'
+                print(arg)
                 try:
                     await trio.run_process(arg)
                 except subprocess.CalledProcessError:
@@ -109,7 +114,7 @@ class Manager:
 
             return task
 
-        for channel, video_id in self.fetch_live():
+        for (channel, video_id) in self.fetch_live():
             yield channel, video_id, closure(channel, video_id)
 
 
@@ -117,8 +122,6 @@ async def main():
     manager = Manager(CONFIG_PATH)
 
     async def main_loop_gen():
-
-        manager.fetch_live()
 
         if tasks_ := tuple(manager.task_gen()):
             yield tasks_

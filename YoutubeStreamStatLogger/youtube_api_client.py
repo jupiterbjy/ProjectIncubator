@@ -64,14 +64,14 @@ class Client:
 
     def check_upcoming(self, channel_id: str) -> Tuple[str, ...]:
         req = self.search_api.list(
-            channel_id=channel_id, part="snippet", type="video", eventType="upcoming"
+            channelId=channel_id, part="snippet", type="video", eventType="upcoming"
         )
         items = req.execute()["items"]
         return tuple(item["id"]["videoId"] for item in items)
 
     def check_live(self, channel_id: str) -> Tuple[str, ...]:
         req = self.search_api.list(
-            channel_id=channel_id, part="snippet", type="video", eventType="live"
+            channelId=channel_id, part="snippet", type="video", eventType="live"
         )
         items = req.execute()["items"]
         return tuple(item["id"]["videoId"] for item in items)

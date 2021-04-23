@@ -58,10 +58,18 @@ def plot_main(mapping, save_as_img: Union[None, pathlib.Path] = None):
     data = mapping["data"]
     gain_total = max(data["viewCount"]) - min(data["viewCount"])
 
+    # Calculate delta. Fluctuation? Delta? whatever it fits.
     view_gain = calculate_delta(data["viewCount"])
     live_fluctuation = calculate_delta(data["concurrentViewers"])
+
     like_cast = calculate_delta(data["likeCount"])
     dislike_cast = calculate_delta(data["dislikeCount"])
+
+    # some old data don't have this.
+    try:
+        sub_change = calculate_delta(data["subscriberCount"])
+    except KeyError:
+        sub_change = None
 
     figure, axes = pyplot.subplots(3, 1, figsize=(16, 8))
 
@@ -89,9 +97,12 @@ def plot_main(mapping, save_as_img: Union[None, pathlib.Path] = None):
     axes[1].plot(live_fluctuation, color="coral", label="Live view fluctuation")
     axes[1].legend()
 
-    # Plot 3
+    # Plot 3 - up/downvote, subscriber plot
     axes[2].plot(like_cast, color="green", label="Upvote casted")
     axes[2].plot(dislike_cast, color="red", label="Downvote casted")
+    if sub_change:
+        axes[2].plot(sub_change, color="cyan", label="Sub. fluctuation")
+
     axes[2].legend()
 
     axes[2].set_xlabel(f"time({interval}sec unit)")

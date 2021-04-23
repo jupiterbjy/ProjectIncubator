@@ -37,7 +37,7 @@ async def data_gen() -> Generator[dict, None, None]:
     sub_view_request = client.channel_api.list(
             id=client.get_channel_id(args.video_id),
             part="statistics",
-            fields="items/statistics(subscriberCount,viewCount)",
+            fields="items/statistics(subscriberCount)",
     )
     combined_request = client.video_api.list(
         id=args.video_id,
@@ -94,7 +94,6 @@ class Router:
         self.likeCount = []
         self.dislikeCount = []
         self.subscriberCount = []
-        self.viewCount = []
 
     def __len__(self):
         return len(self.concurrentViewers)
@@ -129,11 +128,12 @@ def write_json_closure(file_path: Union[str, pathlib.Path], data: Mapping):
     :return: function write(), no additional param needed
     """
 
-    option = jsbeautifier.default_options()
-    option.indent_size = 2
+    option_ = jsbeautifier.default_options()
+    option_.indent_size = 2
 
     # validate path
     try:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.touch()
     except OSError:
         logger.critical(
@@ -147,7 +147,7 @@ def write_json_closure(file_path: Union[str, pathlib.Path], data: Mapping):
     def write():
         with open(file_path, "w", encoding="utf8") as fp:
             fp.write(
-                jsbeautifier.beautify(json.dumps(data, ensure_ascii=False), option)
+                jsbeautifier.beautify(json.dumps(data, ensure_ascii=False), option_)
             )
 
         logger.info("Written %s sample(s).", len(data["data"]["dislikeCount"]))
