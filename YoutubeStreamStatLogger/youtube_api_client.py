@@ -69,14 +69,16 @@ class Client:
             channelId=channel_id, part="snippet", type="video", eventType="upcoming"
         )
         items = req.execute()["items"]
-        return tuple(item["id"]["videoId"] for item in items)
+        vid_ids = (item["id"]["videoId"] for item in items)
+        return tuple(vid_id for vid_id in vid_ids if self.stream_status(vid_id) != "none")
 
     def check_live(self, channel_id: str) -> Tuple[str, ...]:
         req = self.search_api.list(
             channelId=channel_id, part="snippet", type="video", eventType="live"
         )
         items = req.execute()["items"]
-        return tuple(item["id"]["videoId"] for item in items)
+        vid_ids = (item["id"]["videoId"] for item in items)
+        return tuple(vid_id for vid_id in vid_ids if self.stream_status(vid_id) != "none")
 
     def get_start_time(self, video_id) -> datetime.datetime:
         req = self.video_api.list(

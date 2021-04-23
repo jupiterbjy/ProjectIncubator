@@ -113,9 +113,9 @@ class Manager:
             async def task():
                 # add video id to running tasks list
                 self.video_in_task.add(vid_id)
-                arg = f'python "{LOG_STAT_PATH.as_posix()}" -o "{path}" {self.loaded["log_stat_param"]} {vid_id}'
+                arg = f'"{LOG_STAT_PATH.as_posix()}" -o "{path}" {self.loaded["log_stat_param"]} {vid_id}'
                 try:
-                    await trio.run_process(arg)
+                    await trio.run_process(arg, shell=True)
                 except subprocess.CalledProcessError:
                     logger.critical(f"Subprocess %s failed.", vid_id)
                 finally:
