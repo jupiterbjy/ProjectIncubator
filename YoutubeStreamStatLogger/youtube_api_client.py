@@ -84,7 +84,7 @@ class Client:
             part="liveStreamingDetails",
             fields="items/liveStreamingDetails/scheduledStartTime",
         )
-        time_string = req.excute()["items"][0]["liveStreamingDetails"][
+        time_string = req.execute()["items"][0]["liveStreamingDetails"][
             "scheduledStartTime"
         ]
 
