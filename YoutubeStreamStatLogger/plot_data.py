@@ -18,8 +18,8 @@ from matplotlib.ticker import MaxNLocator
 
 ABS_DIR = pathlib.Path(__file__).absolute().parent
 
-prop = FontProperties(fname=ABS_DIR.joinpath("Font/NotoSansCJKkr-Regular.otf").as_posix())
-pyplot.rcParams["font.family"] = "Noto Sans CJK KR"
+prop = FontProperties(fname=ABS_DIR.joinpath("Font/NotoSansCJKkr-Regular.ttf").as_posix())
+# pyplot.rcParams["font.family"] = "Noto Sans CJK KR"
 
 
 def calculate_delta(source) -> array:
@@ -81,7 +81,7 @@ def plot_main(mapping, save_as_img: Union[None, pathlib.Path] = None):
     )
 
     # Plot 1
-    axes[0].set_title(title)
+    axes[0].set_title(title, fontproperties=prop)
     axes[0].plot(data["viewCount"], color="cornflowerblue", label="Total views")
     axes[0].plot(data["concurrentViewers"], color="orange", label="Live viewers")
     axes[0].plot(data["likeCount"], color="green", label="Upvote")

@@ -192,7 +192,7 @@ async def wait_for_stream():
     status = client.stream_status(args.video_id)
 
     if status == "live":
-        logger.debug(
+        logger.info(
             "liveBroadcastContent returned `%s`, stream already active.", status
         )
         return
@@ -219,7 +219,7 @@ async def wait_for_stream():
         )
 
         # Sleep until due time
-        await trio.sleep((current - start_time).seconds)
+        await trio.sleep(delta)
 
     # Check if stream is actually started
     while status := client.stream_status(args.video_id):

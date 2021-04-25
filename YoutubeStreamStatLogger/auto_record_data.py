@@ -10,7 +10,7 @@ import logging
 import pathlib
 import json
 import subprocess
-from typing import List, Tuple
+from typing import Dict
 
 import trio
 
@@ -62,9 +62,9 @@ class Manager:
 
         self.channel_list = self.loaded["channels"]
 
-    def fetch_live(self) -> List[Tuple[str, str]]:
-        video_live = []
-        video_upcoming = []
+    def fetch_live(self) -> Dict[str, str]:
+        video_live = {}
+        video_upcoming = {}
 
         for channel, channel_id in self.channel_list.items():
             try:
@@ -85,21 +85,21 @@ class Manager:
                     # seems like it's better this way rather than gen-exp. Even shorter.
                     # No need to include videos which is already assigned.
                     if vid_id not in self.video_in_task:
-                        video_live.append((channel, vid_id))
+                        video_live[vid_id] = channel
 
             if upcoming:
                 # you know, this ain't as rare as double live.
                 for vid_id in upcoming:
                     if vid_id not in self.video_in_task:
-                        video_upcoming.append((channel, vid_id))
+                        video_upcoming[vid_id] = channel
 
         # check how much time we have for upcoming videos
-        for channel, video_id in video_upcoming:
+        for video_id, channel in video_upcoming.items():
             stream_start = self.client.get_start_time(video_id)
 
             # if it's due before next checkup, just consider it as live.
             if stream_start < self.get_next_checkup:
-                video_live.append((channel, video_id))
+                video_live[video_id] = channel
 
         logger.info("Found %s upcoming stream(s), %s live/imminent stream(s)", len(video_upcoming), len(video_live))
 
@@ -115,15 +115,18 @@ class Manager:
                 self.video_in_task.add(vid_id)
                 arg = f'"{LOG_STAT_PATH.as_posix()}" -o "{path}" {self.loaded["log_stat_param"]} {vid_id}'
                 try:
-                    await trio.run_process(arg, shell=True)
-                except subprocess.CalledProcessError:
-                    logger.critical(f"Subprocess %s failed.", vid_id)
+                    result = await trio.run_process(arg, shell=True)
+                except subprocess.CalledProcessError as err:
+                    logger.critical("Subprocess %s failed. Detail: %", vid_id, err.stdout)
+                else:
+                    logger.debug("Subprocess %s detail: \n", vid_id, result.stdout)
                 finally:
                     self.video_in_task.remove(vid_id)
+                    logger.info("Task %s returned.", vid_id)
 
             return task
 
-        for (channel, video_id) in self.fetch_live():
+        for video_id, channel in self.fetch_live().items():
             yield channel, video_id, closure(channel, video_id)
 
 
@@ -131,19 +134,19 @@ async def main():
     manager = Manager(CONFIG_PATH, client)
 
     async def main_loop_gen():
+        while True:
+            if tasks_ := tuple(manager.task_gen()):
+                yield tasks_
 
-        if tasks_ := tuple(manager.task_gen()):
-            yield tasks_
+            # sleep. goodnight my kid.. kids? kid? who cares.
+            sleep_time = manager.get_next_checkup
+            manager.last_check = sleep_time
+            logger.info("Sleeping until next check at %s", sleep_time)
+            await trio.sleep((sleep_time - datetime.datetime.now(datetime.timezone.utc)).seconds)
 
-        # sleep. goodnight my kid.. kids? kid? who cares.
-        sleep_time = manager.get_next_checkup
-        manager.last_check = sleep_time
-        logger.info("Sleeping until next check at %s", sleep_time)
-        await trio.sleep((sleep_time - datetime.datetime.now(datetime.timezone.utc)).seconds)
-
-        # reload config
-        logger.debug("Reloading config")
-        manager.load_config()
+            # reload config
+            logger.debug("Reloading config")
+            manager.load_config()
 
     async with trio.open_nursery() as nursery:
         async for tasks in main_loop_gen():
@@ -162,5 +165,5 @@ if __name__ == '__main__':
     client = Client(args.api)
 
     start_time = datetime.datetime.now()
-    init_logger(logger, True, LOG_PATH.joinpath(f"{start_time.date().isoformat()}"))
+    init_logger(logger, True, LOG_PATH.joinpath(f"{start_time.date().isoformat()}.log"))
     trio.run(main)

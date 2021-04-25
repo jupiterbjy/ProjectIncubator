@@ -5,5 +5,5 @@
   },
   "check_interval_hour": 4,
   "save_dir": "",
-  "log_stat_param": "-v -p 15 -s"
+  "log_stat_param": "-p 15 -s"
 }

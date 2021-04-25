@@ -5,7 +5,7 @@ def init_logger(logger, debug, file_output=""):
     """
     Initialize logger.
     """
-    level = logging.DEBUG if debug else logging.DEBUG
+    level = logging.DEBUG if debug else logging.INFO
 
     formatter = logging.Formatter("[%(name)s][%(levelname)s] %(asctime)s <%(funcName)s> %(message)s")
 
