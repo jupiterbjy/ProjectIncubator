@@ -19,4 +19,3 @@ def init_logger(logger, debug, file_output=""):
         handler.setFormatter(formatter)
         handler.setLevel(level)
         logger.addHandler(handler)
-

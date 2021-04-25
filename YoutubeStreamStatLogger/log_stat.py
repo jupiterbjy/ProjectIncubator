@@ -189,7 +189,7 @@ async def wait_for_stream():
     # check if actually it is active/upcoming stream
 
     # Dispatch cases
-    status = client.stream_status(args.video_id)
+    status = client.get_stream_status(args.video_id)
 
     if status == "live":
         logger.info(
@@ -222,7 +222,7 @@ async def wait_for_stream():
         await trio.sleep(delta)
 
     # Check if stream is actually started
-    while status := client.stream_status(args.video_id):
+    while status := client.get_stream_status(args.video_id):
         logger.debug("Status check: %s", status)
 
         if status == "none":

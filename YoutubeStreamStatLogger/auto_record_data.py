@@ -2,6 +2,10 @@
 
 """
 This will run 24/7/365, polling periodically for upcoming streams.
+
+Logging to file is turned off by default, as Piping it to file seemed better.
+"program [arguments] 2>&1 | tee output.file" would redirect stdout/stderr to
+both console and file. This way you can also collect child tasks' logs.
 """
 
 import datetime
@@ -68,8 +72,8 @@ class Manager:
 
         for channel, channel_id in self.channel_list.items():
             try:
-                upcoming = self.client.check_upcoming(channel_id)
-                live = self.client.check_live(channel_id)
+                upcoming = self.client.get_upcoming_streams(channel_id)
+                live = self.client.get_live_streams(channel_id)
             except HttpError as err:
                 if err.error_details == "quotaExceeded":
                     logger.critical("Data API quota exceeded, cannot use the API.")
@@ -114,12 +118,13 @@ class Manager:
                 # add video id to running tasks list
                 self.video_in_task.add(vid_id)
                 arg = f'"{LOG_STAT_PATH.as_posix()}" -o "{path}" {self.loaded["log_stat_param"]} {vid_id}'
+                if args.api:
+                    arg += f" -a {args.api}"
+
                 try:
-                    result = await trio.run_process(arg, shell=True)
+                    await trio.run_process(arg, shell=True)
                 except subprocess.CalledProcessError as err:
-                    logger.critical("Subprocess %s failed. Detail: %", vid_id, err.stdout)
-                else:
-                    logger.debug("Subprocess %s detail: \n", vid_id, result.stdout)
+                    logger.critical("Subprocess %s failed. return code: %s", vid_id, err.returncode)
                 finally:
                     self.video_in_task.remove(vid_id)
                     logger.info("Task %s returned.", vid_id)
@@ -160,10 +165,14 @@ async def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--api", metavar="KEY", type=str, default=None)
+    parser.add_argument("-o", "--output-log", action="store_true")
 
     args = parser.parse_args()
     client = Client(args.api)
 
     start_time = datetime.datetime.now()
-    init_logger(logger, True, LOG_PATH.joinpath(f"{start_time.date().isoformat()}.log"))
+
+    log_path = LOG_PATH.joinpath(f"{start_time.date().isoformat()}.log") if args.output_log else None
+
+    init_logger(logger, True, log_path)
     trio.run(main)

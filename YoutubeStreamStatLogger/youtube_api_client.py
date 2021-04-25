@@ -1,7 +1,7 @@
 """
 Setting this up everytime in interpreter ain't fun. So just import this in interpreter.
-Will look for google api from file named `api_key` on cwd, will ask for api if there's
-no file.
+Will look for google api from file named `api_key` on cwd.
+You can manually specify it when building resource file.
 """
 
 import pathlib
@@ -36,7 +36,7 @@ class Client:
         self.channel_api = self.youtube_client.channels()
         self.search_api = self.youtube_client.search()
 
-    def stream_status(self, video_id) -> str:
+    def get_stream_status(self, video_id) -> str:
         # This is most inefficient out of these methods.. but it's way simpler than first code.
 
         req = self.video_api.list(
@@ -64,21 +64,21 @@ class Client:
         )
         return req.execute()["items"][0]["statistics"]["subscriberCount"]
 
-    def check_upcoming(self, channel_id: str) -> Tuple[str, ...]:
+    def get_upcoming_streams(self, channel_id: str) -> Tuple[str, ...]:
         req = self.search_api.list(
             channelId=channel_id, part="snippet", type="video", eventType="upcoming"
         )
         items = req.execute()["items"]
         vid_ids = (item["id"]["videoId"] for item in items)
-        return tuple(vid_id for vid_id in vid_ids if self.stream_status(vid_id) != "none")
+        return tuple(vid_id for vid_id in vid_ids if self.get_stream_status(vid_id) != "none")
 
-    def check_live(self, channel_id: str) -> Tuple[str, ...]:
+    def get_live_streams(self, channel_id: str) -> Tuple[str, ...]:
         req = self.search_api.list(
             channelId=channel_id, part="snippet", type="video", eventType="live"
         )
         items = req.execute()["items"]
         vid_ids = (item["id"]["videoId"] for item in items)
-        return tuple(vid_id for vid_id in vid_ids if self.stream_status(vid_id) != "none")
+        return tuple(vid_id for vid_id in vid_ids if self.get_stream_status(vid_id) != "none")
 
     def get_start_time(self, video_id) -> datetime.datetime:
         req = self.video_api.list(
