@@ -58,6 +58,7 @@ async def data_gen(record_sub=False) -> Generator[dict, None, None]:
         def request_join():
             response = combined_request.execute()["items"][0]
             dict_0 = {}
+
             for dict_ in response.values():
                 dict_0.update(dict_)
 
@@ -68,13 +69,14 @@ async def data_gen(record_sub=False) -> Generator[dict, None, None]:
 
             new_dict = request_join()
 
-            yield new_dict
-
             log_string = (
                 "Viewers(Cur/Tot):{concurrentViewers}/{viewCount}"
                 " Likes:{likeCount}/{dislikeCount}".format(**new_dict)
             )
+
             logger.debug("[%s] %s", iteration, log_string)
+
+            yield new_dict
 
             await trio.sleep(args.poll)
 
@@ -183,7 +185,7 @@ def fetch_api(request) -> dict:
 
 async def wait_for_stream():
     """
-    Literally does what it's named for.
+    Literally does what it's named for. await until designated stream time.
     """
 
     # check if actually it is active/upcoming stream
@@ -322,6 +324,7 @@ def plot_data(data: dict, file_path: Union[None, pathlib.Path]):
 
 
 if __name__ == "__main__":
+
     # parsing start =================================
 
     parser = argparse.ArgumentParser(
@@ -344,7 +347,7 @@ if __name__ == "__main__":
         "-s",
         "--save",
         action="store_true",
-        help="Save plot as image. Will use same directory where json is saved.",
+        help="Save plot as pdf. Will use same directory and name of json file created.",
     )
     parser.add_argument(
         "-o",
@@ -352,7 +355,7 @@ if __name__ == "__main__":
         metavar="PATH",
         type=pathlib.Path,
         default=ROOT.joinpath("Records"),
-        help="Output folder, default is script's directory.",
+        help="Output folder. Default is script's directory.",
     )
     parser.add_argument(
         "-p",
