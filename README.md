@@ -12,3 +12,4 @@ Mostly will look like a personal junkyard!
 ## List of graduated projects:
 
 - [CUIAudioPlayer](https://github.com/jupiterbjy/CUIAudioPlayer)
+- [YoutubeStreamLogger](https://github.com/jupiterbjy/YoutubeStreamLogger)
