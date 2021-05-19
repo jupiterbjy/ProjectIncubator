@@ -16,7 +16,7 @@ from requests.exceptions import ConnectionError, MissingSchema
 
 from log_stat_stub import wait_for_stream
 from log_initalizer import init_logger
-from youtube_api_client import Client
+from youtube_api_client import Client, HttpError
 
 
 # End of import --------------
@@ -41,9 +41,9 @@ def format_closure():
         with open(JSON_PATH, encoding="utf8") as fp:
             loaded = json.load(fp)
 
-    except (FileNotFoundError, json.decoder.JSONDecodeError) as err:
+    except (FileNotFoundError, json.decoder.JSONDecodeError) as err_:
         logger.debug("Couldn't load separators. Using entire descriptions without stripping.")
-        logger.debug("Error detail: %s", err)
+        logger.debug("Error detail: %s", err_)
 
         start = ""
         end = ""
@@ -96,17 +96,24 @@ def task_gen(
 
         logger.debug("Task %s returned.", vid_id)
 
-    while True:
-        live_tuple, upcoming_tuple = (
-            client.get_live_streams(channel_id),
-            client.get_upcoming_streams(channel_id),
-        )
+    if args.exclude_live:
+        def check_live():
+            pass
 
-        # If it's already live, we're screwed, notify it asap
-        for live in set(live_tuple) - set(notified):
-            notify_live(live)
+    else:
+        def check_live():
+            live_tuple = client.get_live_streams(channel_id)
+
+            # If it's already live, we're screwed, notify it asap
+            for live in set(live_tuple) - set(notified):
+                notify_live(live)
+
+    while True:
+        check_live()
 
         # Else check if upcoming will start before next checkup tasks
+        upcoming_tuple = client.get_upcoming_streams(channel_id)
+
         yield [
             functools.partial(task, vid_id=v_id)
             for v_id in upcoming_tuple
@@ -139,9 +146,7 @@ def test_output():
     target = args.test
     client = Client(args.api)
 
-    message_format = "#live\n{}\n[Youtube]https://youtu.be/{}"
-    description = format_description(client.get_video_description(target))
-    bot(message_format.format(description, target))
+    bot(format_description(client.get_video_description(target), target))
 
 
 if __name__ == "__main__":
@@ -177,6 +182,13 @@ if __name__ == "__main__":
         default=5,
         help="Check interval in minutes. If omitted, will be set to 5.",
     )
+    parser.add_argument(
+        "-e",
+        "--exclude-live",
+        action="store_true",
+        default=False,
+        help="Excludes check for already live streams. This reduces Quota usages roughly by a bit short on half.",
+    )
     exclusive = parser.add_mutually_exclusive_group(required=True)
     exclusive.add_argument(
         "-c",
@@ -206,8 +218,9 @@ if __name__ == "__main__":
     # validate first using empty string
     try:
         bot("")
-    except (ConnectionError, MissingSchema):
+    except (ConnectionError, MissingSchema) as err:
         logger.critical("Connection/Schema Error! Is provided url a valid one?")
+        logger.critical("Message: %s", err)
         exit(-1)
 
     # determine test mode
@@ -215,4 +228,13 @@ if __name__ == "__main__":
         test_output()
 
     else:
-        trio.run(main_coroutine)
+        try:
+            trio.run(main_coroutine)
+
+        except HttpError as err:
+            logger.critical("Got HTTP Error, did connection lost or quota exceeded?")
+            logger.critical("Message: %s", err)
+            exit(-1)
+
+        except KeyboardInterrupt:
+            pass

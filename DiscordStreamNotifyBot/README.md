@@ -1,7 +1,7 @@
-Bot to test stream notifications using Google Data API v3.
+Bot to test stream notifications using Google Data API v3. Far from completion.
 
 ```commandline
-usage: discord_bot.py [-h] -a KEY -u URL [-i INTERVAL] (-c ID | -t VID_ID)
+usage: discord_bot.py [-h] -a KEY -u URL [-i INTERVAL] [-el] (-c ID | -t VID_ID)
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -9,11 +9,16 @@ optional arguments:
   -u URL, --url URL     Discord webhook url.
   -i INTERVAL, --interval INTERVAL
                         Check interval in minutes. If omitted, will be set to 5.
+  -e, --exclude-live   Excludes check for already live streams. This reduces Quota usages roughly by a bit short on
+                        half.
   -c ID, --channel-id ID
                         Youtube channel's ID.
   -t VID_ID, --test VID_ID
                         Test output with youtube video id
 ```
+
+Do note that too low interval will cause quota to exceed.
+Default configuration with 5 minutes interval will be somewhat short to cover full 24 hours.
 
 ---
 
