@@ -109,11 +109,24 @@ def task_gen(
                 notify_live(live)
 
     while True:
-        check_live()
+        try:
+            check_live()
+            upcoming_tuple = client.get_upcoming_streams(channel_id)
 
-        # Else check if upcoming will start before next checkup tasks
-        upcoming_tuple = client.get_upcoming_streams(channel_id)
+        except HttpError as err_:
+            logger.critical("Got HTTP Error, did connection lost or quota exceeded?")
+            logger.critical("Message: %s", err_)
 
+            # if flag is set, ignore error by just considering it as emtpy.
+
+            if args.ignore_error:
+                yield []
+                continue
+
+            # else propagate error
+            raise
+
+        # yield upcoming streams due to start before next check period.
         yield [
             functools.partial(task, vid_id=v_id)
             for v_id in upcoming_tuple
@@ -188,6 +201,14 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Excludes check for already live streams. This reduces Quota usages roughly by a bit short on half.",
+    )
+    parser.add_argument(
+        "-I",
+        "--ignore-error",
+        action="store_true",
+        default=False,
+        help="Ignore HTTP Errors including quota check."
+             "This will still fail to get data from Youtube, but script won't stop.",
     )
     exclusive = parser.add_mutually_exclusive_group(required=True)
     exclusive.add_argument(
