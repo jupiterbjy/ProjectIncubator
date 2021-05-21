@@ -13,10 +13,10 @@ import trio
 from discord_webhook import DiscordWebhook
 from requests.exceptions import ConnectionError, MissingSchema
 
-
 from log_stat_stub import wait_for_stream
 from log_initalizer import init_logger
 from youtube_api_client import Client, HttpError
+from RequestExtension import video_list_gen
 
 
 # End of import --------------
@@ -82,11 +82,14 @@ def task_gen(
 ) -> Generator[List, None, None]:
 
     notified = deque(maxlen=10)
+    vid_list_gen = video_list_gen(channel_id, 3)
 
     def notify_live(vid_id: str):
+        notified.append(vid_id)
+
         bot((format_description(client.get_video_description(vid_id), vid_id)))
 
-        logger.debug("Notified for video %s", vid_id)
+        logger.info("Notified for video %s", vid_id)
 
         notified.append(vid_id)
 
@@ -96,40 +99,42 @@ def task_gen(
 
         logger.debug("Task %s returned.", vid_id)
 
-    if args.exclude_live:
-        def check_live():
-            pass
-
-    else:
-        def check_live():
-            live_tuple = client.get_live_streams(channel_id)
-
-            # If it's already live, we're screwed, notify it asap
-            for live in set(live_tuple) - set(notified):
-                notify_live(live)
-
     while True:
-        try:
-            check_live()
-            upcoming_tuple = client.get_upcoming_streams(channel_id)
 
-        except HttpError as err_:
-            logger.critical("Got HTTP Error, did connection lost or quota exceeded?")
-            logger.critical("Message: %s", err_)
+        vid_list = next(vid_list_gen)
 
-            # if flag is set, ignore error by just considering it as emtpy.
+        logger.debug("fetched following video IDs: %s", vid_list)
 
-            if args.ignore_error:
-                yield []
+        upcoming = []
+
+        for vid in vid_list:
+            try:
+                state = client.get_stream_status(vid)
+            except HttpError as err_:
+                logger.critical("Got HTTP Error, did connection lost or quota exceeded?")
+                logger.critical("Message: %s", err_)
+
+                if args.ignore_error:
+                    continue
+
+                else:
+                    raise
+
+            logger.debug("video IDs <%s> status: %s", vid, state)
+
+            # if already live, notify asap
+            if state == "live" and vid not in notified:
+                notify_live(vid)
                 continue
 
-            # else propagate error
-            raise
+            # else put in upcoming.
+            if state == "upcoming" and vid not in notified:
+                upcoming.append(vid)
 
         # yield upcoming streams due to start before next check period.
         yield [
             functools.partial(task, vid_id=v_id)
-            for v_id in upcoming_tuple
+            for v_id in upcoming
             if client.get_start_time(v_id) < next_check
         ]
 
@@ -152,7 +157,7 @@ async def main_coroutine():
             next_checkup += time_delta
             await trio.sleep((next_checkup - datetime.datetime.now(datetime.timezone.utc)).seconds)
 
-        logger.debug("Next checkup is %s", next_checkup)
+            logger.debug("Next checkup is %s", next_checkup)
 
 
 def test_output():
@@ -196,13 +201,6 @@ if __name__ == "__main__":
         help="Check interval in minutes. If omitted, will be set to 5.",
     )
     parser.add_argument(
-        "-e",
-        "--exclude-live",
-        action="store_true",
-        default=False,
-        help="Excludes check for already live streams. This reduces Quota usages roughly by a bit short on half.",
-    )
-    parser.add_argument(
         "-I",
         "--ignore-error",
         action="store_true",
@@ -233,7 +231,7 @@ if __name__ == "__main__":
 
     # parsing end ===================================
 
-    print(args)
+    logger.debug(args)
     bot = webhook_closure(args.url)
 
     # validate first using empty string
