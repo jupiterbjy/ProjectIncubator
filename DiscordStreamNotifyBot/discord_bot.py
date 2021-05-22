@@ -18,7 +18,6 @@ from log_initalizer import init_logger
 from youtube_api_client import Client, HttpError
 from RequestExtension import video_list_gen
 
-
 # End of import --------------
 
 
@@ -66,8 +65,7 @@ def format_closure():
             message_ = message_.split(end)[0]
 
         # Make sure to have one newline in both end. Can't use backslash in f-string inner block.
-        striped = message_.strip('\n')
-        message_ = f"\n{striped}\n"
+        message_ = message_.strip('\n')
 
         return format_.format(message_, vid_id)
 
@@ -78,9 +76,8 @@ format_description = format_closure()
 
 
 def task_gen(
-    client: Client, channel_id: str, next_check: datetime.datetime
+        client: Client, channel_id: str, next_check: datetime.datetime
 ) -> Generator[List, None, None]:
-
     notified = deque(maxlen=10)
     vid_list_gen = video_list_gen(channel_id, 3)
 
@@ -94,7 +91,10 @@ def task_gen(
         notified.append(vid_id)
 
     async def task(vid_id: str):
+        logger.debug("Task %s spawned.", vid_id)
+
         notified.append(vid_id)
+
         await wait_for_stream(client, vid_id)
 
         logger.debug("Task %s returned.", vid_id)
@@ -144,7 +144,7 @@ async def main_coroutine():
     client = Client(args.api)
 
     interval = args.interval
-    time_delta = datetime.timedelta(minutes=interval)
+    time_delta = datetime.timedelta(seconds=interval)
 
     async with trio.open_nursery() as nursery:
         next_checkup = datetime.datetime.now(datetime.timezone.utc) + time_delta
@@ -157,7 +157,7 @@ async def main_coroutine():
             next_checkup += time_delta
             await trio.sleep((next_checkup - datetime.datetime.now(datetime.timezone.utc)).seconds)
 
-            logger.debug("Next checkup is %s", next_checkup)
+            logger.info("Next checkup is %s", next_checkup)
 
 
 def test_output():
@@ -170,9 +170,6 @@ def test_output():
 if __name__ == "__main__":
 
     # parsing start =================================
-
-    logger = logging.getLogger("DiscordBot")
-    init_logger(logger, True)
 
     parser = argparse.ArgumentParser()
 
@@ -198,7 +195,7 @@ if __name__ == "__main__":
         metavar="INTERVAL",
         type=int,
         default=5,
-        help="Check interval in minutes. If omitted, will be set to 5.",
+        help="Check interval in seconds. If omitted, will be set to 60.",
     )
     parser.add_argument(
         "-I",
@@ -207,6 +204,13 @@ if __name__ == "__main__":
         default=False,
         help="Ignore HTTP Errors including quota check."
              "This will still fail to get data from Youtube, but script won't stop.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enables debugging message.",
     )
     exclusive = parser.add_mutually_exclusive_group(required=True)
     exclusive.add_argument(
@@ -230,6 +234,9 @@ if __name__ == "__main__":
     del args_got["url"]
 
     # parsing end ===================================
+
+    logger = logging.getLogger("DiscordBot")
+    init_logger(logger, args.verbose)
 
     logger.debug(args)
     bot = webhook_closure(args.url)

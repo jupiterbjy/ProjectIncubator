@@ -1,18 +1,18 @@
-Bot to test stream notifications using Google Data API v3. Far from completion.
+Bot to test stream notifications using Google Data API v3. A bit far from polished.
 
 ```commandline
-usage: discord_bot.py [-h] -a KEY -u URL [-i INTERVAL] [-e] [-I] (-c ID | -t VID_ID)
+usage: discord_bot.py [-h] -a KEY -u URL [-i INTERVAL] [-I] [-v] (-c ID | -t VID_ID)
 
 optional arguments:
   -h, --help            show this help message and exit
   -a KEY, --api KEY     Google Data API key
   -u URL, --url URL     Discord webhook url.
   -i INTERVAL, --interval INTERVAL
-                        Check interval in minutes. If omitted, will be set to 5.
-  -e, --exclude-live    Excludes check for already live streams. This reduces Quota usages roughly by a bit short on
-                        half.
-  -I, --ignore-error    Ignore HTTP Errors including quota check.This will still fail to get data from Youtube, but
-                        script won't stop.
+                        Check interval in seconds. If omitted, will be set to 60.
+  -I, --ignore-error    Ignore HTTP Errors including quota check.This will
+                        still fail to get data from Youtube, but script won't
+                        stop.
+  -v, --verbose         Enables debugging message.
   -c ID, --channel-id ID
                         Youtube channel's ID.
   -t VID_ID, --test VID_ID

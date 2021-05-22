@@ -1,0 +1,4 @@
+trio
+discord-webhook
+requests
+google-api-python-client

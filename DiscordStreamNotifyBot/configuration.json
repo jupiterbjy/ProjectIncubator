@@ -1,5 +1,5 @@
 {
-  "format": "#live\n\n{}\n\n[Youtube]https://youtu.be/{}",
+  "format": "#live\n\n{}\n\n【Youtube】https://youtu.be/{}\n【Twitch】https://cyannyan.com/twitch",
   "start": "",
   "end": "────"
 }
