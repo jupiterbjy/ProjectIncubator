@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import itertools
 import functools
 import logging
 import pathlib
@@ -31,27 +32,14 @@ def webhook_closure(webhook_url: str):
     return template
 
 
-def format_closure():
+def format_closure(config_dict):
     """
     Make sure to have separators in video descriptions if you're going to use it!
     """
 
-    try:
-        with open(JSON_PATH, encoding="utf8") as fp:
-            loaded = json.load(fp)
-
-    except (FileNotFoundError, json.decoder.JSONDecodeError) as err_:
-        logger.debug("Couldn't load separators. Using entire descriptions without stripping.")
-        logger.debug("Error detail: %s", err_)
-
-        start = ""
-        end = ""
-        format_ = "Description:\n{}\nLink:\nhttps://youtu.be/{}"
-
-    else:
-        start = loaded["start"]
-        end = loaded["end"]
-        format_ = loaded["format"]
+    start = config_dict["start"]
+    end = config_dict["end"]
+    format_ = config_dict["format"]
 
     # bake function, like how cakes bake a loaf. Meow.
     def inner(message_: str, vid_id: str):
@@ -72,14 +60,16 @@ def format_closure():
     return inner
 
 
-format_description = format_closure()
-
-
 def task_gen(
-        client: Client, channel_id: str, next_check: datetime.datetime
+        client: Client, config_dict: dict, next_check: datetime.datetime, args
 ) -> Generator[List, None, None]:
     notified = deque(maxlen=10)
-    vid_list_gen = video_list_gen(channel_id, 3)
+
+    channel_id = config_dict["channels"]
+    format_description = format_closure(config_dict)
+
+    gen_instances = [video_list_gen(ch_id, args.count) for ch_id in channel_id]
+    vid_list_gen = zip(gen_instances)
 
     def notify_live(vid_id: str):
         notified.append(vid_id)
@@ -101,13 +91,13 @@ def task_gen(
 
     while True:
 
-        vid_list = next(vid_list_gen)
+        videos = set(itertools.chain(*next(vid_list_gen)))
 
-        logger.debug("fetched following video IDs: %s", vid_list)
+        logger.debug("fetched following video IDs: %s", videos)
 
         upcoming = []
 
-        for vid in vid_list:
+        for vid in videos:
             try:
                 state = client.get_stream_status(vid)
             except HttpError as err_:
@@ -139,8 +129,7 @@ def task_gen(
         ]
 
 
-async def main_coroutine():
-    ch_id = args.channel_id
+async def main_coroutine(args, config_dict: dict):
     client = Client(args.api)
 
     interval = args.interval
@@ -149,7 +138,7 @@ async def main_coroutine():
     async with trio.open_nursery() as nursery:
         next_checkup = datetime.datetime.now(datetime.timezone.utc) + time_delta
 
-        for tasks in task_gen(client, ch_id, next_checkup):
+        for tasks in task_gen(client, config_dict, next_checkup, args):
 
             for task in tasks:
                 nursery.start_soon(task)
@@ -160,13 +149,6 @@ async def main_coroutine():
             logger.info("Next checkup is %s", next_checkup)
 
 
-def test_output():
-    target = args.test
-    client = Client(args.api)
-
-    bot(format_description(client.get_video_description(target), target))
-
-
 if __name__ == "__main__":
 
     # parsing start =================================
@@ -174,20 +156,22 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-a",
-        "--api",
-        metavar="KEY",
+        "api",
         type=str,
-        required=True,
-        help="Google Data API key",
+        help="Google Data API key.",
     )
     parser.add_argument(
-        "-u",
-        "--url",
-        metavar="URL",
+        "url",
         type=str,
-        required=True,
         help="Discord webhook url.",
+    )
+    parser.add_argument(
+        "-p",
+        "--path",
+        metavar="CONFIG_PATH",
+        type=pathlib.Path,
+        default=pathlib.Path(__file__).absolute().parent.joinpath("configuration.json"),
+        help="Path to configuration json file.",
     )
     parser.add_argument(
         "-i",
@@ -195,7 +179,15 @@ if __name__ == "__main__":
         metavar="INTERVAL",
         type=int,
         default=5,
-        help="Check interval in seconds. If omitted, will be set to 60.",
+        help="interval between checks in seconds. Default is 60.",
+    )
+    parser.add_argument(
+        "-c",
+        "--count",
+        metavar="NUM",
+        type=int,
+        default=5,
+        help="Number of videos to fetch from each channel. Default is 3.",
     )
     parser.add_argument(
         "-I",
@@ -212,34 +204,19 @@ if __name__ == "__main__":
         default=False,
         help="Enables debugging message.",
     )
-    exclusive = parser.add_mutually_exclusive_group(required=True)
-    exclusive.add_argument(
-        "-c",
-        "--channel-id",
-        metavar="ID",
-        type=str,
-        help="Youtube channel's ID.",
-    )
-    exclusive.add_argument(
-        "-t",
-        "--test",
-        metavar="VID_ID",
-        type=str,
-        help="Test output with youtube video id",
-    )
 
-    args = parser.parse_args()
-    args_got = {key: item for key, item in vars(args).items()}
-    del args_got["api"]
-    del args_got["url"]
+    args_ = parser.parse_args()
 
     # parsing end ===================================
 
     logger = logging.getLogger("DiscordBot")
-    init_logger(logger, args.verbose)
+    init_logger(logger, args_.verbose)
 
-    logger.debug(args)
-    bot = webhook_closure(args.url)
+    json_data = json.loads(args_.path.read_text())
+
+    logger.info("Target Channel: %s", json_data["channels"])
+
+    bot = webhook_closure(args_.url)
 
     # validate first using empty string
     try:
@@ -249,13 +226,9 @@ if __name__ == "__main__":
         logger.critical("Message: %s", err)
         exit(-1)
 
-    # determine test mode
-    if args.channel_id is None:
-        test_output()
-
     else:
         try:
-            trio.run(main_coroutine)
+            trio.run(main_coroutine, args_, json_data)
 
         except HttpError as err:
             logger.critical("Got HTTP Error, did connection lost or quota exceeded?")

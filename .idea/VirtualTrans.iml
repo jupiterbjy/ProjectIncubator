@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/SeleniumTest" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/YoutubeStreamStatLogger" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Meow_py" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/examples" />
       <excludeFolder url="file://$MODULE_DIR$/CUIAudioPlayer/audio_files" />
