@@ -1,6 +1,27 @@
 {
-  "format": "#live\n\n{}\n\n【Youtube】https://youtu.be/{}\n【Twitch】https://cyannyan.com/twitch",
-  "start": "",
-  "end": "────",
+  "content": "<@&812458585522962513>",
+  "embed": {
+    "title": "#live",
+    "description": "[desc]",
+    "color": "18ffff",
+    "image": {
+      "url": "https://i.ytimg.com/vi/[vid_id]/mqdefault.jpg"
+    },
+    "thumbnail": {
+      "url": "https://cdn.discordapp.com/attachments/783069235999014912/840531297499480084/ezgif.com-gif-maker.gif"
+    },
+    "fields": [
+      {
+        "name": "Youtube",
+        "value": "https://youtu.be/[vid_id]"
+      },
+      {
+        "name": "Twitch",
+        "value": "https://cyannyan.com/twitch"
+      }
+    ]
+  },
+  "desc_start": "",
+  "desc_end": "────",
   "channels": ["UC9wbdkwvYVSgKtOZ3Oov98g", "UC9waeFu44i5NwB7x48Tq6Bw"]
 }

@@ -1,0 +1,6 @@
+{
+  "format": "#live\n\n{}\n\n[Youtube]https://youtu.be/{}",
+  "start": "",
+  "end": "",
+  "channels": ["Channel 1 id", "Channel 2 id"]
+}

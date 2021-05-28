@@ -15,9 +15,9 @@ from discord_webhook import DiscordWebhook
 from requests.exceptions import ConnectionError, MissingSchema
 
 from log_stat_stub import wait_for_stream
-from log_initalizer import init_logger
-from youtube_api_client import Client, HttpError
+from youtube_api_client import GoogleClient, HttpError
 from RequestExtension import video_list_gen
+from log_initalizer import init_logger
 
 # End of import --------------
 
@@ -61,7 +61,7 @@ def format_closure(config_dict):
 
 
 def task_gen(
-        client: Client, config_dict: dict, next_check: datetime.datetime, args
+        client: GoogleClient, config_dict: dict, next_check: datetime.datetime, args
 ) -> Generator[List, None, None]:
     notified = deque(maxlen=10)
 
@@ -69,7 +69,7 @@ def task_gen(
     format_description = format_closure(config_dict)
 
     gen_instances = [video_list_gen(ch_id, args.count) for ch_id in channel_id]
-    vid_list_gen = zip(gen_instances)
+    vid_list_gen = zip(*gen_instances)
 
     def notify_live(vid_id: str):
         notified.append(vid_id)
@@ -91,9 +91,10 @@ def task_gen(
 
     while True:
 
-        videos = set(itertools.chain(*next(vid_list_gen)))
+        next_ = next(vid_list_gen)
+        logger.debug("fetched following video IDs: %s", next_)
 
-        logger.debug("fetched following video IDs: %s", videos)
+        videos = set(itertools.chain(*next_))
 
         upcoming = []
 
@@ -130,10 +131,12 @@ def task_gen(
 
 
 async def main_coroutine(args, config_dict: dict):
-    client = Client(args.api)
+    client = GoogleClient(args.api)
 
     interval = args.interval
     time_delta = datetime.timedelta(seconds=interval)
+
+    logger.debug("Got configuration: %s", config_dict)
 
     async with trio.open_nursery() as nursery:
         next_checkup = datetime.datetime.now(datetime.timezone.utc) + time_delta

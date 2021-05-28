@@ -1,4 +1,5 @@
-trio
 discord-webhook
 requests
 google-api-python-client
+traceback_with_variables
+loguru
