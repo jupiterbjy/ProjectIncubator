@@ -13,3 +13,4 @@ Mostly will look like a personal junkyard!
 
 - [CUIAudioPlayer](https://github.com/jupiterbjy/CUIAudioPlayer)
 - [YoutubeStreamLogger](https://github.com/jupiterbjy/YoutubeStreamLogger)
+- [StreamNotifier](https://github.com/jupiterbjy/StreamNotifier)
