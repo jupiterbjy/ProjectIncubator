@@ -10,17 +10,59 @@ You can simply do it yourself with `python3 -m pip install -r requirements.txt`.
 
 ### Options:
 
-```json
-{
-    "fade_div_factor": 5,  // fade steps for generating fading frames of range(255, 0, -fade_div_factor)
-    "transparent": false,  // whether script should generate transparent webm - this yield worse quality.
-    "fps_cap": 60, // how high framerate can go
-    "time_limit": 5,  // how long video should be in seconds. This will be ignored when fps exceed fps cap.
-    "res_multiply": 4,  // resolution multiplier for contour
-    "threshold": [0, 100],  // low-high threshold for contours. lower draw more lines with much more computing time.
-    "line_width": 3  // thickness of contour lines
-}
-```
+Both parameter and json configurations are same.
+
+Explicit parameter always overrides json configuration.
+
+- param
+
+    ```commandline
+    usage: Script generating contour timelapse video for given image.
+           [-h] [-s INT] [-t BOOL] [-f INT] [-d FLOAT] [-m INT] [-tl INT]
+           [-th INT] [-w INT]
+           file
+    
+    positional arguments:
+      file                  Path to image
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      -s INT, --fade-step INT
+                            alpha value step size for fading effects
+      -t BOOL, --transparent BOOL
+                            If true, generates transparent webm - this yield worse
+                            quality.
+      -f INT, --fps-cap INT
+                            Sets hard limit on frame rate.
+      -d FLOAT, --duration FLOAT
+                            how long video should be in seconds. This will be
+                            ignored when fps exceed fps-cap.
+      -m INT, --res-multiply INT
+                            Resolution multiplier for contours.
+      -tl INT, --threshold-low INT
+                            Low threshold of canny edge detection. More lines are
+                            drawn when lower.
+      -th INT, --threshold-high INT
+                            High threshold of canny edge detection. More lines are
+                            drawn when lower.
+      -w INT, --line-width INT
+                            Thickness of contour lines.
+    ```
+
+- json
+
+    ```json
+      {
+        "fade_step": 5,
+        "transparent": false,
+        "fps_cap": 60,
+        "duration": 5,
+        "res_multiply": 4,
+        "threshold_low": 0,
+        "threshold_high": 100,
+        "line_width": 3
+    }
+    ```
 
 ---
 

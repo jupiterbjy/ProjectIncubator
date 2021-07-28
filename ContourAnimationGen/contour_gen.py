@@ -266,10 +266,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("file", type=pathlib.Path, help="Path to image")
 
-    parser.parse_args(namespace=args)
-
     config_file = json.loads(root.joinpath("config.json").read_text("utf8"))
     vars(args).update(config_file)
+    parser.parse_args(namespace=args)
 
     pprint(vars(args))
 
