@@ -11,6 +11,7 @@
       <excludeFolder url="file://$MODULE_DIR$/SeleniumTest" />
       <excludeFolder url="file://$MODULE_DIR$/single_run_scripts/webptools" />
       <excludeFolder url="file://$MODULE_DIR$/ContourAnimatinoGen/temp_img" />
+      <excludeFolder url="file://$MODULE_DIR$/ContourAnimatinoGen/output" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.9" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

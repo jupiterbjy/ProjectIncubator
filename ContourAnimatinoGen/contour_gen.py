@@ -1,6 +1,10 @@
+import json
 import pathlib
-from sys import argv
-from typing import List
+import argparse
+import traceback
+from pprint import pprint
+from multiprocessing import Pool
+from typing import List, Tuple
 
 try:
     import cv2
@@ -15,63 +19,61 @@ except ModuleNotFoundError:
     exit()
 
 
-# PARAM -------------
-fade_div_factor = 5
-transparent = False
-time_limit = 5
-res_multiply = 4
-threshold = (0, 100)
-line_width = 3
-# -------------------
-
-
 root = pathlib.Path(__file__).parent.absolute()
 temp = root.joinpath("temp_img")
-fade_factor = 254 // fade_div_factor
-# use_canny = True
+output_dir = root.joinpath("output")
+
+output_dir.mkdir(exist_ok=True)
 
 
-assert isinstance(res_multiply, int), "Should be integer"
+class Args:
+    fade_step: int
+    transparent: bool
+    fps_cap: int
+    duration: float
+    res_multiply: int
+    threshold_low: int
+    threshold_high: int
+    line_width: int
+    file: pathlib.Path
 
-try:
-    file = argv[1]
-except IndexError:
-    print("No files provided.")
 
-if temp.exists():
-    for path in temp.iterdir():
-        path.unlink(missing_ok=True)
+def save_workload(arguments: Tuple[Image.Image, pathlib.Path, bool]):
+    if arguments[-1]:
+        arguments[0].save(arguments[1])
+    else:
+        remove_alpha(arguments[0]).save(arguments[1])
 
 
-print(f"Fade Frames: {fade_factor} / Transparent: {transparent} / Duration: {time_limit} / Resolution: {res_multiply}x")
+def fade_workload(arguments: Tuple[Image.Image, pathlib.Path, bool, int]):
+
+    image = arguments[0] if arguments[2] else arguments[0].convert("RGBA")
+    copied2: Image.Image = arguments[0].copy()
+    image.putalpha(arguments[3])
+
+    copied2.paste(image, copied2)
+
+    remove_alpha(copied2).save(arguments[1])
 
 
 def generate_fade(source_img: Image.Image, number_last, pad_size):
+    alpha_list = [n for n in range(254, 0, -args.fade_step)]
 
-    if transparent:
-        def load(image):
-            return image
-    else:
-        def load(image: Image.Image):
-            return image.convert("RGBA")
+    def procedure_image_name_gen():
+        for idx, alpha in enumerate(alpha_list):
 
-    if transparent:
-        def output(image):
-            return image
-    else:
-        output = remove_alpha
+            yield source_img.copy(), temp.joinpath(
+                f"{str(idx + number_last).zfill(pad_size)}.png"
+            ), args.transparent, alpha
 
-    for idx, alpha in enumerate(tqdm(range(254, 0, -fade_div_factor), "Generating Fade")):
-
-        copied: Image.Image = load(source_img.copy())
-        copied2: Image.Image = source_img.copy()
-        copied.putalpha(alpha)
-
-        copied2.paste(copied, copied2)
-
-        target_file = temp.joinpath(f"{str(idx + number_last).zfill(pad_size)}.png")
-
-        output(copied2).save(target_file)
+    with Pool() as pool:
+        list(
+            tqdm(
+                pool.imap(fade_workload, procedure_image_name_gen()),
+                "Generating Fade",
+                len(alpha_list),
+            )
+        )
 
 
 def generate_images(contours: List[np.array]):
@@ -82,37 +84,40 @@ def generate_images(contours: List[np.array]):
 
     # prepare image
     img = Image.new("RGBA", tuple(max_dim))
-    idx = 0
 
     # check digit
-    digit = len(str(len(contours) + fade_factor))
+    digit = len(str(len(contours) + args.fade_step))
 
     draw = ImageDraw.Draw(img)
 
-    if transparent:
-        def method(image):
-            return image
-    else:
-        method = remove_alpha
+    def procedure_image_gen():
+        for idx_, contour in enumerate(contours):
+            range_1 = tuple(range(len(contour)))
+            range_2 = [*range_1[1:], 0]
 
-    for idx, contour in enumerate(tqdm(contours, "Drawing Contours")):
-        range_1 = tuple(range(len(contour)))
-        range_2 = [*range_1[1:], 0]
+            for dot_1, dot_2 in zip(range_1, range_2):
 
-        for dot_1, dot_2 in zip(range_1, range_2):
+                draw.line(
+                    (tuple(contour[dot_1]), tuple(contour[dot_2])),
+                    fill="#00e5e5ff",
+                    width=args.line_width,
+                )
 
-            draw.line(
-                (tuple(contour[dot_1]), tuple(contour[dot_2])),
-                fill="#00e5e5ff",
-                width=line_width,
+            yield img.copy(), temp.joinpath(
+                f"{str(idx_).zfill(digit)}.png"
+            ), args.transparent
+
+    with Pool() as pool:
+        list(
+            tqdm(
+                pool.imap(save_workload, procedure_image_gen()),
+                "Drawing Contours",
+                total=len(contours),
             )
-
-        target_file = temp.joinpath(f"{str(idx).zfill(digit)}.png")
-
-        method(img).save(target_file)
+        )
 
     # Generate fade images
-    generate_fade(img, idx + 1, digit)
+    generate_fade(img, len(contours) + 1, digit)
 
 
 def remove_alpha(image):
@@ -122,53 +127,74 @@ def remove_alpha(image):
 
 
 def generate_video():
-    path_ = pathlib.Path(file)
-    fps = len(tuple(temp.iterdir())) // time_limit
+    path_ = output_dir.joinpath(pathlib.Path(args.file).name)
 
-    print("Framerate:", fps)
+    fps = len(tuple(temp.iterdir())) // args.duration
+    if fps > args.fps_cap:
+        fps = args.fps_cap
 
     txt = temp.joinpath("files.txt")
 
     # create txt file for input
-    with open(txt, "w") as fp:
-        fp.write("\n".join(f"file {path_.as_posix()}" for path_ in temp.iterdir() if path_.suffix == ".png"))
+    directory_listing = [
+        f"file {p.as_posix()}" for p in temp.iterdir() if p.suffix == ".png"
+    ]
 
-    if transparent:
+    with open(txt, "w") as fp:
+        for directory in directory_listing:
+            fp.write(f"{directory}\nduration 1\n")
+
+        fp.write(f"{directory_listing[-1]}")
+
+    if args.transparent:
         output = path_.with_suffix(".webm").absolute()
         output.unlink(missing_ok=True)
         (
-            ffmpeg
-            .input(txt.as_posix(), r=str(fps), f="concat", safe="0")
-            .output(output.as_posix(), vcodec="libvpx", **{"pix_fmt": "yuva420p", "auto-alt-ref": "0"}, )
+            ffmpeg.input(txt.as_posix(), r=str(fps), f="concat", safe="0")
+            .output(
+                output.as_posix(),
+                vcodec="libvpx",
+                **{"pix_fmt": "yuva420p", "auto-alt-ref": "0"},
+            )
             .run()
         )
     else:
         output = path_.with_suffix(".mp4").absolute()
         output.unlink(missing_ok=True)
         (
-            ffmpeg
-            .input(txt.as_posix(), r=str(fps), f="concat", safe="0")
-            .output(output.as_posix())
+            ffmpeg.input(txt.as_posix(), r=str(fps), f="concat", safe="0")
+            .output(
+                output.as_posix(),
+                vcodec="libx264",
+                **{"pix_fmt": "yuv420p", "c:v": "libx264"},
+            )
             .run()
         )
 
 
 def main():
-    frame = cv2.imread(file)
-    print("target", file)
-    
-    # if use_canny:
-    base = cv2.Canny(frame, *threshold)
-    # else:
-    #     img_grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    #     _, base = cv2.threshold(img_grey, 200, 255, cv2.THRESH_BINARY)
+
+    # clear temp
+    if temp.exists():
+        for file_ in temp.iterdir():
+            file_.unlink()
+    else:
+        temp.mkdir()
+
+    frame = cv2.imread(args.file.as_posix())
+    print("target", args.file.as_posix())
+
+    base = cv2.Canny(frame, args.threshold_low, args.threshold_high)
 
     contours, hierarchy = cv2.findContours(
         base, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
     )
 
     # squeeze and multiply contours
-    squeezed = [np.squeeze(cnt, axis=1) * [res_multiply, res_multiply] for cnt in contours]
+    squeezed = [
+        np.squeeze(cnt, axis=1) * [args.res_multiply, args.res_multiply]
+        for cnt in contours
+    ]
 
     generate_images(squeezed)
 
@@ -176,10 +202,80 @@ def main():
 
 
 if __name__ == "__main__":
+
+    args = Args()
+
+    parser = argparse.ArgumentParser(
+        "Script generating contour timelapse video for given image."
+    )
+    parser.add_argument(
+        "-s",
+        "--fade-step",
+        metavar="INT",
+        type=int,
+        help="alpha value step size for fading effects",
+    )
+    parser.add_argument(
+        "-t",
+        "--transparent",
+        metavar="BOOL",
+        type=bool,
+        help="If true, generates transparent webm - this yield worse quality.",
+    )
+    parser.add_argument(
+        "-f",
+        "--fps-cap",
+        metavar="INT",
+        type=int,
+        help="Sets hard limit on frame rate.",
+    )
+    parser.add_argument(
+        "-d",
+        "--duration",
+        metavar="FLOAT",
+        type=float,
+        help="how long video should be in seconds. This will be ignored when fps exceed fps-cap.",
+    )
+    parser.add_argument(
+        "-m",
+        "--res-multiply",
+        metavar="INT",
+        type=int,
+        help="Resolution multiplier for contours.",
+    )
+    parser.add_argument(
+        "-tl",
+        "--threshold-low",
+        metavar="INT",
+        type=int,
+        help="Low threshold of canny edge detection. More lines are drawn when lower.",
+    )
+    parser.add_argument(
+        "-th",
+        "--threshold-high",
+        metavar="INT",
+        type=int,
+        help="High threshold of canny edge detection. More lines are drawn when lower.",
+    )
+    parser.add_argument(
+        "-w",
+        "--line-width",
+        metavar="INT",
+        type=int,
+        help="Thickness of contour lines.",
+    )
+    parser.add_argument("file", type=pathlib.Path, help="Path to image")
+
+    parser.parse_args(namespace=args)
+
+    config_file = json.loads(root.joinpath("config.json").read_text("utf8"))
+    vars(args).update(config_file)
+
+    pprint(vars(args))
+
     try:
         main()
     except Exception as err:
-        print(err)
-        input()
+        traceback.print_exc()
+        input(f"Encountered Error [{type(err).__name__}] Press enter to exit.")
         raise
-
