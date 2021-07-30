@@ -3,8 +3,8 @@
     "transparent": false,
     "fps_cap": 60,
     "duration": 5,
-    "res_multiply": 4,
-    "threshold_low": 0,
-    "threshold_high": 100,
-    "line_width": 3
+    "res_multiply": 2,
+    "threshold_low": 50,
+    "threshold_high": 200,
+    "line_width": 4
 }
