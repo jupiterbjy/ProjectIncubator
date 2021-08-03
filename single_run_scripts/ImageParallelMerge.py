@@ -30,10 +30,9 @@ def main():
     for image_per_line in range(length, 0, -1):
         if image_per_line * x_max <= MAX_X_RELATIVE_TO_Y * y_max * math.ceil(length / image_per_line):
 
-
             # with decided img-per-line try dividing for even distribution
             y_image_count = math.ceil(length / image_per_line)
-            img_per_line = length // y_image_count
+            img_per_line = math.ceil(length / y_image_count)
             break
     else:
         img_per_line = 1
