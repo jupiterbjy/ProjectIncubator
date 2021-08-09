@@ -80,10 +80,17 @@ def generate_images(contours: List[np.array]):
 
     # get size
     concat = np.concatenate(contours, axis=0)
-    max_dim = np.amax(concat, axis=0)
+    x, y = tuple(np.amax(concat, axis=0))
+
+    # try to make dimension even numbered, using & instead of % here for fun
+    if x & 1:
+        x += 1
+
+    if y & 1:
+        y += 1
 
     # prepare image
-    img = Image.new("RGBA", tuple(max_dim))
+    img = Image.new("RGBA", (x, y))
 
     # check digit
     digit = len(str(len(contours) + args.fade_step))
