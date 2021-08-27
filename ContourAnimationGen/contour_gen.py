@@ -182,8 +182,8 @@ def generate_video():
             ffmpeg.input(txt.as_posix(), r=str(fps), f="concat", safe="0")
             .output(
                 output.as_posix(),
-                vcodec="libvpx",
-                **{"pix_fmt": "yuva420p", "auto-alt-ref": "0"},
+                vcodec="libvpx-vp9",
+                **{"pix_fmt": "yuva420p", "c:v": "libfvpx-vp9", "crf": "20", "b:v": "0"},
             )
             .run()
         )
@@ -195,7 +195,7 @@ def generate_video():
             .output(
                 output.as_posix(),
                 vcodec="libx264",
-                **{"pix_fmt": "yuv420p", "c:v": "libx264"},
+                **{"pix_fmt": "yuv420p", "c:v": "libx264", "crf": "20"},
             )
             .run()
         )
