@@ -3,8 +3,8 @@ import pathlib
 import argparse
 import traceback
 from pprint import pprint
-from multiprocessing import Pool, Manager, Queue
-from typing import List, Tuple
+from multiprocessing import Pool
+from typing import List, Tuple, Sequence
 
 try:
     import cv2
@@ -35,19 +35,19 @@ class Args:
     threshold_low: int
     threshold_high: int
     line_width: int
+    bg_color: Tuple[int, int, int]
+    line_color: Tuple[int, int, int, int]
     file: pathlib.Path
 
 
-def save_workload(arguments: Tuple[Image.Image, int, int, bool]):
+def save_workload(arguments: Tuple[Image.Image, int, int, bool, Tuple[int, int, int]]):
     save(*arguments)
 
 
-def save(img: Image.Image, index: int, digit: int, alpha: bool):
+def save(img: Image.Image, index: int, digit: int, alpha: bool, bg_color):
     w, h = img.size
     x, y = w & 1, h & 1
-    path = temp.joinpath(
-        f"{str(index).zfill(digit)}.png"
-    )
+    path = temp.joinpath(f"{str(index).zfill(digit)}.png")
 
     if any((x, y)):
         # crop image to make it even numbered
@@ -59,61 +59,46 @@ def save(img: Image.Image, index: int, digit: int, alpha: bool):
     if alpha:
         img.save(path)
     else:
-        remove_alpha(img).save(path)
+        remove_alpha(img, bg_color).save(path)
 
 
 def generate_fade(
     source_img: Image.Image, contour_img: Image.Image, last_idx, digit: int
 ):
-    alpha_fade = [n for n in range(254, 0, -args.fade_step)]
+    alpha_fade = [n / 100 for n in range(100, 0, int(-args.fade_step * 100))]
     size = len(alpha_fade)
 
     def cross_fade_gen(alpha_list, start_idx):
         for idx, alpha in enumerate(alpha_list):
 
-            original = source_img.copy()
-            image = contour_img.copy()
+            yield Image.blend(
+                source_img, contour_img, alpha=alpha
+            ), start_idx + idx, digit, args.transparent, args.bg_color
 
-            original.putalpha(255 - alpha)
-            image.putalpha(alpha)
+    def stationary_gen():
+        for idx_ in range(size):
+            yield source_img, idx_ + last_idx, digit, args.transparent, args.bg_color
 
-            yield Image.alpha_composite(image, original), start_idx + idx, digit, args.transparent
-
-    with Pool() as pool:
-        list(
-            tqdm(
-                pool.imap(
-                    save_workload, cross_fade_gen(alpha_fade, last_idx)
-                ),
-                "Generating CrossFade",
-                size,
-            )
-        )
-
-    last_idx += size
-
-    for idx_ in tqdm(range(size), "Generating Stationary", size):
-        save(source_img, idx_ + last_idx, digit, args.transparent)
-
-    last_idx += size
-
-    def fade_gen(alpha_list, start_idx):
+    def fade_gen(alpha_list):
         for idx, alpha in enumerate(alpha_list):
-            image = source_img.copy()
+            new_img = Image.new("RGBA", source_img.size)
 
-            image.putalpha(alpha)
-            image.paste(image, image)
-
-            yield image, start_idx + idx, digit, args.transparent
+            yield Image.blend(
+                new_img, source_img, alpha=alpha
+            ), last_idx + idx, digit, args.transparent, args.bg_color
 
     with Pool() as pool:
-        list(
-            tqdm(
-                pool.imap(save_workload, fade_gen(alpha_fade, last_idx)),
-                "Generating Fade",
-                size,
-            )
+
+        generators = (
+            cross_fade_gen(alpha_fade, last_idx),
+            stationary_gen(),
+            fade_gen(alpha_fade),
         )
+        messages = ("Generating CrossFade", "Generating Stationary", "Generating Fade")
+
+        for gen, msg in zip(generators, messages):
+            tuple(tqdm(pool.imap(save_workload, gen), msg, size))
+            last_idx += size
 
 
 def generate_images(contours: List[np.array], source_image: Image.Image):
@@ -131,7 +116,7 @@ def generate_images(contours: List[np.array], source_image: Image.Image):
     img = Image.new("RGBA", resized.size)
 
     # check digit
-    digit = len(str(len(contours) + len(range(254, 0, -args.fade_step)) * 3))
+    digit = len(str(len(contours) + len(range(100, 0, int(-args.fade_step * 100))) * 3))
 
     draw = ImageDraw.Draw(img)
 
@@ -144,20 +129,26 @@ def generate_images(contours: List[np.array], source_image: Image.Image):
 
                 draw.line(
                     (tuple(contour[dot_1]), tuple(contour[dot_2])),
-                    fill="#00e5e5ff",
+                    fill=args.line_color,
                     width=args.line_width,
                 )
 
-            yield img.copy(), idx_, digit, args.transparent
+            yield img.copy(), idx_, digit, args.transparent, args.bg_color
 
     with Pool() as pool:
-        tuple(tqdm(pool.imap(save_workload, img_gen()), "Drawing Contours", total=len(contours)))
+        tuple(
+            tqdm(
+                pool.imap(save_workload, img_gen()),
+                "Drawing Contours",
+                total=len(contours),
+            )
+        )
 
     generate_fade(resized, img, len(contours), digit)
 
 
-def remove_alpha(image):
-    bg = Image.new("RGB", image.size)
+def remove_alpha(image, bg_color: Sequence[int]):
+    bg = Image.new("RGB", image.size, bg_color)
     bg.paste(image, mask=image.split()[3])
     return bg
 
@@ -304,9 +295,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("file", type=pathlib.Path, help="Path to image")
 
+    # Load config and write into args singleton
     config_file = json.loads(root.joinpath("config.json").read_text("utf8"))
     vars(args).update(config_file)
     parser.parse_args(namespace=args)
+
+    # convert parameters
+    args.line_color = tuple(args.line_color)
+    args.bg_color = tuple(args.bg_color)
 
     pprint(vars(args))
 
