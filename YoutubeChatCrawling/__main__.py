@@ -11,17 +11,7 @@ from pytchat.processors.default.processor import Chatdata, Chat
 from loguru import logger
 
 
-HARD_CODED_LIST = {"B1dYHaqVzic", "4uvQ7AmmgAw", "GfaYLqA9ccM", "u2gZSwTU4PA", "T3TP8LRNl7A", "Qxb4nPkNyjE",
-                   "y7V6zn6o4iE", "72TDbpNRFhU", "NTA3Qa-nnJ4", "Ds3X5ipYFK4", "0XS3qU4HoRw", "RMwJ2ItBmvM",
-                   "q6_Y9OBrcQ0", "tqJBv5WHsxQ", "JuksDCke6h4", "u5xl_86MPeA", "SGrNakc2wuQ", "sBpMFlvIzmg",
-                   "Rfsr5wLoqm8", "AS_Z6eQdnh4", "b0W9cSYhC7A", "Y4jELCspaIU", "pZBHilNm8Do", "iwdbcz54qyQ",
-                   "_UyiyZUPHe0", "4nM_-ssypO4", "TXcs30_tuAk", "8_54Su1R5vw", "IThjrU3WHNI", "up6F-uPjq88",
-                   "m7oB66HNxHk", "OKKMFNgV6Oc", "unD5PLYhyc8", "8AXgeV9xXrY", "DgBlknhlgRw", "mRY3rvCLuJ4",
-                   "OoU4D68hHxI", "7uJrgUyh_1Y", "mjJQd4N60Iw", "9PV0FszqFl8", "WVqfxj9Su_A", "B0Fg7KYlQsI",
-                   "PxpqD0eQLk0", "zwG1sJtkHhQ", "mOZIRoCk3Lg", "_Ve86KocOdM", "o-3Z4py6Sm4", "2FOWI6zAEy0",
-                   "TZK8hgo3rnE", "VET2gcMfmWc", "YX_4mfu4CtA", "CfmvQtc3ow0", "wZ-Y4LxWm8I", "R_PMVsQznOo",
-                   "wpq7lA-ycbU", "19DJJaKRmH8", "YZW0pmN1yug", "OZbUh9RSNdQ", "BvcUSX3m4wU", "B1dYHaqVzic",
-                   "4uvQ7AmmgAw"}
+HARD_CODED_LIST = {"_va6BiOYaZo"}
 
 ROOT = pathlib.Path(__file__).parent.joinpath("fetched")
 ROOT.mkdir(exist_ok=True)
@@ -87,24 +77,23 @@ async def workload(vid_id):
     logger.debug("task {} started", vid_id)
 
     async def callback(chat_data: Chatdata):
+
+        logger.debug("Processing Data")
+
         async for chat in chat_data.async_items():
             chat: Chat
             json_data: dict = json.loads(chat.json())
-            logger.debug(f"S:[{json_data['author']['name']}]")
+            logger.debug(f"S:[{json_data['author']['name']}][{json_data['timestamp']}][{json_data['message']}]")
             data.append(json_data)
 
     try:
         # live_chat = LiveChatAsync(vid_id, callback=callback)
-        live_chat = LiveChatAsync(vid_id)
+        live_chat = LiveChatAsync(vid_id, callback=callback, force_replay=True, direct_mode=True)
     except Exception:
         raise
     else:
         while live_chat.is_alive():
-            try:
-                data_ = await live_chat.get()
-                await callback(data_)
-            except Exception:
-                traceback.print_exc()
+            await asyncio.sleep(5)
 
         try:
             live_chat.raise_for_status()
@@ -134,6 +123,7 @@ async def workload_wrapper(queue: LimitingQueue, worker_id, invalid_list: list):
 
 
 async def main_routine():
+    limit = CONCURRENCY_LIMIT
     # ch_id = args.channel
 
     # TODO: add finished stream fetching feature
@@ -141,7 +131,10 @@ async def main_routine():
     invalid_list = []
     queue = LimitingQueue(HARD_CODED_LIST)
 
-    tasks = tuple(workload_wrapper(queue, n, invalid_list) for n in range(CONCURRENCY_LIMIT))
+    if len(HARD_CODED_LIST) < limit:
+        limit = len(HARD_CODED_LIST)
+
+    tasks = tuple(workload_wrapper(queue, n, invalid_list) for n in range(limit))
 
     await asyncio.gather(*tasks)
 

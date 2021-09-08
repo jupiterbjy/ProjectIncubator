@@ -2,10 +2,6 @@
 
 import pathlib
 import argparse
-import itertools
-import time
-import math
-from typing import List
 
 from PIL import Image
 
