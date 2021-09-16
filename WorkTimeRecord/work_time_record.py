@@ -221,7 +221,7 @@ class Timer:
 
             # check if first index is same, if same then just overwrite it.
             try:
-                assert existing[0]["index"] == self.sessions[0].index
+                assert existing["entries"][0]["index"] == self.sessions[0].index
 
             # empty entry, skip
             except IndexError:
@@ -231,7 +231,7 @@ class Timer:
             except AssertionError:
                 logger.info("Previous Session found. Loading session")
                 self.sessions = [
-                    Session.from_json(entry) for entry in existing
+                    Session.from_json(entry) for entry in existing["entries"]
                 ] + self.sessions
 
         current = [session.to_json() for session in self.sessions]
