@@ -90,7 +90,11 @@ class Session:
     @property
     def length(self) -> timedelta:
         if not self._calculated:
-            self._calculated = self.end - self.start
+            try:
+                self._calculated = self.end - self.start
+            except TypeError:
+                # self.end is None, so still running!
+                return datetime.now(TZ_SRC_INIT) - self.start
 
         return self._calculated
 
@@ -137,9 +141,9 @@ class Session:
         return instance
 
 
-def ring_multiple(count=1):
+def ring_multiple(count=1, freq=1000, duration=100):
     for _ in range(count):
-        winsound.Beep(1000, 100)
+        winsound.Beep(freq, duration)
 
 
 class Timer:
@@ -193,6 +197,20 @@ class Timer:
             self.stop()
         else:
             self.start()
+
+    def check(self):
+        logger.debug("Called")
+        if self.current_session:
+            ring_multiple(2, freq=600)
+            seconds = (self.total_length + self.current_session.length).total_seconds()
+        else:
+            ring_multiple(1, freq=600)
+            seconds = self.total_length.total_seconds()
+
+        # tell work hr by beep
+
+        hours = seconds // 3600
+        ring_multiple(int(hours), freq=750)
 
     def exit(self):
         logger.debug("Called")
@@ -269,7 +287,7 @@ def main():
     # exit_hotkey = keyboard.HotKey(keyboard.HotKey.parse(EXIT_COMBINATION), timer.exit)
 
     with keyboard.GlobalHotKeys(
-        {TOGGLE_COMBINATION: timer.toggle, EXIT_COMBINATION: timer.exit}
+        {TOGGLE_COMBINATION: timer.toggle, EXIT_COMBINATION: timer.check}
     ) as hotkey:
         hotkey.join()
 
