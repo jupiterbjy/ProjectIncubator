@@ -4,6 +4,7 @@ Used for recording start, end time of work session.
 This is sort of wheel re-inventing of simple timer, but I couldn't find way to record time on this thing.
 """
 
+import time
 import json
 import pathlib
 import winsound
@@ -38,12 +39,12 @@ LOG_PATH.mkdir(exist_ok=True)
 
 # Config resource paths
 
-logger.add(
-    LOG_PATH.joinpath("/work_{time}.log").as_posix(),
-    rotation="5 MB",
-    retention="7 days",
-    compression="zip",
-)
+# logger.add(
+#     LOG_PATH.joinpath("/work_{time}.log").as_posix(),
+#     rotation="5 MB",
+#     retention="7 days",
+#     compression="zip",
+# )
 
 
 def fmt(dt: datetime):
@@ -210,6 +211,7 @@ class Timer:
         # tell work hr by beep
 
         hours = seconds // 3600
+        time.sleep(0.5)
         ring_multiple(int(hours), freq=750)
 
     def exit(self):
