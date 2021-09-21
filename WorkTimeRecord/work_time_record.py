@@ -198,6 +198,7 @@ class Timer:
             self.stop()
         else:
             self.start()
+        time.sleep(0.5)
 
     def check(self):
         logger.debug("Called")
@@ -209,10 +210,11 @@ class Timer:
             seconds = self.total_length.total_seconds()
 
         # tell work hr by beep
+        time.sleep(0.2)
 
         hours = seconds // 3600
-        time.sleep(0.5)
         ring_multiple(int(hours), freq=750)
+        time.sleep(0.5)
 
     def exit(self):
         logger.debug("Called")

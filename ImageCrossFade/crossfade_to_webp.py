@@ -54,8 +54,6 @@ def generate_fade(
     size = len(alpha_fade)
     digit = len(str(size))
 
-    last_idx = 0
-
     def cross_fade_gen():
         for idx, alpha in enumerate(alpha_fade):
 
@@ -152,18 +150,18 @@ if __name__ == "__main__":
 
     pprint(vars(args))
 
+    err = None
+
     try:
         main()
 
     except Exception as err:
         traceback.print_exc()
         input(f"Encountered Error [{type(err).__name__}] Press enter to exit.")
-        raise
 
-    finally:
-        # clear temp
-        if temp.exists():
-            for file in temp.iterdir():
-                file.unlink()
+    # clear temp
+    if temp.exists():
+        for file in temp.iterdir():
+            file.unlink()
 
-        temp.unlink(missing_ok=True)
+    temp.rmdir()
