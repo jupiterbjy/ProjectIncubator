@@ -4,6 +4,7 @@ Primitive script to check upcoming attendance check.
 
 
 from datetime import datetime
+import traceback
 import random
 import time
 
@@ -50,9 +51,9 @@ def check_silence_alert(driver: webdriver.Firefox):
 def main():
 
     # Prime driver
-    capability = DesiredCapabilities().FIREFOX
+    capability = DesiredCapabilities().CHROME
     capability["pageLoadStrategy"] = "eager"
-    driver = webdriver.Firefox(capabilities=capability)
+    driver = webdriver.Chrome()
 
     # wait for site login
     driver.get(url)
@@ -66,7 +67,10 @@ def main():
     # main loop
     while True:
         driver.refresh()
-        determine_status(driver)
+        try:
+            determine_status(driver)
+        except IndexError:
+            print("Attendance code cleared")
         time.sleep(random.randint(*time_range))
 
 
@@ -74,4 +78,7 @@ if __name__ == '__main__':
     try:
         main()
     except WebDriverException:
-        print("Browser is closed.")
+        traceback.print_exc()
+        input()
+    except KeyboardInterrupt:
+        pass

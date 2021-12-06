@@ -7,35 +7,40 @@ This is sort of wheel re-inventing of simple timer, but I couldn't find way to r
 import time
 import json
 import pathlib
-import winsound
 from datetime import datetime, timedelta
 from textwrap import dedent
-from typing import List, Union
+from typing import List, Union, Iterable, Dict
 
 import pytz
+import pystray
+from PIL import Image
 from pynput import keyboard
 from loguru import logger
 
 
-TIMEZONE_SOURCE = "Asia/Seoul"
-TIMEZONE_TARGET = "America/Los_Angeles"
-
-TOGGLE_COMBINATION = "<f10>+<f12>"
-EXIT_COMBINATION = "<f9>+<f12>"
+# key def
+TOGGLE_COMBO = "<scroll_lock>+<pause>"
+CHECK_COMBO = "<scroll_lock>+<num_lock>"
 
 FORMAT = "%Y-%m-%d %a %H:%M"
 
+# TZ def
+TIMEZONE_SOURCE = "Asia/Seoul"
+TIMEZONE_TARGET = "America/Los_Angeles"
 
 TZ_SRC_INIT = pytz.timezone(TIMEZONE_SOURCE)
 TZ_TGT_INIT = pytz.timezone(TIMEZONE_TARGET)
+
 
 # Generate paths
 ROOT = pathlib.Path(__file__).parent
 STORAGE = ROOT.joinpath("Sessions")
 STORAGE.mkdir(exist_ok=True)
+IMG_PATH = ROOT.joinpath("icon")
 
 LOG_PATH = ROOT.joinpath("logs")
 LOG_PATH.mkdir(exist_ok=True)
+
 
 # Config resource paths
 
@@ -49,6 +54,23 @@ LOG_PATH.mkdir(exist_ok=True)
 
 def fmt(dt: datetime):
     return dt.strftime(FORMAT)
+
+
+def str_to_timedelta(string: str):
+    # Ref: https://stackoverflow.com/a/12352624/10909029
+    if "day" in string:
+        day, string = string.split("day")
+        delta = timedelta(days=int(day))
+    else:
+        delta = timedelta()
+
+    temp = datetime.strptime(string, "%H:%M:%S.%f")
+    return delta + timedelta(
+        hours=temp.hour,
+        minutes=temp.minute,
+        seconds=temp.second,
+        microseconds=temp.microsecond,
+    )
 
 
 class Session:
@@ -142,23 +164,90 @@ class Session:
         return instance
 
 
-def ring_multiple(count=1, freq=1000, duration=100):
-    for _ in range(count):
-        winsound.Beep(freq, duration)
+def session_sum(iterable: Iterable) -> timedelta:
+    return sum((session.length for session in iterable), start=timedelta())
+
+
+# def ring_multiple(count=1, freq=1000, duration=100):
+#     for _ in range(count):
+#         winsound.Beep(freq, duration)
+
+
+class CustomTray(pystray.Icon):
+    def __init__(self):
+        super(CustomTray, self).__init__("WorkTimeRecord")
+
+        self.active_img = Image.open(IMG_PATH.joinpath("active.png"))
+        self.inactive_img = Image.open(IMG_PATH.joinpath("inactive.png"))
+
+        #  toggle_menu = pystray.Menu(
+        #      pystray.MenuItem("Toggle", self.timer.toggle),
+        #      pystray.MenuItem("Exit", self.timer.exit)
+        # )
+
+        self.icon = self.inactive_img
+
+    def activate(self):
+        self.icon = self.active_img
+        self.notify("Session started", "Session start")
+
+    def deactivate(self, length: timedelta):
+        self.icon = self.inactive_img
+        self.notify(f"Session Duration: {length}", "Session end")
+
+    # def check_running(self, length: timedelta):
+    #     self.notify(f"Session Duration: {length}", "Session check")
+
+    def check_stat(self, today_len: timedelta, prev_month_len: timedelta):
+        self.notify(f"Today Length: {today_len}\nThis Month: {prev_month_len}", "Session check")
+
+
+def gen_prev_month():
+    record: Dict[str, List[pathlib.Path]] = {}
+    for file_path in STORAGE.iterdir():
+        if file_path.suffix != ".json" or "Error" in file_path.stem:
+            continue
+        try:
+            record[file_path.stem[:-3]].append(file_path)
+        except KeyError:
+            record[file_path.stem[:-3]] = [file_path]
+
+    for key, val in record.items():
+        new_path = STORAGE.joinpath(f"{key}.txt")
+        if new_path.exists() and new_path.stem not in str(datetime.now(TZ_TGT_INIT)):
+            # then this is previous already calculated month, skip
+            continue
+
+        sum_ = timedelta()
+        for path in val:
+            try:
+                file = path.read_text(encoding="utf8")
+                json_ = json.loads(file)
+                time_ = str_to_timedelta(json_["length"])
+            except Exception as err:
+                path_temp = STORAGE.joinpath(f"{path.stem}_{type(err).__name__}{path.suffix}")
+                path.rename(path_temp)
+            else:
+                sum_ += time_
+        new_path.write_text(f"{sum_}\nSession count:{len(val)}")
 
 
 class Timer:
-    def __init__(self):
+    def __init__(self, tray_instance: CustomTray):
         self.working = False
         self.sessions: List[Session] = []
         self.current_session: Union[Session, None] = None
+        self.tray = tray_instance
+
+        file_this_month = datetime.now(TZ_SRC_INIT).strftime("%Y-%m") + ".txt"
+        time_string, _ = STORAGE.joinpath(file_this_month).read_text("utf8").split("\n")
+        self.this_month = str_to_timedelta(time_string)
 
         logger.info("Initialized")
+        self.load_session()
 
     def prompt_message(self):
-        aggregated_time = sum(
-            (session.length for session in self.sessions), start=timedelta()
-        )
+        aggregated_time = session_sum(self.sessions)
 
         print(
             f"Aggregated: {aggregated_time}",
@@ -181,7 +270,7 @@ class Timer:
             self.current_session = None
             self.save_session()
 
-        ring_multiple(1)
+        self.tray.deactivate(self.sessions[-1].length)
 
     def start(self):
         logger.debug("Called")
@@ -190,31 +279,34 @@ class Timer:
             return
 
         self.current_session = Session()
-        ring_multiple(2)
+        self.tray.activate()
 
     def toggle(self):
         logger.debug("Called")
+
         if self.current_session:
             self.stop()
         else:
             self.start()
-        time.sleep(0.5)
+        time.sleep(0.2)
 
     def check(self):
         logger.debug("Called")
-        if self.current_session:
-            ring_multiple(2, freq=600)
-            seconds = (self.total_length + self.current_session.length).total_seconds()
+        # if self.current_session:
+        #     ring_multiple(2, freq=600)
+        #     seconds = (self.total_length + self.current_session.length).total_seconds()
+        # else:
+        #     ring_multiple(1, freq=600)
+        #     seconds = self.total_length.total_seconds()
+        try:
+            last_session = (
+                self.current_session if self.current_session else self.sessions[-1]
+            )
+        except IndexError:
+            self.tray.notify("No session in record", "Error")
         else:
-            ring_multiple(1, freq=600)
-            seconds = self.total_length.total_seconds()
-
-        # tell work hr by beep
-        time.sleep(0.2)
-
-        hours = seconds // 3600
-        ring_multiple(int(hours), freq=750)
-        time.sleep(0.5)
+            self.tray.check_stat(self.total_length, self.this_month)
+            time.sleep(0.2)
 
     def exit(self):
         logger.debug("Called")
@@ -222,76 +314,55 @@ class Timer:
             self.stop()
 
         self.save_session()
-        ring_multiple(3)
         exit(0)
 
     @property
     def total_length(self):
-        return sum((session.length for session in self.sessions), start=timedelta())
+        cur = self.current_session.length if self.current_session else timedelta()
+        return session_sum(self.sessions) + cur
+
+    def load_session(self):
+        file_name = datetime.now(TZ_SRC_INIT).strftime("%Y-%m-%d") + ".json"
+
+        path_ = STORAGE.joinpath(file_name)
+
+        if path_.exists():
+            logger.info("Previous Session found. Loading session")
+            existing = json.loads(path_.read_text("utf8"))
+
+            self.sessions = [
+                Session.from_json(entry) for entry in existing["entries"]
+            ] + self.sessions
 
     def save_session(self):
         logger.debug("Called")
         file_name = self.sessions[0].start.strftime("%Y-%m-%d") + ".json"
-
         path_ = STORAGE.joinpath(file_name)
-
-        # if exists
-        if path_.exists():
-
-            # read first
-            existing = json.loads(path_.read_text("utf8"))
-
-            # check if first index is same, if same then just overwrite it.
-            try:
-                assert existing["entries"][0]["index"] == self.sessions[0].index
-
-            # empty entry, skip
-            except IndexError:
-                pass
-
-            # probably previous entry before this process started. load up
-            except AssertionError:
-                logger.info("Previous Session found. Loading session")
-                self.sessions = [
-                    Session.from_json(entry) for entry in existing["entries"]
-                ] + self.sessions
 
         current = [session.to_json() for session in self.sessions]
 
-        output_dict = {"Sessions": len(current), "length": str(self.total_length), "entries": current}
+        output_dict = {
+            "Sessions": len(current),
+            "length": str(self.total_length),
+            "entries": current,
+        }
 
         path_.write_text(json.dumps(output_dict, indent=2), "utf8")
         logger.info("Saved sessions at {}", path_)
 
 
-# class CustomTray:
-#     def __init__(self):
-#
-#         self.active_img = Image.open(IMG_PATH.joinpath("active.png"))
-#         self.inactive_img = Image.open(IMG_PATH.joinpath("inactive.png"))
-#         self.error_img = Image.open(IMG_PATH.joinpath("error.png"))
-#
-#         self.timer = Timer()
-#
-#         toggle_menu = pystray.Menu(
-#             pystray.MenuItem("Toggle", self.timer.toggle),
-#             pystray.MenuItem("Exit", self.timer.exit)
-#        )
-#
-#         self.tray = pystray.Icon("Timer", self.inactive_img, toggle_menu)
-#
-#     def toggle(self):
-#         pass
-
-
 def main():
-    timer = Timer()
+    gen_prev_month()
+
+    tray = CustomTray()
+    timer = Timer(tray)
+    tray.run_detached()
 
     # toggle_hotkey = keyboard.HotKey(keyboard.HotKey.parse(TOGGLE_COMBINATION), timer.toggle)
     # exit_hotkey = keyboard.HotKey(keyboard.HotKey.parse(EXIT_COMBINATION), timer.exit)
 
     with keyboard.GlobalHotKeys(
-        {TOGGLE_COMBINATION: timer.toggle, EXIT_COMBINATION: timer.check}
+        {TOGGLE_COMBO: timer.toggle, CHECK_COMBO: timer.check}
     ) as hotkey:
         hotkey.join()
 
