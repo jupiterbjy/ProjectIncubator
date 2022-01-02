@@ -7,6 +7,8 @@ This is sort of wheel re-inventing of simple timer, but I couldn't find way to r
 import time
 import json
 import pathlib
+import sqlite3
+from contextlib import contextmanager, AbstractContextManager
 from datetime import datetime, timedelta
 from textwrap import dedent
 from typing import List, Union, Iterable, Dict
@@ -31,6 +33,8 @@ TIMEZONE_TARGET = "America/Los_Angeles"
 TZ_SRC_INIT = pytz.timezone(TIMEZONE_SOURCE)
 TZ_TGT_INIT = pytz.timezone(TIMEZONE_TARGET)
 
+# DB
+NAME = "data.db"
 
 # Generate paths
 ROOT = pathlib.Path(__file__).parent
@@ -44,12 +48,16 @@ LOG_PATH.mkdir(exist_ok=True)
 
 # Config resource paths
 
-# logger.add(
-#     LOG_PATH.joinpath("/work_{time}.log").as_posix(),
-#     rotation="5 MB",
-#     retention="7 days",
-#     compression="zip",
-# )
+logger.add(
+    LOG_PATH.joinpath("work_{time}.log").as_posix(),
+    rotation="5 MB",
+    retention="7 days",
+    compression="zip",
+)
+
+
+def tz_src_now():
+    return datetime.now(TZ_SRC_INIT)
 
 
 def fmt(dt: datetime):
@@ -73,10 +81,39 @@ def str_to_timedelta(string: str):
     )
 
 
+def get_month_relative(index: int, tz=None):
+    """
+    Relative month calculator. Work similar to dateutil relative delta.
+
+    Args:
+        index(int): offset
+        tz: if supplied, uses given timezone when calling datetime.now().
+
+    Returns:
+        (Tuple[int, int]): year and month
+    """
+
+    dt_now = datetime.now(tz)
+
+    if index > 0:
+        adder = timedelta(days=3)
+        while index > 0:
+            index -= 1
+            dt_now = dt_now.replace(day=28) + adder
+
+    else:
+        subtractor = timedelta(days=1)
+        while index < 0:
+            index += 1
+            dt_now = dt_now.replace(day=1) - subtractor
+
+    return dt_now.year, dt_now.month
+
+
 class Session:
     def __init__(self):
 
-        self.start = datetime.now(TZ_SRC_INIT)
+        self.start = tz_src_now()
         self.end: Union[datetime, None] = None
 
         self.index = int(self.start.timestamp())
@@ -90,7 +127,7 @@ class Session:
         self._calculated: Union[None, timedelta] = None
 
     def stop(self):
-        self.end = datetime.now(TZ_SRC_INIT)
+        self.end = tz_src_now()
         self.alt_tz_end = self.end.astimezone(TZ_TGT_INIT)
 
         self._calculated = self.end - self.start
@@ -117,60 +154,123 @@ class Session:
                 self._calculated = self.end - self.start
             except TypeError:
                 # self.end is None, so still running!
-                return datetime.now(TZ_SRC_INIT) - self.start
+                return tz_src_now() - self.start
 
         return self._calculated
-
-    def to_json(self):
-        # dict_ = self.__dict__
-        dict_ = {
-            "index": self.index,
-            "duration": str(self.length),
-            "start": self.start.timestamp(),
-            "end": self.end.timestamp(),
-            "alt_tz_start": self.alt_tz_start.timestamp(),
-            "alt_tz_end": self.alt_tz_end.timestamp(),
-            "tz_local": self.tz_local,
-            "tz_remote": self.tz_remote,
-        }
-
-        return dict_
-
-    @classmethod
-    def from_json(cls, json_dict):
-        # dict_ = self.__dict__
-        tz_local = pytz.timezone(json_dict["tz_local"])
-        tz_remote = pytz.timezone(json_dict["tz_remote"])
-
-        dict_ = {
-            "start": datetime.fromtimestamp(json_dict["start"], tz_local).astimezone(
-                pytz.timezone(TIMEZONE_SOURCE)
-            ),
-            "end": datetime.fromtimestamp(json_dict["end"], tz_local).astimezone(
-                pytz.timezone(TIMEZONE_SOURCE)
-            ),
-            "alt_tz_start": datetime.fromtimestamp(
-                json_dict["alt_tz_start"], tz_remote
-            ).astimezone(pytz.timezone(TIMEZONE_TARGET)),
-            "alt_tz_end": datetime.fromtimestamp(
-                json_dict["alt_tz_end"], tz_remote
-            ).astimezone(pytz.timezone(TIMEZONE_TARGET)),
-        }
-
-        instance = cls()
-        instance.__dict__.update(json_dict)
-        instance.__dict__.update(dict_)
-
-        return instance
 
 
 def session_sum(iterable: Iterable) -> timedelta:
     return sum((session.length for session in iterable), start=timedelta())
 
 
-# def ring_multiple(count=1, freq=1000, duration=100):
-#     for _ in range(count):
-#         winsound.Beep(freq, duration)
+class DBWrapper:
+    # spamming contextmanager here because I couldn't catch system exit event
+    # so every action should open and close the connection
+
+    def __init__(self, db_path_):
+        self.path = db_path_
+
+        with self.con() as con:
+            con.execute(
+                "CREATE TABLE IF NOT EXISTS ACCUMULATION("
+                "ts DOUBLE PRIMARY KEY, y INTEGER, m INTEGER, d INTEGER, total_sec DOUBLE"
+                ")"
+            )
+
+            con.commit()
+
+    @contextmanager
+    def con(self) -> AbstractContextManager[sqlite3.Connection]:
+        connection: Union[None, sqlite3.Connection] = None
+        try:
+            connection = sqlite3.connect(self.path)
+            yield connection
+        finally:
+            if connection:
+                connection.close()
+
+    @contextmanager
+    def cursor(self) -> AbstractContextManager[sqlite3.Cursor]:
+        with self.con() as con:
+            try:
+                yield con.cursor()
+            finally:
+                pass
+
+    def add_session(self, session: Session):
+        start_dt = session.start
+        length = session.length.total_seconds()
+
+        with self.con() as con:
+            con.execute(
+                "INSERT INTO ACCUMULATION(ts, y, m, d, total_sec) VALUES(?, ?, ?, ?, ?)",
+                (
+                    start_dt.timestamp(),
+                    start_dt.year,
+                    start_dt.month,
+                    start_dt.day,
+                    length,
+                ),
+            )
+
+            con.commit()
+
+    def get_month_total(self, year, month) -> float:
+        """
+        Accumulate and return total seconds of month with given year and month.
+
+        Args:
+            year(int): year
+            month(int): month
+
+        Returns:
+            (float): Accumulated total seconds of given month index
+
+        Raises:
+            AssertionError: When provided time is future or invalid
+        """
+        now = datetime.now()
+        y_cur = now.year
+        m_cur = now.month
+
+        assert 1 <= month <= 12 and year >= 0, "Input is invalid"
+        assert not (
+            year > y_cur or (year == y_cur and month > m_cur)
+        ), "Tried to perform time travel"
+
+        with self.cursor() as cursor:
+            cursor.execute(
+                "SELECT total_sec FROM ACCUMULATION WHERE y = ? AND m = ?",
+                (year, month),
+            )
+
+            return sum(wrapped[0] for wrapped in cursor.fetchall())
+
+    def get_month_total_relative(self, relative_month: int = 0) -> float:
+        """
+        Accumulate and return total seconds of month with given relative index.
+
+        Args:
+            relative_month(int): Optional. Relative index of month to search.
+
+        Returns:
+            (float): Accumulated total seconds of given month index
+
+        Raises:
+            AssertionError: When relative month is <= 0
+        """
+
+        assert relative_month <= 0, "Tried to perform time travel"
+
+        target_year, target_month = get_month_relative(relative_month, TZ_SRC_INIT)
+        return self.get_month_total(target_year, target_month)
+
+    @property
+    def is_emtpy(self) -> bool:
+
+        self.cursor.execute("SELECT EXISTS(SELECT 1 FROM ACCUMULATION)")
+
+        return not self.cursor.fetchone()[0]
 
 
 class CustomTray(pystray.Icon):
@@ -195,15 +295,31 @@ class CustomTray(pystray.Icon):
         self.icon = self.inactive_img
         self.notify(f"Session Duration: {length}", "Session end")
 
-    # def check_running(self, length: timedelta):
-    #     self.notify(f"Session Duration: {length}", "Session check")
+    def running_check_stat(
+        self,
+        current: timedelta,
+        today: timedelta,
+        this_month: timedelta,
+        last_month: timedelta,
+    ):
+        self.notify(
+            f"Current: {current}\nToday Length: {today}\nThis Month: {this_month}\nLast Month: {last_month}",
+            "Session check",
+        )
 
-    def check_stat(self, today_len: timedelta, prev_month_len: timedelta):
-        self.notify(f"Today Length: {today_len}\nThis Month: {prev_month_len}", "Session check")
+    def check_stat(
+        self, today: timedelta, this_month: timedelta, last_month: timedelta
+    ):
+        self.notify(
+            f"Today Length: {today}\nThis Month: {this_month}\nLast Month: {last_month}",
+            "Session check",
+        )
 
 
 def gen_prev_month():
     record: Dict[str, List[pathlib.Path]] = {}
+    now = str(datetime.now(TZ_TGT_INIT))
+
     for file_path in STORAGE.iterdir():
         if file_path.suffix != ".json" or "Error" in file_path.stem:
             continue
@@ -214,7 +330,7 @@ def gen_prev_month():
 
     for key, val in record.items():
         new_path = STORAGE.joinpath(f"{key}.txt")
-        if new_path.exists() and new_path.stem not in str(datetime.now(TZ_TGT_INIT)):
+        if new_path.exists() and new_path.stem not in now:
             # then this is previous already calculated month, skip
             continue
 
@@ -225,7 +341,9 @@ def gen_prev_month():
                 json_ = json.loads(file)
                 time_ = str_to_timedelta(json_["length"])
             except Exception as err:
-                path_temp = STORAGE.joinpath(f"{path.stem}_{type(err).__name__}{path.suffix}")
+                path_temp = STORAGE.joinpath(
+                    f"{path.stem}_{type(err).__name__}{path.suffix}"
+                )
                 path.rename(path_temp)
             else:
                 sum_ += time_
@@ -235,29 +353,12 @@ def gen_prev_month():
 class Timer:
     def __init__(self, tray_instance: CustomTray):
         self.working = False
-        self.sessions: List[Session] = []
         self.current_session: Union[Session, None] = None
         self.tray = tray_instance
 
-        file_this_month = datetime.now(TZ_SRC_INIT).strftime("%Y-%m") + ".txt"
-        time_string, _ = STORAGE.joinpath(file_this_month).read_text("utf8").split("\n")
-        self.this_month = str_to_timedelta(time_string)
+        self.db = DBWrapper(STORAGE.joinpath(NAME))
 
         logger.info("Initialized")
-        self.load_session()
-
-    def prompt_message(self):
-        aggregated_time = session_sum(self.sessions)
-
-        print(
-            f"Aggregated: {aggregated_time}",
-            f"Sessions count: {len(self.sessions)}",
-            f"Session Running: Session {self.current_session.index}"
-            f" started at {self.current_session.start.astimezone(TZ_SRC_INIT)}"
-            if self.current_session
-            else "",
-            sep="\n",
-        )
 
     def stop(self):
         logger.debug("Called")
@@ -266,11 +367,8 @@ class Timer:
         except AttributeError:
             logger.warning("No sessions to stop!")
         else:
-            self.sessions.append(self.current_session)
-            self.current_session = None
+            self.tray.deactivate(self.current_session.length)
             self.save_session()
-
-        self.tray.deactivate(self.sessions[-1].length)
 
     def start(self):
         logger.debug("Called")
@@ -292,63 +390,38 @@ class Timer:
 
     def check(self):
         logger.debug("Called")
-        # if self.current_session:
-        #     ring_multiple(2, freq=600)
-        #     seconds = (self.total_length + self.current_session.length).total_seconds()
-        # else:
-        #     ring_multiple(1, freq=600)
-        #     seconds = self.total_length.total_seconds()
-        try:
-            last_session = (
-                self.current_session if self.current_session else self.sessions[-1]
+        current_month = timedelta(seconds=self.db.get_month_total_relative(0))
+        last_month = timedelta(seconds=self.db.get_month_total_relative(-1))
+
+        if self.current_session:
+            self.tray.running_check_stat(
+                self.current_session.length,
+                self.total_length,
+                current_month,
+                last_month,
             )
-        except IndexError:
-            self.tray.notify("No session in record", "Error")
         else:
-            self.tray.check_stat(self.total_length, self.this_month)
-            time.sleep(0.2)
+            self.tray.check_stat(self.total_length, current_month, last_month)
+
+        time.sleep(0.2)
 
     def exit(self):
         logger.debug("Called")
         if self.current_session:
             self.stop()
+            self.save_session()
 
-        self.save_session()
         exit(0)
 
     @property
     def total_length(self):
         cur = self.current_session.length if self.current_session else timedelta()
-        return session_sum(self.sessions) + cur
-
-    def load_session(self):
-        file_name = datetime.now(TZ_SRC_INIT).strftime("%Y-%m-%d") + ".json"
-
-        path_ = STORAGE.joinpath(file_name)
-
-        if path_.exists():
-            logger.info("Previous Session found. Loading session")
-            existing = json.loads(path_.read_text("utf8"))
-
-            self.sessions = [
-                Session.from_json(entry) for entry in existing["entries"]
-            ] + self.sessions
+        return timedelta(seconds=self.db.get_month_total_relative(0)) + cur
 
     def save_session(self):
         logger.debug("Called")
-        file_name = self.sessions[0].start.strftime("%Y-%m-%d") + ".json"
-        path_ = STORAGE.joinpath(file_name)
-
-        current = [session.to_json() for session in self.sessions]
-
-        output_dict = {
-            "Sessions": len(current),
-            "length": str(self.total_length),
-            "entries": current,
-        }
-
-        path_.write_text(json.dumps(output_dict, indent=2), "utf8")
-        logger.info("Saved sessions at {}", path_)
+        self.db.add_session(self.current_session)
+        self.current_session = None
 
 
 def main():
@@ -357,9 +430,6 @@ def main():
     tray = CustomTray()
     timer = Timer(tray)
     tray.run_detached()
-
-    # toggle_hotkey = keyboard.HotKey(keyboard.HotKey.parse(TOGGLE_COMBINATION), timer.toggle)
-    # exit_hotkey = keyboard.HotKey(keyboard.HotKey.parse(EXIT_COMBINATION), timer.exit)
 
     with keyboard.GlobalHotKeys(
         {TOGGLE_COMBO: timer.toggle, CHECK_COMBO: timer.check}
