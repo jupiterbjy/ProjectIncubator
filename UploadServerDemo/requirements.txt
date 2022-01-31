@@ -1,0 +1,5 @@
+trio
+trio-mysql
+hypercorn
+fastapi
+python-multipart

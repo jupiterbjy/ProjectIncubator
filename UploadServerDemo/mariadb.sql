@@ -1,0 +1,10 @@
+CREATE DATABASE test_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE test_db;
+
+CREATE TABLE `main` (
+    `id` INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `file_name` TEXT NOT NULL,
+    `hash` TEXT NOT NULL,
+
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1;
