@@ -1,3 +1,7 @@
+"""
+Just use loguru, I used this until I found it.
+"""
+
 import logging
 import inspect
 
