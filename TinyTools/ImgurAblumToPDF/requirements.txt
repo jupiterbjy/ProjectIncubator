@@ -1,0 +1,4 @@
+trio
+httpx
+tqdm
+pillow
