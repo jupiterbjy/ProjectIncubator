@@ -7,13 +7,13 @@ from watchdog.events import FileSystemEventHandler
 from selenium import webdriver
 
 try:
-    from TinyTools.LoggingConfigurator import logger
+    from SingleScriptTools.LoggingConfigurator import logger
 except ModuleNotFoundError:
     from sys import path
     from os.path import abspath
     path.append(abspath(""))
 
-    from TinyTools.LoggingConfigurator import logger
+    from SingleScriptTools.LoggingConfigurator import logger
 
 
 parser = argparse.ArgumentParser(description="Auto-reload designated HTML file using selenium and watchdog.")
