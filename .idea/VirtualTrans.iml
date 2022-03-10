@@ -13,7 +13,7 @@
       <excludeFolder url="file://$MODULE_DIR$/ContourAnimationGen/temp_img" />
       <excludeFolder url="file://$MODULE_DIR$/DemoCodes/webptools" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10 (ProjectIncubator)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
