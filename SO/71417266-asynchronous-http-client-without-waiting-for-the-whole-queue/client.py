@@ -73,10 +73,12 @@ class TaskManager:
     def stop_task(self, url):
         """
         Stop existing task associated with url.
-        This method will silently fail if there's no matching url.
 
         Args:
             url: URL associated with task.
+
+        Raises:
+            KeyError: If no task associated with given url exists.
         """
         self.tasks[url].cancel()
 
@@ -85,7 +87,7 @@ class TaskManager:
         Cancels all tasks
         """
 
-        for _, task in self.tasks.items():
+        for task in self.tasks.values():
             task.cancel()
 
 
