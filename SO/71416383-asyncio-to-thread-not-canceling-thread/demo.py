@@ -1,5 +1,5 @@
 """
-Demo codes for https://stackoverflow.com/questions/71416383/
+Demo codes for https://stackoverflow.com/q/71416383/10909029
 
 Showing canceling(not really) task running in thread
 
