@@ -28,7 +28,7 @@ def determine_current_nic(*net_names) -> Tuple[str, str, List[str], List[str]]:
     Determine primary active NIC.
 
     Notes:
-        One NIC may have multiple addresses  of same family. Thus returning in list.
+        One NIC may have multiple addresses of same family. Thus returning in list.
 
     Args:
         *net_names: NIC names to look for. NIC priority == item order
@@ -67,5 +67,5 @@ def determine_current_nic(*net_names) -> Tuple[str, str, List[str], List[str]]:
 # ---
 
 if __name__ == '__main__':
-    name, mac, ipv4, ipv6 = determine_current_nic("이더넷", "Wi-Fi", "Bluetooth 네트워크 연결")
-    print(name, mac, ipv4, ipv6)
+    name_, mac, ipv4, ipv6 = determine_current_nic("이더넷", "Wi-Fi", "Bluetooth 네트워크 연결")
+    print(name_, mac, ipv4, ipv6)
