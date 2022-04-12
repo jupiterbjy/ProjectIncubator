@@ -1,12 +1,12 @@
 {
     "fade_step": 0.02,
-    "transparent": false,
+    "transparent": true,
     "fps_cap": 60,
     "duration": 5,
     "res_multiply": 2,
     "threshold_low": 50,
     "threshold_high": 200,
     "line_width": 2,
-    "bg_color": [0, 0, 0],
-    "line_color": [174, 229, 224, 255]
+    "bg_color": [20, 20, 20],
+    "line_color": [255, 255, 255, 255]
 }

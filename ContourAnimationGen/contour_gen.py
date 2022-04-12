@@ -1,10 +1,12 @@
 import json
+import shutil
 import pathlib
 import argparse
+import tempfile
 import traceback
 from pprint import pprint
 from multiprocessing import Pool
-from typing import List, Tuple, Sequence
+from typing import List, Tuple
 
 try:
     import cv2
@@ -21,9 +23,7 @@ except ModuleNotFoundError:
 
 
 root = pathlib.Path(__file__).parent.absolute()
-temp = root.joinpath("temp_img")
 output_dir = root.joinpath("output")
-
 output_dir.mkdir(exist_ok=True)
 
 
@@ -41,11 +41,36 @@ class Args:
     file: pathlib.Path
 
 
-def save_workload(arguments: Tuple[Image.Image, int, int, bool, Tuple[int, int, int]]):
+def save_workload(arguments: Tuple[pathlib.Path, Image.Image, int, int, bool, Tuple[int, int, int]]):
+    """
+    Wrapper for function 'save', just to unpack single parameter it
+    received via process pool's map func.
+
+    Args:
+        arguments: tuple of parameters of save function.
+
+    Returns:
+
+    """
     save(*arguments)
 
 
-def save(img: Image.Image, index: int, digit: int, alpha: bool, bg_color):
+def save(temp: pathlib.Path, img: Image.Image, index: int, digit: int, alpha: bool, bg_color):
+    """
+    Actual save function intended to be used for multiprocessing.
+
+    Args:
+        temp: temp directory
+        img: PIL loaded image to save
+        index: frame number of the image
+        digit: image file name padding digit
+        alpha: if False, removes alpha channel from image.
+        bg_color: background color to use for when removing alpha channel
+
+    Returns:
+
+    """
+
     w, h = img.size
     x, y = w & 1, h & 1
     path = temp.joinpath(f"{str(index).zfill(digit)}.png")
@@ -64,30 +89,71 @@ def save(img: Image.Image, index: int, digit: int, alpha: bool, bg_color):
 
 
 def generate_fade(
-    source_img: Image.Image, contour_img: Image.Image, last_idx, digit: int
+    temp: pathlib.Path, source_img: Image.Image, contour_img: Image.Image, last_idx, digit: int
 ):
+    """
+    Generate cross-fading frames.
+
+    Notes:
+        When creating stationary frames, script actually goes for dumb way to
+        create tons of exact same frame to create sufficient length, to exclude
+        logic and variables determining which frame has to be longer when encoding
+        in ffmpeg.
+
+    Args:
+        temp: Temp directory
+        source_img: PIL loaded source image
+        contour_img: PIL loaded contoured image
+        last_idx: frame count in previous step
+        digit: image file name padding digit
+
+    Returns:
+
+    """
+
+    # cross-fade frame count
     alpha_fade = [n / 100 for n in range(100, 0, int(-args.fade_step * 100))]
+
+    # frame count for each fade/stationary step
     size = len(alpha_fade)
 
+    # using unnecessarily complex generator-fed process pool to make it work with tqdm
     def cross_fade_gen(alpha_list, start_idx):
+        """
+        Generate parameter tuples to field for process pool.
+
+        Returns:
+        """
         for idx, alpha in enumerate(alpha_list):
 
-            yield Image.blend(
+            yield temp, Image.blend(
                 source_img, contour_img, alpha=alpha
             ), start_idx + idx, digit, args.transparent, args.bg_color
 
+    # This is the dumbest thing in this code, aww!
     def stationary_gen():
+        """
+        Generate parameter tuples to field for process pool.
+
+        Returns:
+        """
         for idx_ in range(size):
-            yield source_img, idx_ + last_idx, digit, args.transparent, args.bg_color
+            yield temp, source_img, idx_ + last_idx, digit, args.transparent, args.bg_color
 
     def fade_gen(alpha_list):
+        """
+        Generate parameter tuples to field for process pool.
+
+        Returns:
+        """
         for idx, alpha in enumerate(alpha_list):
             new_img = Image.new("RGBA", source_img.size)
 
-            yield Image.blend(
+            yield temp, Image.blend(
                 new_img, source_img, alpha=alpha
             ), last_idx + idx, digit, args.transparent, args.bg_color
 
+    # feed process pool with generators
     with Pool() as pool:
 
         generators = (
@@ -98,11 +164,22 @@ def generate_fade(
         messages = ("Generating CrossFade", "Generating Stationary", "Generating Fade")
 
         for gen, msg in zip(generators, messages):
-            tuple(tqdm(pool.imap(save_workload, gen), msg, size))
+            pool.map(save_workload, tqdm(gen, msg, size))
             last_idx += size
 
 
-def generate_images(contours: List[np.array], source_image: Image.Image):
+def generate_images(temp: pathlib.Path, contours: List[np.array], source_image: Image.Image):
+    """
+    Generate images to be used for ffmpeg encoding.
+
+    Args:
+        temp: temp directory
+        contours: list of contour coordinates
+        source_image: PIL loaded source image
+
+    Returns:
+
+    """
 
     # get size
     # concat = np.concatenate(contours, axis=0)
@@ -121,7 +198,14 @@ def generate_images(contours: List[np.array], source_image: Image.Image):
 
     draw = ImageDraw.Draw(img)
 
+    # maybe queue was better, but for memory.. idk
     def img_gen():
+        """
+        Generate parameter tuples to field for process pool.
+
+        Returns:
+        """
+
         for idx_, contour in enumerate(contours):
             range_1 = tuple(range(len(contour)))
             range_2 = [*range_1[1:], 0]
@@ -134,101 +218,121 @@ def generate_images(contours: List[np.array], source_image: Image.Image):
                     width=args.line_width,
                 )
 
-            yield img.copy(), idx_, digit, args.transparent, args.bg_color
+            yield temp, img.copy(), idx_, digit, args.transparent, args.bg_color
 
+    # Save simultaneously, because saving operation in serial can be slower than HW capability
     with Pool() as pool:
-        tuple(
-            tqdm(
-                pool.imap(save_workload, img_gen()),
-                "Drawing Contours",
-                total=len(contours),
-            )
-        )
+        pool.map(save_workload, tqdm(img_gen(), "Drawing Contours", len(contours)))
 
-    generate_fade(resized, img, len(contours), digit)
+    # now add fade to the frame fleets
+    generate_fade(temp, resized, img, len(contours), digit)
 
 
-def remove_alpha(image, bg_color: Sequence[int]):
+def remove_alpha(image, bg_color: Tuple[int, int, int]):
+    """
+    Remove alpha channel from images by overlapping images.
+
+    Args:
+        image: image to remove background from
+        bg_color: RGB background color
+
+    Returns:
+        non_transparent image
+    """
     bg = Image.new("RGB", image.size, bg_color)
     bg.paste(image, mask=image.split()[3])
     return bg
 
 
-def generate_video():
+def generate_video(temp: pathlib.Path):
+    """
+    Generate video from previously created images.
+
+    Args:
+        temp: temp directory
+
+    Returns:
+
+    """
+
+    # prepare output file path
     path_ = output_dir.joinpath(pathlib.Path(args.file).name)
 
+    # calculate fps, and check if it's within limit
     fps = len(tuple(temp.iterdir())) // args.duration
     if fps > args.fps_cap:
         fps = args.fps_cap
 
     txt = temp.joinpath("files.txt")
 
-    # create txt file for input
+    # create txt file input for ffmpeg concat
     directory_listing = [
         f"file {p.as_posix()}" for p in temp.iterdir() if p.suffix == ".png"
     ]
 
+    # now sort image order
     directory_listing = sorted(directory_listing)
 
+    # start writing to input.txt
     with open(txt, "w") as fp:
         for directory in directory_listing:
             fp.write(f"{directory}\nduration 1\n")
 
         fp.write(f"{directory_listing[-1]}")
 
+    # prepare save file and remove if same exists.
+    output = path_.with_suffix(".webm" if args.transparent else ".mp4").absolute()
+    output.unlink(missing_ok=True)
+
+    # divide operation in 2 step. Not sure if I like this flow style.
+    ffmpeg_setup = ffmpeg.input(txt.as_posix(), r=str(fps), f="concat", safe="0")
+
     if args.transparent:
-        output = path_.with_suffix(".webm").absolute()
-        output.unlink(missing_ok=True)
-        (
-            ffmpeg.input(txt.as_posix(), r=str(fps), f="concat", safe="0")
-            .output(
-                output.as_posix(),
-                vcodec="libvpx-vp9",
-                **{"pix_fmt": "yuva420p", "c:v": "libfvpx-vp9", "crf": "20", "b:v": "0"},
-            )
-            .run()
-        )
+        ffmpeg_setup.output(
+            output.as_posix(),
+            vcodec="libvpx-vp9",
+            **{"pix_fmt": "yuva420p", "c:v": "libfvpx-vp9", "crf": "20", "b:v": "0"},
+        ).run()
+
     else:
-        output = path_.with_suffix(".mp4").absolute()
-        output.unlink(missing_ok=True)
-        (
-            ffmpeg.input(txt.as_posix(), r=str(fps), f="concat", safe="0")
-            .output(
-                output.as_posix(),
-                vcodec="libx264",
-                **{"pix_fmt": "yuv420p", "c:v": "libx264", "crf": "20"},
-            )
-            .run()
-        )
+        ffmpeg_setup.output(
+            output.as_posix(),
+            vcodec="libx264",
+            **{"pix_fmt": "yuv420p", "c:v": "libx264", "crf": "20"},
+        ).run()
 
 
 def main():
+    with tempfile.TemporaryDirectory("CONTOUR_GEN") as tmp:
+        # prep temp - doing this because cv2 can't read unicode file path.
+        tmp_dir = pathlib.Path(tmp)
 
-    # clear temp
-    if temp.exists():
-        for file_ in temp.iterdir():
-            file_.unlink()
-    else:
-        temp.mkdir()
+        source_dir = tmp_dir.joinpath("source")
+        source_dir.mkdir()
 
-    frame = cv2.imread(args.file.as_posix())
-    print("target", args.file.as_posix())
+        # again copy file with some different name because cv2 can't read unicode file name.
+        source_file = source_dir.joinpath("source_file").with_suffix(args.file.suffix)
+        shutil.copyfile(args.file, source_file)
 
-    base = cv2.Canny(frame, args.threshold_low, args.threshold_high)
+        # now let cv2 read it
+        frame = cv2.imread(source_file.as_posix())
+        print("target", args.file.as_posix())
 
-    contours, hierarchy = cv2.findContours(
-        base, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
-    )
+        base = cv2.Canny(frame, args.threshold_low, args.threshold_high)
 
-    # squeeze and multiply contours
-    squeezed = [
-        np.squeeze(cnt, axis=1) * [args.res_multiply, args.res_multiply]
-        for cnt in contours
-    ]
+        contours, hierarchy = cv2.findContours(
+            base, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+        )
 
-    generate_images(squeezed, Image.open(args.file).convert("RGBA"))
+        # squeeze and multiply contours
+        squeezed = [
+            np.squeeze(cnt, axis=1) * [args.res_multiply, args.res_multiply]
+            for cnt in contours
+        ]
 
-    generate_video()
+        generate_images(tmp_dir, squeezed, Image.open(args.file).convert("RGBA"))
+
+        generate_video(tmp_dir)
 
 
 if __name__ == "__main__":
@@ -296,7 +400,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("file", type=pathlib.Path, help="Path to image")
 
-    # Load config and write into args singleton
+    # Load config and write into args namespace
     config_file = json.loads(root.joinpath("config.json").read_text("utf8"))
     vars(args).update(config_file)
     parser.parse_args(namespace=args)
@@ -307,6 +411,12 @@ if __name__ == "__main__":
 
     pprint(vars(args))
 
+    # fail fast
+    if not args.file.is_file():
+        input("Supplied parameter is not a file. Press enter to exit.")
+        exit(1)
+
+    # else continue
     try:
         main()
     except Exception as err:
