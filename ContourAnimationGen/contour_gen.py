@@ -14,6 +14,7 @@ try:
     from PIL import Image, ImageDraw
 except ModuleNotFoundError:
     import install_module
+    install_module.install()
 
     input("Please restart the script. Press Enter to exit.")
     exit()

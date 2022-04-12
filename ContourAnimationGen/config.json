@@ -3,10 +3,10 @@
     "transparent": false,
     "fps_cap": 60,
     "duration": 5,
-    "res_multiply": 1,
+    "res_multiply": 2,
     "threshold_low": 50,
     "threshold_high": 200,
-    "line_width": 4,
-    "bg_color": [4, 244, 4],
+    "line_width": 2,
+    "bg_color": [0, 0, 0],
     "line_color": [174, 229, 224, 255]
 }
