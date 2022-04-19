@@ -1,3 +1,9 @@
+"""
+Simple code generating Contour animation-ish video out of image drag-n-drop.
+
+Author: jupiterbjy@gmail.com / nyarukoishi@gmial.com
+"""
+
 import json
 import shutil
 import pathlib
