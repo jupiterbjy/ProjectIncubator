@@ -306,6 +306,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # convert provided URL to id if not already is.
-    args.urls = [url.split("/")[-1] for url in args.urls if "/" in url]
+    args.urls = [url.split("/")[-1] for url in args.urls]
 
     trio.run(main_task)
