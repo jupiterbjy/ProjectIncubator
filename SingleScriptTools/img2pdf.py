@@ -4,21 +4,36 @@ Simple Image to pdf script
 
 import pathlib
 import argparse
-from typing import Sequence
+from typing import Sequence, Generator
 
 from PIL import Image
 
 
-def image_path_to_pdf(image_paths: Sequence[pathlib.Path]):
-    save_file = image_paths[0].with_suffix(".pdf")
+def path_to_image_gen(paths: Sequence[pathlib.Path]) -> Generator[None, Image.Image, None]:
+    for path in paths:
+        img_temp = Image.open(path)
+
+        # convert all into RGB
+        if img_temp.mode != "RGB":
+            img_temp = img_temp.convert("RGB")
+
+        yield img_temp
+
+
+def image_path_to_pdf(paths: Sequence[pathlib.Path]):
+    save_file = paths[0].with_suffix(".pdf")
     try:
-        first_img, *rest_img = (Image.open(img_path) for img_path in image_paths)
+        first_img, *rest_img = path_to_image_gen(paths)
     except Exception:
         print(f"Encountered error while loading images. Check last traceback.")
         raise
 
-    first_img: Image.Image
-    first_img.save(save_file, "pdf", save_all=True, append_images=rest_img)
+    try:
+        first_img: Image.Image
+        first_img.save(save_file, "pdf", save_all=True, append_images=rest_img)
+    except Exception:
+        print(f"Encountered error while saving images. Check last traceback.")
+        raise
 
 
 if __name__ == '__main__':
