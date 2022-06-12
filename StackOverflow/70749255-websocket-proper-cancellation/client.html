@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Websocket test</title>
+</head>
+<body>
+    <button id="start">Start connection</button>
+    <button id="close" disabled>Close connection</button>
+    <input type="text" id="input_" value="INPUT_YOUR_UUID">
+
+    <div id="state">Status: Waiting for connection</div>
+
+    <script>
+        let state = document.getElementById("state")
+        let start_btn = document.getElementById("start")
+        let close_btn = document.getElementById("close")
+        let input_ = document.getElementById("input_")
+
+        function sleep(sec) {
+            state.textContent = `Status: sleeping ${sec} seconds`
+            return new Promise((func) => setTimeout(func, sec * 1000))
+        }
+
+        function websocket_test() {
+            return new Promise((resolve, reject) => {
+                let socket = new WebSocket("ws://127.0.0.1:8000/stream")
+
+                socket.onopen = function () {
+                    state.textContent = "Status: Sending UUID - " + input_.value
+                    socket.send(input_.value)
+                    close_btn.disabled = false
+                    close_btn.onclick = function () {socket.close()}
+                }
+                socket.onmessage = function (msg) {
+                    state.textContent = "Status: Message Received - " + msg.data
+                    socket.send("Received")
+                }
+                socket.onerror = function (error) {
+                    reject(error)
+                    state.textContent = "Status: Error encountered"
+                }
+                socket.onclose = function () {
+                    state.textContent = "Status: Connection Stopped"
+                    close_btn.disabled = true
+                }
+            })
+        }
+
+        start_btn.onclick = websocket_test
+
+    </script>
+</body>
+</html>

@@ -8,10 +8,3 @@ This will hold new ideas for repositories. When sub-project became clear, then w
 to separate from subtree and create a new repository.
 
 Mostly will look like a personal junkyard!
-
-## List of graduated projects:
-
-- [CUIAudioPlayer](https://github.com/jupiterbjy/CUIAudioPlayer)
-- [YoutubeStreamLogger](https://github.com/jupiterbjy/YoutubeStreamLogger)
-- [StreamNotifier](https://github.com/jupiterbjy/StreamNotifier)
-- [Meow py](https://github.com/jupiterbjy/Meow_py)
