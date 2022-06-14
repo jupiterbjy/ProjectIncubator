@@ -7,6 +7,7 @@ import pygame as pg
 
 
 pg.init()
+pg.font.init()
 
 
 class Position:
@@ -108,6 +109,18 @@ def process_input(event: pg.event.Event):
         # etc..
 
 
+def display_fps_closure(screen: pg.Surface):
+    font_name = pg.font.get_default_font()
+    font = pg.font.Font(font_name, 10)
+    color = (0, 255, 0)
+
+    def inner(fps: float):
+        text = font.render(f"{int(fps)} fps", True, color)
+        screen.blit(text, text.get_rect())
+
+    return inner
+
+
 def mainloop():
     display = pg.display
     screen = display.set_mode((500, 500))
@@ -118,6 +131,9 @@ def mainloop():
 
     world = World()
     world.generate()
+
+    clock = pg.time.Clock()
+    display_fps = display_fps_closure(screen)
 
     # main loop
     while running:
@@ -137,6 +153,10 @@ def mainloop():
         for sprite in SpriteGroup.light_overlay:
             sprite.update()
             screen.blit(sprite.image, sprite.rect)
+
+        # draw fps
+        clock.tick(240)
+        display_fps(clock.get_fps())
 
         display.flip()
 
