@@ -42,14 +42,13 @@ def mainloop():
     while running:
         screen.fill((0, 0, 0))
 
+        # draw background
         for surface in bg_surfaces:
             screen.blit(surface, surface.get_rect())
 
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 running = False
-
-        # draw transparent circles
 
         player.update()
         screen.blit(player.image, player.rect)

@@ -32,16 +32,20 @@ class Player(pg.sprite.Sprite):
     """Player class, which is merely a rect following pointer in this example."""
     def __init__(self):
         super(Player, self).__init__()
-        self.image = pg.Surface((25, 25))
+        self.image = pg.Surface((50, 50))
         self.image.fill((255, 255, 255))
         self.rect = self.image.get_rect()
 
         SpriteGroup.entities.add(self)
 
+        self.rect.move_ip(225, 225)
+
     def update(self, *args, **kwargs):
-        x, y = pg.mouse.get_pos()
-        c_x, c_y = self.rect.center
-        self.rect.move_ip(x - c_x, y - c_y)
+        pass
+        # Intentionally disabling mouse following code
+        # x, y = pg.mouse.get_pos()
+        # c_x, c_y = self.rect.center
+        # self.rect.move_ip(x - c_x, y - c_y)
 
 
 class TileLightOverlay(pg.sprite.Sprite):
