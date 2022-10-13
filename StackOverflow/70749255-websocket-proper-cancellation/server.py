@@ -10,7 +10,6 @@ import hypercorn
 from hypercorn.trio import serve
 
 
-NURSERY = trio.open_nursery()
 GLOBAL_NURSERY_STORAGE: Dict[str, Tuple[trio.CancelScope, trio.Event]] = {}
 TIMEOUT = 5
 
