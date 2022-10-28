@@ -4,12 +4,10 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/YoutubeStreamStatLogger" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Meow_py" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/examples" />
       <excludeFolder url="file://$MODULE_DIR$/CUIAudioPlayer/audio_files" />
       <excludeFolder url="file://$MODULE_DIR$/DemoCodes/webptools" />
-      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest" />
       <excludeFolder url="file://$MODULE_DIR$/Random Tools/ContourAnimationGen/output" />
       <excludeFolder url="file://$MODULE_DIR$/Random Tools/ContourAnimationGen/temp_img" />
     </content>
