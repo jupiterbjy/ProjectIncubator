@@ -1,0 +1,45 @@
+# Info section
+# All lines starting with # is ignored, effectively this is comment
+# This shows in which version this file was created for
+- KALIMPY  : 0.1a
+
+# Title, author - preferably both original tab creator & file creator
+- TITLE    : This is a test
+- AUTHOR   : Me at 06:43 AM, File also created by me
+
+# Kalimba tuning this file is based on
+- TUNING   : C4  D4  E4  F4  G4  A4  B4  C5  D5  E5  F5# G5  A5  B5  C6  D6  E6
+
+# This decides how long each tab or whitespace's duration is in milliseconds
+- INTERVAL : 50
+
+# Note sections
+- NOTE     : Nothing to mention, all good! No, actually not.
+- NOTE     : Need multiline note? here it is.
+- NOTE     : Just add more of these lines
+```
+# Tab notation section
+# Line starting with Whitespace count as Lyric
+# End of notes are marked by / so that the trailing whitespace is 'human-readable'.
+
+ Octave 4
+1 2 3 4 5 6 7   /
+
+ Octave 5
+ Multiline Lyrics test
+1' 2' 3' 4' 5' 6' 7'    /
+
+ Octave 6
+1" 2" 3"    /
+
+ Chain test
+(1-1'-1")  (2-2'-2")    /
+
+ Beat test
+1        1    1  1 1111    /
+
+# no lyrics test
+1'  1'2' 2'  1' 1'3'4'3'  1'  1'2' 2'  1' 1' 7' 1' /
+```
+# This section is not used for now
+# always leave empty line at end of file
