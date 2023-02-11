@@ -16,10 +16,14 @@ from .notations import *
 
 # configs
 ENCODING = "utf8"
-TAB_PARSER = re.compile(r"""([A-G]['"]?#?| )""")
+# TAB_PARSER = re.compile(r"""([A-G]['"]?#?| )""")
+TAB_PARSER = re.compile(r"""([1-7]['"]?#?| )""")
 SECTION_SEP = "```"
 OCTAVE_SYMBOLS = " ", "'", '"'
 KEYS = 17
+
+
+__all__ = ["Header", "Note", "TabLine", "TabSheet", "tune", "tab_parser", "parser"]
 
 
 class Header(TypedDict):
@@ -34,15 +38,15 @@ class Header(TypedDict):
 class Note:
     numeric_translation: Dict[str, str] | None = None
 
-    def __init__(self, numeric_note: str):
+    def __init__(self, num_note: str):
         """Kalimba Note representation
 
         Args:
-            numeric_note: Note in numerical notation
+            num_note: Note in numerical notation
         """
 
-        self.numeric = numeric_note
-        self.alphabetic = self.numeric_translation[numeric_note]
+        self.numeric = num_note
+        self.alphabetic = self.numeric_translation[num_note]
         self.frequency = FREQUENCY[self.alphabetic]
 
     def __str__(self):
@@ -59,6 +63,8 @@ class Note:
         cls.numeric_translation = {
             num: alpha for num, alpha in zip(NUM_NOTATION[:KEYS], tuning)
         }
+        # add whitespace, this will remove any possible special cases later on
+        cls.numeric_translation[" "] = " "
 
 
 class TabLine:
@@ -67,7 +73,7 @@ class TabLine:
         self.lyrics = lyrics
 
     def __iter__(self):
-        return self.tabs
+        return iter(self.tabs)
 
     def __len__(self):
         return len(self.tabs)
@@ -84,7 +90,17 @@ class TabSheet:
         self.header = header
         self.lines = lines
         self.title = self.header["title"]
+        # TODO: parse grouped notes
 
+
+# just for the interface shake
+def tune(tuning: Sequence[str]):
+    """Sets up Numeric to Alphabetical notation translation dictionary.
+
+    Args:
+        tuning: Tuning values from tab file
+    """
+    Note.setup_translation(tuning)
 
 
 def _notes_gen(cycler: Iterable):
@@ -94,10 +110,6 @@ def _notes_gen(cycler: Iterable):
 
 def num_notes_gen():
     yield from _notes_gen(range(1, 8))
-
-
-# def letter_notes_gen():
-#     yield from _notes_gen("CDEFGAB")
 
 
 def section_gen(fp: TextIO) -> Generator[Tuple[int, str], None, None]:
@@ -132,8 +144,8 @@ def header_parser(fp: TextIO) -> Header:
     # convert back to normal dict
     info_dict = dict(info_def_dict)
 
-    # break tuning data into pieces, so we can use it for tab parsing
-    info_dict["tuning"] = info_dict["tuning"].split(" ")
+    # break tuning data into pieces, so we can use it for tab parsing & append white spacing
+    info_dict["tuning"] = info_dict["tuning"].split(" ") + [" "]
 
     # convert spacing unit length(in milliseconds) back to number
     info_dict["interval"] = float(info_dict["interval"])
