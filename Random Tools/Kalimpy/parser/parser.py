@@ -6,7 +6,7 @@ Thought of using lexer but thought making readable as-is with it might be nightm
 
 import re
 from os import PathLike
-from typing import TextIO, Generator, Iterable, Dict, Sequence, Tuple, TypedDict
+from typing import TextIO, Generator, Iterable, Dict, Sequence, Tuple, TypedDict, Callable
 from collections import defaultdict
 
 from loguru import logger
