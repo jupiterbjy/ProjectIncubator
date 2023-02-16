@@ -14,6 +14,7 @@ import trio
 from pixel_ring.apa102 import APA102
 from RPi import GPIO
 
+
 # CONFIG SECTION ------------------------------------
 # number of LED in your model - for 6ch model it's 12
 LED_COUNT = 12
@@ -57,7 +58,8 @@ async def activate_led(led_id, rgb: Tuple[int, int, int], duration=1.):
     # wait for designated duration
     await trio.sleep(duration)
 
-    del LED_STATE[led_id]
+    # pop if led_id is still there & reset color back
+    LED_STATE.pop(led_id, None)
     LED_DRIVER.set_pixel(led_id, *last_state)
     LED_DRIVER.show()
 
