@@ -1,7 +1,6 @@
 """
 Prototyping playground
 """
-import time
 import winsound
 
 import trio
@@ -19,7 +18,7 @@ async def async_player(tab_line: TabLine):
 
     async with trio.open_nursery() as nursery:
         for idx, tab in enumerate(tab_line):
-            print(f"{idx}| {tab}")
+            print(f"{idx:3}|{tab.alphabetic:3}| {tab}")
             if tab.frequency:
                 nursery.start_soon(playback_task, tab.frequency, fade_duration)
 
