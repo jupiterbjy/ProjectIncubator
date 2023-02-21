@@ -38,8 +38,11 @@
  Beat test
 1        1    1  1 1111    /
 
-# no lyrics test
+# no lyrics test - Thinker
 1'  1'2' 2'  1' 1'3'4'3'  1'  1'2' 2'  1' 1' 7' 1' /
+
+# Constant moderato?
+5 1'  5' 2' 1'  5 1'1'2' 3'2' 1'3'   5 1'  5' 2' 1'4'3' 2' 1'2'3' 4'3'1'  2'  /
 ```
 # This section is not used for now
 # always leave empty line at end of file
