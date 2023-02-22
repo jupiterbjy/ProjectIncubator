@@ -7,7 +7,6 @@ https://github.com/respeaker/pixel_ring
 2023-02-16 jupiterbjy
 """
 
-import time
 from typing import Dict, Tuple
 
 import trio
