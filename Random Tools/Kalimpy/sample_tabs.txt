@@ -8,7 +8,8 @@
 - AUTHOR   : Me at 06:43 AM, File also created by me
 
 # Kalimba tuning this file is based on
-- TUNING   : C4  D4  E4  F4  G4  A4  B4  C5  D5  E5  F5# G5  A5  B5  C6  D6  E6
+# i.e. F5# or F5b instead of F5
+- TUNING   : C4  D4  E4  F4  G4  A4  B4  C5  D5  E5  F5 G5  A5  B5  C6  D6  E6
 
 # This decides how long each tab or whitespace's duration is in milliseconds
 - INTERVAL : 50
@@ -21,6 +22,7 @@
 # Tab notation section
 # Line starting with Whitespace count as Lyric
 # End of notes are marked by / so that the trailing whitespace is 'human-readable'.
+# TODO: add proper breaks with unicode https://kr.piliapp.com/symbol/music/
 
  Octave 4
 1 2 3 4 5 6 7   /
@@ -38,10 +40,10 @@
  Beat test
 1        1    1  1 1111    /
 
-# no lyrics test - Thinker
+# Thinker
 1'  1'2' 2'  1' 1'3'4'3'  1'  1'2' 2'  1' 1' 7' 1' /
 
-# Constant moderato?
+# Constant Moderato?
 5 1'  5' 2' 1'  5 1'1'2' 3'2' 1'3'   5 1'  5' 2' 1'4'3' 2' 1'2'3' 4'3'1'  2'  /
 ```
 # This section is not used for now
