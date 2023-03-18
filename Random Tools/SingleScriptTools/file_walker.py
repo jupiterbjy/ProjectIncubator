@@ -1,3 +1,7 @@
+"""
+File system navigating class which remembers current director's contents
+"""
+
 import pathlib
 import itertools
 from typing import List, Iterator

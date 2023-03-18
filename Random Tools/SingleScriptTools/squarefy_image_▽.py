@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+"""
+Simply makes images perfect square by extending from shorter dimension.
+"""
 
 import pathlib
 import argparse

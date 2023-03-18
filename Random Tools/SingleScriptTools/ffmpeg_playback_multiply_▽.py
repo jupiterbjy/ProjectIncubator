@@ -1,3 +1,8 @@
+"""
+Multiplies video playback speed by discarding frames without encoding
+Requires FFMPEG
+"""
+
 import pathlib
 import asyncio
 import argparse

@@ -1,15 +1,9 @@
 """
-Embeds file inside jpg metadata
+Embeds file inside jpg metadata. Any decent unzipper can open as zip.
 
-Check usage by executing without parameters.
+Check usage by executing without parameters
 
-MAKE SURE TO CHANGE/ADD TRUE TYPE FONT YOU HAVE TO FONT_NAMES
-
-DO NOT ATTEMPT TO EMBED LARGE FILES EXCEEDING YOUR TEMP FOLDER SIZE OR MEMORY
-
-Basically only useful for those who use steam chat as main chat.
-
-author: jupiterbjy@gmail.com / nyarukoishi@gmail.com
+![Example](./Readme resources/files_2_image.png)
 """
 
 from typing import Sequence
