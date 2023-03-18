@@ -3,7 +3,7 @@ Embeds file inside jpg metadata. Any decent unzipper can open as zip.
 
 Check usage by executing without parameters
 
-![Example](./Readme resources/files_2_image.png)
+![Example](readme_res/files_2_image.png)
 """
 
 from typing import Sequence

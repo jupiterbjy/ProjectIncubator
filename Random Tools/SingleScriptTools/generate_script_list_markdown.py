@@ -38,9 +38,9 @@ def main():
 
     # write to file
     with WRITE_TO.open("at", encoding="utf8") as fp:
-        for name, path_, docs in docstring_extract_gen(file_list):
+        for name, _, docs in docstring_extract_gen(file_list):
             print(f"Writing {name}")
-            fp.write(FORMAT.format(name, path_, docs))
+            fp.write(FORMAT.format(name, name, docs))
 
 
 if __name__ == '__main__':
