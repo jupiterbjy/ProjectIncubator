@@ -1,9 +1,15 @@
+"""
+Fetches transcript from YouTube video
+Currently broken as API is gone, will rewrite again when I need this
+"""
+
+# from argparse import ArgumentParser
 from typing import Iterable, Tuple, Dict, List, Any
 from urllib import parse
 import json
 
 from youtube_transcript_api import YouTubeTranscriptApi
-import trio
+# import trio
 import httpx
 
 

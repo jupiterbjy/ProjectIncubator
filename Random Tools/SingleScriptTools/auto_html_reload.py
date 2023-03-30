@@ -1,3 +1,7 @@
+"""
+Watches for html file changes and reload pages with selenium
+"""
+
 import argparse
 import pathlib
 import time
@@ -5,15 +9,16 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from selenium import webdriver
+from loguru import logger
 
-try:
-    from SingleScriptTools.LoggingConfigurator import logger
-except ModuleNotFoundError:
-    from sys import path
-    from os.path import abspath
-    path.append(abspath(""))
-
-    from SingleScriptTools.LoggingConfigurator import logger
+# try:
+#     from SingleScriptTools.LoggingConfigurator import logger
+# except ModuleNotFoundError:
+#     from sys import path
+#     from os.path import abspath
+#     path.append(abspath(""))
+#
+#     from SingleScriptTools.LoggingConfigurator import logger
 
 
 parser = argparse.ArgumentParser(description="Auto-reload designated HTML file using selenium and watchdog.")

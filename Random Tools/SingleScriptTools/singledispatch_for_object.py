@@ -1,9 +1,9 @@
-from functools import wraps
-
 """
 Mimics functools.singledispatch, but for objects.
 usage is also almost identical.
 """
+
+from functools import wraps
 
 
 def obj_dispatch(func):

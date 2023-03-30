@@ -1,3 +1,6 @@
+"""
+Module wrapping `inspect` module to list classes, functions in specified module
+"""
 from sys import modules
 from inspect import getmembers, isclass, isfunction
 from types import ModuleType

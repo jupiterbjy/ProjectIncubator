@@ -4,16 +4,17 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/YoutubeStreamStatLogger" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Meow_py" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/examples" />
       <excludeFolder url="file://$MODULE_DIR$/CUIAudioPlayer/audio_files" />
       <excludeFolder url="file://$MODULE_DIR$/DemoCodes/webptools" />
-      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest" />
       <excludeFolder url="file://$MODULE_DIR$/Random Tools/ContourAnimationGen/output" />
       <excludeFolder url="file://$MODULE_DIR$/Random Tools/ContourAnimationGen/temp_img" />
+      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest/build" />
+      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/venv-cxfreeze" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (ProjectIncubator)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">

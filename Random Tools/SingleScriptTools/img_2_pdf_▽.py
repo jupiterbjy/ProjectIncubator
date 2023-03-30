@@ -1,5 +1,5 @@
 """
-Simple Image to pdf script
+Convert multiples images into single pdf
 """
 
 import pathlib

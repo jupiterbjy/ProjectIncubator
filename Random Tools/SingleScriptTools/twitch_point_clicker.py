@@ -1,3 +1,7 @@
+"""
+Dumb script that looks for twitch points button element on chat and clicks it
+"""
+
 import time
 
 from selenium import webdriver
