@@ -10,11 +10,11 @@
       <excludeFolder url="file://$MODULE_DIR$/DemoCodes/webptools" />
       <excludeFolder url="file://$MODULE_DIR$/Random Tools/ContourAnimationGen/output" />
       <excludeFolder url="file://$MODULE_DIR$/Random Tools/ContourAnimationGen/temp_img" />
-      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest/build" />
-      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest/dist" />
       <excludeFolder url="file://$MODULE_DIR$/venv-cxfreeze" />
+      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/Random Tools/SeleniumTest/build" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10 (ProjectIncubator)" jdkType="Python SDK" />
+    <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
