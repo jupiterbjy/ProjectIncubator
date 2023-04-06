@@ -29,7 +29,8 @@ class SpriteGroup:
 
 
 class Player(pg.sprite.Sprite):
-    """Player class, which is merely a rect following pointer in this example."""
+    """Player class, which is merely a white rect in this example."""
+
     def __init__(self):
         super(Player, self).__init__()
         self.image = pg.Surface((50, 50))
@@ -88,7 +89,7 @@ class TileLightOverlay(pg.sprite.Sprite):
 class TileGround(pg.sprite.Sprite):
     """Ground tile representation. Not much is going on here."""
 
-    def __init__(self, x, y, tile_color: Sequence[float]):
+    def __init__(self, x, y, tile_color: Sequence[int]):
         super(TileGround, self).__init__()
 
         self.image = pg.Surface(Position.tile_size)
