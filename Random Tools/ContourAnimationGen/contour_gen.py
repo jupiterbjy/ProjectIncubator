@@ -5,13 +5,11 @@ Download GPL FFMPEG from https://github.com/BtbN/FFmpeg-Builds/releases/tag/late
 Author: jupiterbjy@gmail.com / nyarukoishi@gmial.com
 """
 
-import json
 import shutil
 import pathlib
 import argparse
 import tempfile
 import traceback
-from pprint import pprint
 from multiprocessing import Pool
 from typing import List, Tuple
 
@@ -23,32 +21,34 @@ try:
     from PIL import Image, ImageDraw
 except ModuleNotFoundError:
     import install_module
-    install_module.install()
 
+    install_module.install()
     input("Please restart the script. Press Enter to exit.")
     exit()
 
 
-root = pathlib.Path(__file__).parent.absolute()
-output_dir = root.joinpath("output")
-output_dir.mkdir(exist_ok=True)
+ROOT = pathlib.Path(__file__).parent.absolute()
+OUT_DIR = ROOT / "output"
+OUT_DIR.mkdir(exist_ok=True)
 
 
-class Args:
-    fade_step: int
-    transparent: bool
-    fps_cap: int
-    duration: float
-    res_multiply: int
-    threshold_low: int
-    threshold_high: int
-    line_width: int
-    bg_color: Tuple[int, int, int]
-    line_color: Tuple[int, int, int, int]
-    file: pathlib.Path
+class Config:
+    """Hardcoded config area"""
+
+    fade_step = 0.02
+    transparent = False
+    fps_cap = 60
+    duration = 5
+    res_multiply = 2
+    threshold = 50, 200
+    line_width = 2
+    bg_color = 20, 20, 20
+    line_color = 255, 255, 255, 255
 
 
-def save_workload(arguments: Tuple[pathlib.Path, Image.Image, int, int, bool, Tuple[int, int, int]]):
+def save_workload(
+    arguments: Tuple[pathlib.Path, Image.Image, int, int, bool, Tuple[int, int, int]]
+):
     """
     Wrapper for function 'save', just to unpack single parameter it
     received via process pool's map func.
@@ -62,7 +62,9 @@ def save_workload(arguments: Tuple[pathlib.Path, Image.Image, int, int, bool, Tu
     save(*arguments)
 
 
-def save(temp: pathlib.Path, img: Image.Image, index: int, digit: int, alpha: bool, bg_color):
+def save(
+    temp: pathlib.Path, img: Image.Image, index: int, digit: int, alpha: bool, bg_color
+):
     """
     Actual save function intended to be used for multiprocessing.
 
@@ -80,7 +82,7 @@ def save(temp: pathlib.Path, img: Image.Image, index: int, digit: int, alpha: bo
 
     w, h = img.size
     x, y = w & 1, h & 1
-    path = temp.joinpath(f"{str(index).zfill(digit)}.png")
+    path = temp / f"{str(index).zfill(digit)}.png"
 
     if any((x, y)):
         # crop image to make it even numbered
@@ -96,7 +98,14 @@ def save(temp: pathlib.Path, img: Image.Image, index: int, digit: int, alpha: bo
 
 
 def generate_fade(
-    temp: pathlib.Path, source_img: Image.Image, contour_img: Image.Image, last_idx, digit: int
+    temp: pathlib.Path,
+    source_img: Image.Image,
+    contour_img: Image.Image,
+    fade_step,
+    transparent,
+    bg_color,
+    last_idx: int,
+    digit: int,
 ):
     """
     Generate cross-fading frames.
@@ -111,6 +120,9 @@ def generate_fade(
         temp: Temp directory
         source_img: PIL loaded source image
         contour_img: PIL loaded contoured image
+        fade_step: fading step
+        transparent: If true, will generate transparent images
+        bg_color: background color
         last_idx: frame count in previous step
         digit: image file name padding digit
 
@@ -119,7 +131,7 @@ def generate_fade(
     """
 
     # cross-fade frame count
-    alpha_fade = [n / 100 for n in range(100, 0, int(-args.fade_step * 100))]
+    alpha_fade = [n / 100 for n in range(100, 0, int(-fade_step * 100))]
 
     # frame count for each fade/stationary step
     size = len(alpha_fade)
@@ -132,12 +144,9 @@ def generate_fade(
         Returns:
         """
         for idx, alpha in enumerate(alpha_list):
+            blended_img = Image.blend(source_img, contour_img, alpha=alpha)
+            yield temp, blended_img, start_idx + idx, digit, transparent, bg_color
 
-            yield temp, Image.blend(
-                source_img, contour_img, alpha=alpha
-            ), start_idx + idx, digit, args.transparent, args.bg_color
-
-    # This is the dumbest thing in this code, aww!
     def stationary_gen():
         """
         Generate parameter tuples to field for process pool.
@@ -145,7 +154,7 @@ def generate_fade(
         Returns:
         """
         for idx_ in range(size):
-            yield temp, source_img, idx_ + last_idx, digit, args.transparent, args.bg_color
+            yield temp, source_img, idx_ + last_idx, digit, transparent, bg_color
 
     def fade_gen(alpha_list):
         """
@@ -155,10 +164,9 @@ def generate_fade(
         """
         for idx, alpha in enumerate(alpha_list):
             new_img = Image.new("RGBA", source_img.size)
+            blended_img = Image.blend(new_img, source_img, alpha=alpha)
 
-            yield temp, Image.blend(
-                new_img, source_img, alpha=alpha
-            ), last_idx + idx, digit, args.transparent, args.bg_color
+            yield temp, blended_img, last_idx + idx, digit, transparent, bg_color
 
     # feed process pool with generators
     with Pool() as pool:
@@ -175,7 +183,17 @@ def generate_fade(
             last_idx += size
 
 
-def generate_images(temp: pathlib.Path, contours: List[np.array], source_image: Image.Image):
+def generate_images(
+    temp: pathlib.Path,
+    contours: List[np.array],
+    source_image: Image.Image,
+    multiplier,
+    fade_step,
+    transparent: bool,
+    bg_color,
+    line_color,
+    line_width,
+):
     """
     Generate images to be used for ffmpeg encoding.
 
@@ -183,6 +201,12 @@ def generate_images(temp: pathlib.Path, contours: List[np.array], source_image: 
         temp: temp directory
         contours: list of contour coordinates
         source_image: PIL loaded source image
+        multiplier: resolution multiplier
+        fade_step: total fading step
+        transparent: if true, will generate transparent images
+        bg_color: background color
+        line_color: line color
+        line_width: line width
 
     Returns:
 
@@ -193,15 +217,13 @@ def generate_images(temp: pathlib.Path, contours: List[np.array], source_image: 
     # x, y = tuple(np.amax(concat, axis=0))
 
     src_x, src_y = source_image.size
-    factor = args.res_multiply
-
-    resized = source_image.resize((src_x * factor, src_y * factor))
+    resized = source_image.resize((src_x * multiplier, src_y * multiplier))
 
     # prepare image
     img = Image.new("RGBA", resized.size)
 
     # check digit
-    digit = len(str(len(contours) + len(range(100, 0, int(-args.fade_step * 100))) * 3))
+    digit = len(str(len(contours) + len(range(100, 0, int(-fade_step * 100))) * 3))
 
     draw = ImageDraw.Draw(img)
 
@@ -221,18 +243,20 @@ def generate_images(temp: pathlib.Path, contours: List[np.array], source_image: 
 
                 draw.line(
                     (tuple(contour[dot_1]), tuple(contour[dot_2])),
-                    fill=args.line_color,
-                    width=args.line_width,
+                    fill=line_color,
+                    width=line_width,
                 )
 
-            yield temp, img.copy(), idx_, digit, args.transparent, args.bg_color
+            yield temp, img.copy(), idx_, digit, transparent, bg_color
 
     # Save simultaneously, because saving operation in serial can be slower than HW capability
     with Pool() as pool:
         pool.map(save_workload, tqdm(img_gen(), "Drawing Contours", len(contours)))
 
     # now add fade to the frame fleets
-    generate_fade(temp, resized, img, len(contours), digit)
+    generate_fade(
+        temp, resized, img, fade_step, transparent, bg_color, len(contours), digit
+    )
 
 
 def remove_alpha(image, bg_color: Tuple[int, int, int]):
@@ -251,26 +275,29 @@ def remove_alpha(image, bg_color: Tuple[int, int, int]):
     return bg
 
 
-def generate_video(temp: pathlib.Path):
+def generate_video(
+    temp: pathlib.Path, src_path: pathlib.Path, duration, fps_cap, transparent: bool
+):
     """
-    Generate video from previously created images.
+    Generate video from previously created images using FFMPEG
 
     Args:
         temp: temp directory
-
-    Returns:
-
+        src_path: source image path
+        duration: video duration
+        fps_cap: maximum fps
+        transparent: if true, will generate transparent video
     """
 
     # prepare output file path
-    path_ = output_dir.joinpath(pathlib.Path(args.file).name)
+    path_ = OUT_DIR / pathlib.Path(src_path).name
 
-    # calculate fps, and check if it's within limit
-    fps = len(tuple(temp.iterdir())) // args.duration
-    if fps > args.fps_cap:
-        fps = args.fps_cap
+    # calculate fps, and enforce fps within range
+    fps = len(tuple(temp.iterdir())) // duration
+    if fps > fps_cap:
+        fps = fps_cap
 
-    txt = temp.joinpath("files.txt")
+    txt = temp / "files.txt"
 
     # create txt file input for ffmpeg concat
     directory_listing = [
@@ -288,145 +315,100 @@ def generate_video(temp: pathlib.Path):
         fp.write(f"{directory_listing[-1]}")
 
     # prepare save file and remove if same exists.
-    output = path_.with_suffix(".webm" if args.transparent else ".mp4").absolute()
+    output = path_.with_suffix(".webm" if transparent else ".mp4").absolute()
     output.unlink(missing_ok=True)
 
     # divide operation in 2 step. Not sure if I like this flow style.
     ffmpeg_setup = ffmpeg.input(txt.as_posix(), r=str(fps), f="concat", safe="0")
 
-    if args.transparent:
-        ffmpeg_setup.output(
-            output.as_posix(),
-            vcodec="libvpx-vp9",
-            **{"pix_fmt": "yuva420p", "c:v": "libfvpx-vp9", "crf": "20", "b:v": "0"},
-        ).run()
-
+    # set param depending on transparency option
+    if transparent:
+        param = {"vcodec": "libvpx-vp9", "pix_fmt": "yuva420p", "crf": "20", "b:v": "0"}
     else:
-        ffmpeg_setup.output(
-            output.as_posix(),
-            vcodec="libx264",
-            **{"pix_fmt": "yuv420p", "c:v": "libx264", "crf": "20"},
-        ).run()
+        param = {"vcodec": "libx264", "pix_fmt": "yuv420p", "crf": "20"}
+
+    # run ffmpeg
+    ffmpeg_setup.output(output.as_posix(), **param).run()
 
 
-def main():
+def generate_contours(img_path, th_low: int, th_high: int, res_multiplier: int):
+    """Generates contours using cv2.Canny
+
+    Args:
+        img_path: Absolute source image path
+        th_low: Low threshold
+        th_high: High threshold
+        res_multiplier: Resolution Multiplier
+
+    Returns:
+        (contours, hierarchy)
+    """
+
+    source_img = cv2.imread(img_path)
+    base = cv2.Canny(source_img, th_low, th_high)
+    contours, hierarchy = cv2.findContours(
+        base, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+    )
+
+    # squeeze unnecessary dim and multiply contours to multiply resolutions
+    multiplier = (res_multiplier, res_multiplier)
+    squeezed = [np.squeeze(cnt, axis=1) * multiplier for cnt in contours]
+
+    return squeezed, hierarchy
+
+
+def main(file_path: pathlib.Path, thresholds: Tuple[int, int], multiplier):
+    # print config
+    config = {key: val for key, val in Config.__dict__.items() if key[0] != "_"}
+    config["thresholds"] = thresholds
+    config["multiplier"] = multiplier
+
+    print("Config:", config)
+
     with tempfile.TemporaryDirectory("CONTOUR_GEN") as tmp:
         # prep temp - doing this because cv2 can't read unicode file path.
-        tmp_dir = pathlib.Path(tmp)
+        tmp_dir = pathlib.Path(tmp).absolute()
 
-        source_dir = tmp_dir.joinpath("source")
+        source_dir = tmp_dir / "source"
         source_dir.mkdir()
 
         # again copy file with some different name because cv2 can't read unicode file name.
-        source_file = source_dir.joinpath("source_file").with_suffix(args.file.suffix)
-        shutil.copyfile(args.file, source_file)
+        source_file = (source_dir / "source_file").with_suffix(file_path.suffix)
+        shutil.copyfile(file_path, source_file)
 
-        # now let cv2 read it
-        frame = cv2.imread(source_file.as_posix())
-        print("target", args.file.as_posix())
+        # generate contours
+        contours, _ = generate_contours(source_file.as_posix(), *thresholds, multiplier)
 
-        base = cv2.Canny(frame, args.threshold_low, args.threshold_high)
-
-        contours, hierarchy = cv2.findContours(
-            base, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+        # generate contour drawing frames
+        image = Image.open(file_path).convert("RGBA")
+        generate_images(
+            tmp_dir,
+            contours,
+            image,
+            multiplier,
+            Config.fade_step,
+            Config.transparent,
+            Config.bg_color,
+            Config.line_color,
+            Config.line_width,
         )
 
-        # squeeze and multiply contours
-        squeezed = [
-            np.squeeze(cnt, axis=1) * [args.res_multiply, args.res_multiply]
-            for cnt in contours
-        ]
-
-        generate_images(tmp_dir, squeezed, Image.open(args.file).convert("RGBA"))
-
-        generate_video(tmp_dir)
+        # generate video from generated images inside tmp
+        generate_video(
+            tmp_dir, file_path, Config.duration, Config.fps_cap, Config.transparent
+        )
 
 
 if __name__ == "__main__":
 
-    args = Args()
-
     parser = argparse.ArgumentParser(
         "Script generating contour timelapse video for given image."
     )
-    parser.add_argument(
-        "-s",
-        "--fade-step",
-        metavar="INT",
-        type=int,
-        help="alpha value step size for fading effects",
-    )
-    parser.add_argument(
-        "-t",
-        "--transparent",
-        metavar="BOOL",
-        type=bool,
-        help="If true, generates transparent webm - this yield worse quality.",
-    )
-    parser.add_argument(
-        "-f",
-        "--fps-cap",
-        metavar="INT",
-        type=int,
-        help="Sets hard limit on frame rate.",
-    )
-    parser.add_argument(
-        "-d",
-        "--duration",
-        metavar="FLOAT",
-        type=float,
-        help="how long video should be in seconds. This will be ignored when fps exceed fps-cap.",
-    )
-    parser.add_argument(
-        "-m",
-        "--res-multiply",
-        metavar="INT",
-        type=int,
-        help="Resolution multiplier for contours.",
-    )
-    parser.add_argument(
-        "-tl",
-        "--threshold-low",
-        metavar="INT",
-        type=int,
-        help="Low threshold of canny edge detection. More lines are drawn when lower.",
-    )
-    parser.add_argument(
-        "-th",
-        "--threshold-high",
-        metavar="INT",
-        type=int,
-        help="High threshold of canny edge detection. More lines are drawn when lower.",
-    )
-    parser.add_argument(
-        "-w",
-        "--line-width",
-        metavar="INT",
-        type=int,
-        help="Thickness of contour lines.",
-    )
     parser.add_argument("file", type=pathlib.Path, help="Path to image")
+    args = parser.parse_args()
 
-    # Load config and write into args namespace
-    config_file = json.loads(root.joinpath("config.json").read_text("utf8"))
-    vars(args).update(config_file)
-    parser.parse_args(namespace=args)
-
-    # convert parameters
-    args.line_color = tuple(args.line_color)
-    args.bg_color = tuple(args.bg_color)
-
-    pprint(vars(args))
-
-    # fail fast
-    if not args.file.is_file():
-        input("Supplied parameter is not a file. Press enter to exit.")
-        exit(1)
-
-    # else continue
     try:
-        main()
+        main(args.file, Config.threshold, Config.res_multiply)
     except Exception as err:
         traceback.print_exc()
         input(f"Encountered Error [{type(err).__name__}] Press enter to exit.")
-        raise
