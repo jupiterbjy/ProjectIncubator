@@ -1,5 +1,4 @@
 """
-
 Memo:
 - N by N cells
 - each cell could be core, cable or nothing
