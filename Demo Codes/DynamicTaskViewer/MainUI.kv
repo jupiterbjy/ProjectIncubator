@@ -1,0 +1,67 @@
+#:kivy 2.0.0
+
+<MainUI>:
+	start_stop_wid: btn_start_stop
+	listing_layout: grid_main
+
+	BoxLayout:
+		size_hint: 1, 0.1
+		orientation: 'horizontal'
+	
+		ToggleButton:
+			id: btn_start_stop
+			group: 'controls'
+			text: 'start'
+			on_release: root.on_toggle_release()
+			
+		Button:
+			id: btn_reload
+			group: 'controls'
+			text: 'reload'
+			on_release: root.on_reload_release()
+	
+	ScrollView:
+		canvas.before:
+			Color:
+				rgba: root.bg_color
+			Rectangle:
+				size: self.size
+				pos: self.pos
+		
+		GridLayout:
+			id: grid_main
+			
+			height: self.minimum_height
+			spacing: 15, 15
+			cols: 3
+		
+
+<InnerWidget>:
+    orientation: "vertical"
+    background_color: (0.5, 0.5, 0.5, 1)
+
+	canvas.before:
+		Color:
+			rgba: root.background_color
+		Rectangle:
+			size: self.size
+			pos: self.pos
+	
+	label_top: inner_label_top
+	label_mid: inner_label_mid
+	label_bottom: inner_label_bottom
+
+	Label:
+		id: inner_label_top
+		text: root.name
+		font_name: "Font/NotoSansMonoCJKkr-Regular.otf"
+		
+	Label:
+		id: inner_label_mid
+		text: root.output
+		font_name: "Font/NotoSansMonoCJKkr-Regular.otf"
+		
+	Label:
+		id: inner_label_bottom
+		text: str(root.executed_count)
+		font_name: "Font/NotoSansMonoCJKkr-Regular.otf"

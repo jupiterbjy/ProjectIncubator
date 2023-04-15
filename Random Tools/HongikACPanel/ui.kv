@@ -1,0 +1,25 @@
+#: kivy 2.0.0
+
+<ImageWidget>:
+#    on_release: root.on_release()
+    spacing: 15, 15
+
+    AsyncImage:
+        id: image
+        source: root.source
+
+
+<MainUI>:
+    image_grid_layout: image_grid
+    orientation: 'vertical'
+
+    BoxLayout:
+        id: selected_image_info
+        size_hint: 1, 0.1
+
+    ScrollView:
+        GridLayout:
+            id: image_grid
+            height: self.minimum_height
+            spacing: 15, 15
+            cols: 3
