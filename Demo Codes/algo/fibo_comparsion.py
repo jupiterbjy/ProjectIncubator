@@ -18,6 +18,13 @@ def generator_style_fibo(n):
     return a
 
 
-print("Naive fibo runtime    :", timeit(lambda: naive_fibo(30), number=100))
-print("Cached fibo runtime   :", timeit(lambda: cached_naive_fibo(30), number=100))
-print("Iterative fibo runtime:", timeit(lambda: generator_style_fibo(30), number=100))
+print(f"Naive fibo runtime    : {timeit(lambda: naive_fibo(35), number=100):.8f}", )
+print(f"Cached fibo runtime   : {timeit(lambda: cached_naive_fibo(35), number=100):.8f}", )
+print(f"Iterative fibo runtime: {timeit(lambda: generator_style_fibo(35), number=100):.8f}", )
+
+
+"""
+Naive fibo runtime    : 66.05947450
+Cached fibo runtime   : 0.00002790
+Iterative fibo runtime: 0.00007550
+"""
