@@ -33,8 +33,8 @@ def main(image_files_: list[pathlib.Path]):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("images", metavar="I", type=pathlib.Path, nargs="+", help="Images to horizontally merge with.")
+    parser = argparse.ArgumentParser("Makes all image dimension square.")
+    parser.add_argument("images", metavar="I", type=pathlib.Path, nargs="+", help="Images to square-fy")
 
     args = parser.parse_args()
 
