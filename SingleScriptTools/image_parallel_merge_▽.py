@@ -18,6 +18,8 @@ from PIL import Image
 # Resulting image's X size relative to Y size
 MAX_XY_RATIO = 1.5
 
+ROOT = pathlib.Path(__file__).parent
+
 # ---------------------------------------------
 
 
@@ -75,7 +77,7 @@ def main():
         new_empty.paste(image, (x_max * x, y_max * y))
 
     # save
-    new_empty.save(pathlib.Path(f"{int(time.time())}_merged_{len(images)}.png"))
+    new_empty.save(ROOT / f"{int(time.time())}_merged_{len(images)}.png")
 
 
 if __name__ == '__main__':
