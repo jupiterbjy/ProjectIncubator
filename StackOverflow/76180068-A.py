@@ -35,3 +35,22 @@ print(f"Original Matrix:\n{np.array(mat)}\n")
 
 for sub_mat in part_mat(mat, 3, 4):
     print(np.array(sub_mat))
+
+
+# --- updated part
+import random
+import itertools
+
+# some arbitrary matrix size
+mat_n = 9
+mat = [list(range(start * mat_n, (start + 1) * mat_n)) for start in range(mat_n)]
+
+# sample k * k data
+k = 5
+samples = random.sample(list(itertools.chain(*mat)), k * k)
+sampled_2d = [samples[start: start + k] for start in range(0, k * k, k)]
+
+# using numpy for pretty printing, not needed
+import numpy as np
+print(f"Original:\n{np.array(mat)}\n")
+print(f"Sampled:\n{np.array(sampled_2d)}")
