@@ -13,10 +13,11 @@ WRITE_TO = ROOT / "README.md"
 DOCS_RE = re.compile(r'(?:^""")([\s\S]*?)(?:""")')
 ENCODING = "utf8"
 FORMAT = """
+---
+
 ### [{}]({})
 {}
 
----
 """
 
 
@@ -36,8 +37,14 @@ def main():
     # create .py script list iterator except one starting with underscore
     file_list = (p for p in ROOT.iterdir() if p.stem[0] != "_" and p.suffix == ".py")
 
+    # cut in first ---
+    data = WRITE_TO.read_text("utf8").split("---")[0]
+
     # write to file
-    with WRITE_TO.open("at", encoding="utf8") as fp:
+    with WRITE_TO.open("wt", encoding="utf8") as fp:
+        fp.write(data)
+
+        # append docs
         for name, _, docs in docstring_extract_gen(file_list):
             print(f"Writing {name}")
             fp.write(FORMAT.format(name, name, docs))
