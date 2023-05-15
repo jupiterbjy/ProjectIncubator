@@ -5,10 +5,17 @@ Bunch of standalone scripts I wrote for use in daily life
 ▽ Simbol indicates that it's drag & drop tool.
 
 
+
 ---
 
 ### [auto_html_reload.py](auto_html_reload.py)
 Watches for html file changes and reload pages with selenium
+
+
+---
+
+### [copy_file_recursive.py](copy_file_recursive.py)
+Fetch all files with matching extension to script's location/Copied. Recursive.
 
 
 ---
