@@ -1,7 +1,7 @@
 """
 Merges multiple images into one big tiled image with desired height & width ratio.
 
-![Example](https://imgur.com/yCNYF9o.png)
+![Example](readme_res/parallel_merge.png)
 """
 
 import pathlib

@@ -6,6 +6,9 @@ Bunch of standalone scripts I wrote for use in daily life
 
 
 
+
+
+
 ---
 
 ### [auto_html_reload.py](auto_html_reload.py)
@@ -66,7 +69,7 @@ Module wrapping `inspect` module to list classes, functions in specified module
 ### [image_parallel_merge_▽.py](image_parallel_merge_▽.py)
 Merges multiple images into one big tiled image with desired height & width ratio.
 
-![Example](https://imgur.com/yCNYF9o.png)
+![Example](readme_res/parallel_merge.png)
 
 
 ---
@@ -104,6 +107,12 @@ Simply makes images perfect square by extending from shorter dimension.
 
 ### [twitch_point_clicker.py](twitch_point_clicker.py)
 Dumb script that looks for twitch points button element on chat and clicks it
+
+
+---
+
+### [unicodify_▽.py](unicodify_▽.py)
+A very primitive script to unicode-fy passed text files, such as mass csv files, etc
 
 
 ---
