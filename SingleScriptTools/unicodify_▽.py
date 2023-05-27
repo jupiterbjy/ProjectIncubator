@@ -4,7 +4,6 @@ A very primitive script to unicode-fy passed text files, such as mass csv files,
 
 
 import pathlib
-from sys import getdefaultencoding
 from argparse import ArgumentParser
 from typing import Sequence, Union
 
@@ -16,11 +15,6 @@ class Argument:
 
 def convert_files(files: Sequence[pathlib.Path], initial_encoding: Union[str, None]):
     """Converts given files into utf8"""
-
-    if initial_encoding is None:
-        initial_encoding = getdefaultencoding()
-
-    print("Using encoding " + initial_encoding)
 
     for file in files:
         print(f"Converting {file.as_posix()}")
