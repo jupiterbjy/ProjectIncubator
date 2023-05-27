@@ -27,7 +27,7 @@ def convert_files(files: Sequence[pathlib.Path], initial_encoding: Union[str, No
 
         # in case some file might already be in utf8
         try:
-            file.write_text(file.read_text(initial_encoding), initial_encoding)
+            file.write_text(file.read_text(initial_encoding), "utf8")
         except UnicodeDecodeError:
             print(f"Can't open via {initial_encoding}, assuming it's already in utf8.")
 
