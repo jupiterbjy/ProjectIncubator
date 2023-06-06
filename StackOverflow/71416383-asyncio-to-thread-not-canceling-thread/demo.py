@@ -8,16 +8,17 @@ Python nor OS provide general mechanism to stop an arbitrary thread running sync
 
 import time
 import asyncio
+import threading
 
 
-def blocking_func(event: asyncio.Event):
+def blocking_func(event: threading.Event):
     while not event.is_set():
         time.sleep(1)
         print("I'm still standing")
 
 
 async def main():
-    event = asyncio.Event()
+    event = threading.Event()
     asyncio.create_task(asyncio.to_thread(blocking_func, event))
 
     await asyncio.sleep(5)
