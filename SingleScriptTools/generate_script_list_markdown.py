@@ -37,8 +37,8 @@ def main():
     # create .py script list iterator except one starting with underscore
     file_list = (p for p in ROOT.iterdir() if p.stem[0] != "_" and p.suffix == ".py")
 
-    # cut in first ---
-    data = WRITE_TO.read_text("utf8").split("---")[0]
+    # cut in first --- & strip all newlines, then add single newline
+    data = WRITE_TO.read_text("utf8").split("---")[0].strip() + "\n"
 
     # write to file
     with WRITE_TO.open("wt", encoding="utf8") as fp:

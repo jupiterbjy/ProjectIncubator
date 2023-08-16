@@ -4,11 +4,6 @@ Bunch of standalone scripts I wrote for use in daily life
 ## List
 ▽ Simbol indicates that it's drag & drop tool.
 
-
-
-
-
-
 ---
 
 ### [auto_html_reload.py](auto_html_reload.py)
@@ -80,6 +75,14 @@ Convert multiples images into single pdf
 
 ---
 
+### [img_2_turtle_▽.py](img_2_turtle_▽.py)
+Generates hardcoded turtle drawing script drawing contour out of image.
+
+![Example](readme_res/img_2_turtle.webp)
+
+
+---
+
 ### [logging_config.py](logging_config.py)
 Just use loguru, I used this until I found it.
 
@@ -118,8 +121,6 @@ A very primitive script to unicode-fy passed text files, such as mass csv files,
 ---
 
 ### [update_registry_userdir.py](update_registry_userdir.py)
-![](Demo_regedit.png)
-
 Script to update all registry entries after changing user directory name.
 Primarily intended to be used for Win10 as a stopgap measure before reinstalling.
 
@@ -127,6 +128,8 @@ This script recursively update all affected paths containing *target* keyword
 Honestly this would've been better done with usual batchscript, or maybe not.
 
 There is no safety feature in this, use with caution!
+
+![](readme_res/update_registry_userdir.png)
 
 
 ---

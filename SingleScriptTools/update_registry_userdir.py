@@ -1,6 +1,4 @@
 """
-![](Demo_regedit.png)
-
 Script to update all registry entries after changing user directory name.
 Primarily intended to be used for Win10 as a stopgap measure before reinstalling.
 
@@ -8,6 +6,8 @@ This script recursively update all affected paths containing *target* keyword
 Honestly this would've been better done with usual batchscript, or maybe not.
 
 There is no safety feature in this, use with caution!
+
+![](readme_res/update_registry_userdir.png)
 """
 
 import winreg
