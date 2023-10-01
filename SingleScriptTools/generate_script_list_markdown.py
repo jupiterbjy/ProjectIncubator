@@ -10,7 +10,8 @@ from typing import Iterator
 ROOT = pathlib.Path(__file__).parent
 WRITE_TO = ROOT / "README.md"
 
-DOCS_RE = re.compile(r'(?:^""")([\s\S]*?)(?:""")')
+SKIP_LINE_STARTING_WITH = ":"
+DOCS_REGEX = re.compile(r'(?:^""")([\s\S]*?)(?:""")')
 ENCODING = "utf8"
 FORMAT = """
 ---
@@ -28,7 +29,12 @@ def docstring_extract_gen(file_iterator: Iterator[pathlib.Path]):
             continue
 
         # file's small, reading entire file for first few lines are not a concern
-        docs = DOCS_RE.match(file.read_text(ENCODING)).groups()[0].strip()
+        docs = DOCS_REGEX.match(file.read_text(ENCODING)).groups()[0].strip()
+
+        # discard any line starting with specific strings
+        docs = "\n".join(
+            line for line in docs.splitlines() if not line.startswith(SKIP_LINE_STARTING_WITH)
+        )
         yield file.name, file.as_posix(), docs
 
 

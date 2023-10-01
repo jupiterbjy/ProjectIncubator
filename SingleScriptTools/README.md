@@ -102,6 +102,17 @@ usage is also almost identical.
 
 ---
 
+### [split_img_fixed_size_▽.py](split_img_fixed_size_▽.py)
+Cuts the image fixed-size from top left corner.
+
+Designed to cut some sprites in Armada Tanks for recreating.
+
+
+![](readme_res/split_img_fixed_size.png)
+
+
+---
+
 ### [squarefy_image_▽.py](squarefy_image_▽.py)
 Simply makes images perfect square by extending from shorter dimension.
 
