@@ -52,10 +52,11 @@ def main(args):
 
         cropped_images = []
 
-        for bottom_y in range(cut_h - 1, img_h, cut_h):
-            for right_x in range(cut_w - 1, img_w, cut_w):
+        for top_y, bottom_y in zip(range(0, img_h, cut_h), range(cut_h - 1, img_h, cut_h)):
+            for left_x, right_x in zip(range(0, img_w, cut_w), range(cut_w - 1, img_w, cut_w)):
                 cropped_images.append(
-                    img.crop((right_x - cut_w + 1, bottom_y - cut_h + 1, right_x, bottom_y))
+                    # need to compensate 1 pixel loss, pillow uses 0.5 0.5 as 0, 0 for what I read
+                    img.crop((left_x, top_y, right_x + 1, bottom_y + 1))
                 )
 
         # detect file digit length, so next to 1 isn't 10.
