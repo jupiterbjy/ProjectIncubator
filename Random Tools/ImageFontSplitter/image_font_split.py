@@ -93,7 +93,9 @@ def fetch_letter_area(img: Image.Image):
 
         while True:
             letter_w, letter_h, is_letter_trailing = get_letter_size(cur_x, cur_y, img)
-            letter_area.append((cur_x, cur_y, cur_x + letter_w - 1, cur_y + letter_h - 1))
+
+            # do not subtract 1 from bottom/right, pillow always cut 1 pixel shorter
+            letter_area.append((cur_x, cur_y, cur_x + letter_w, cur_y + letter_h))
 
             cur_x += letter_w + 1
             if not is_letter_trailing:
