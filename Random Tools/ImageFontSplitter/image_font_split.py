@@ -6,7 +6,6 @@ jupiterbjy@gmail.com
 
 import pathlib
 from typing import Tuple, List
-from itertools import count
 
 from PIL import Image
 
