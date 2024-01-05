@@ -119,6 +119,19 @@ Simply makes images perfect square by extending from shorter dimension.
 
 ---
 
+### [strip_image_frame_▽.py](strip_image_frame_▽.py)
+![](readme_res/strip_image_frame.png)
+
+Simple script to strip n pixel from its border.
+
+Resulting images will be saved at individual image locations with `_stripped` suffix.
+
+Created this due to Bandicam keeps capturing images 2 pixel radius wider than actual window is.
+Imagine dozens of such images to edit, hence this is.
+
+
+---
+
 ### [twitch_point_clicker.py](twitch_point_clicker.py)
 Dumb script that looks for twitch points button element on chat and clicks it
 
