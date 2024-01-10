@@ -105,7 +105,7 @@ def create_zip_archive(paths: Sequence[pathlib.Path]) -> BytesIO:
             else:
                 shutil.copyfile(path, tmp_copy_dir.joinpath(path.name))
 
-        # create another to completely eliminate name any possible name overlap
+        # create another to completely eliminate any possible name overlap
         with tempfile.TemporaryDirectory("ZIP_EMBED_OUTPUT") as tmp_out_str:
             tmp_out_dir = pathlib.Path(tmp_out_str)
 
