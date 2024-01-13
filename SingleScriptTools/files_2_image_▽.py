@@ -58,13 +58,13 @@ def generate_image_from_file_paths(paths: Sequence[pathlib.Path]) -> BytesIO:
     names.extend(f"{'DIR - ' if path.is_dir() else ''}{path.name}" for path in paths)
 
     # translate to pixel length - requires font to support all letters
-    true_lengths = [FONT.getsize(name) for name in names]
+    true_lengths = [FONT.getlength(name) for name in names]
 
     # find the longest string
     long = sorted(zip(true_lengths, names), key=lambda x: x[0])[-1][1]
 
     # find pixel length
-    img_x, img_y = FONT.getsize(long)
+    img_x, img_y = FONT.getlength(long)
 
     # create image from known length
     image = Image.new("RGB", (img_x, img_y * len(names)), color=(0, 0, 0))
