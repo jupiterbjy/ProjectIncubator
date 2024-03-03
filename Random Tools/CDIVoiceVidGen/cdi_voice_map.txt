@@ -1,0 +1,27 @@
+001 - CDI Startup - Startup Voice
+
+002 - SD Character Click - Health 100%
+003 - SD Character Click - Health Good (> CDI Threshold)
+004 - SD Character Click - Health Caution (< CDI Threshold)
+005 - SD Character Click - Health Bad (< Vendor Threshold)
+006 - SD Character Click - Health Unknown
+
+007 - Character Click - Random response 1
+008 - Character Click - Random response 2
+
+601 - Alert (Negative) - Health Good → Caution/Bad
+602 - Alert (Negative) - Reallocated Sector Count ↑
+603 - Alert (Negative) - Reallocated Event Count ↑
+604 - Alert (Negative) - Pending Sector Count ↑
+605 - Alert (Negative) - Uncorrectable Sector Count ↑
+606 - Alert (Negative) - High Temperature
+607 - Alert (Negative) - Health ↓
+
+701 - Alert (Positive) - Health Caution/Bad → Good
+702 - Alert (Positive) - Reallocated Sector Count ↓
+703 - Alert (Positive) - Reallocated Event Count ↓
+704 - Alert (Positive) - Pending Sector Count ↓
+705 - Alert (Positive) - Uncorrectable Sector Count ↓
+707 - Alert (Positive) - Health ↑
+
+901 - Credit Mouth Click - VA Commentary
