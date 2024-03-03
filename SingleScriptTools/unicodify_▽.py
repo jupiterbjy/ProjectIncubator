@@ -1,5 +1,7 @@
 """
 A very primitive script to unicode-fy passed text files, such as mass csv files, etc
+
+:Author: jupiterbjy@gmail.com
 """
 
 

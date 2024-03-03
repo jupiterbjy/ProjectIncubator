@@ -1,6 +1,8 @@
 """
 Script for generating markdown entry for this SingleScriptTools.
 Assuming every script in directory starts with docstring.
+
+:Author: jupiterbjy@gmail.com
 """
 
 import re
@@ -18,6 +20,9 @@ FORMAT = """
 
 ### [{}]({})
 {}
+
+<br>
+<br>
 
 """
 

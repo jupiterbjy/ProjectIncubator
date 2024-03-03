@@ -1,5 +1,7 @@
 """
 Watches for html file changes and reload pages with selenium
+
+:Author: jupiterbjy@gmail.com
 """
 
 import argparse

@@ -1,6 +1,8 @@
 """
 Simply checks if all files in folder is included in m3u file in the same dir
 or if any of listed entry is missing
+
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib

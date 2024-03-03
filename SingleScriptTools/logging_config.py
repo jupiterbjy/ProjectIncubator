@@ -1,5 +1,7 @@
 """
 Just use loguru, I used this until I found it.
+
+:Author: jupiterbjy@gmail.com
 """
 
 import logging

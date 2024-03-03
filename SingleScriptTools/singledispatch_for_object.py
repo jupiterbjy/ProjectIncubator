@@ -1,6 +1,8 @@
 """
 Mimics functools.singledispatch, but for objects.
 usage is also almost identical.
+
+:Author: jupiterbjy@gmail.com
 """
 
 from functools import wraps

@@ -1,5 +1,7 @@
 """
 Convert multiples images into single pdf
+
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib

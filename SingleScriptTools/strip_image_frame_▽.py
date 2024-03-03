@@ -7,6 +7,8 @@ Resulting images will be saved at individual image locations with `_stripped` su
 
 Created this due to Bandicam keeps capturing images 2 pixel radius wider than actual window is.
 Imagine dozens of such images to edit, hence this is.
+
+:Author: jupiterbjy@gmail.com
 """
 
 

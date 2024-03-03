@@ -1,5 +1,7 @@
 """
 Generates m3u8 file using audio files in current directory. Recursive.
+
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib

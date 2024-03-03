@@ -1,6 +1,8 @@
 """
 Fetches transcript from YouTube video
 Currently broken as API is gone, will rewrite again when I need this
+
+:Author: jupiterbjy@gmail.com
 """
 
 # from argparse import ArgumentParser

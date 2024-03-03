@@ -1,5 +1,7 @@
 """
 Simply makes images perfect square by extending from shorter dimension.
+
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib

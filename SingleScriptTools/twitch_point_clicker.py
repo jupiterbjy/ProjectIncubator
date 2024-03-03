@@ -1,5 +1,7 @@
 """
 Dumb script that looks for twitch points button element on chat and clicks it
+
+:Author: jupiterbjy@gmail.com
 """
 
 import time

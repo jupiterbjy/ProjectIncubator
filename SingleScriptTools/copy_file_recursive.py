@@ -1,5 +1,7 @@
 """
 Fetch all files with matching extension to script's location/Copied. Recursive.
+
+:Author: jupiterbjy@gmail.com
 """
 
 import shutil

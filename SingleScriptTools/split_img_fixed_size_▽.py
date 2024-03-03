@@ -3,9 +3,9 @@ Cuts the image fixed-size from top left corner.
 
 Designed to cut some sprites in Armada Tanks for recreating.
 
-: jupiterbjy@gmail.com
-
 ![](readme_res/split_img_fixed_size.png)
+
+:Author: jupiterbjy@gmail.com
 """
 
 from argparse import ArgumentParser

@@ -1,6 +1,8 @@
 """
 Multiplies video playback speed by discarding frames without encoding
 Requires FFMPEG
+
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib

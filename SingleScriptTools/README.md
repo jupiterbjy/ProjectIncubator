@@ -2,7 +2,9 @@
 Bunch of standalone scripts I wrote for use in daily life
 
 ## List
-▽ Simbol indicates that it's drag & drop tool.
+
+- ▽ : indicates that it's drag & drop tool.
+- ○ : indicates that it's background running tool.
 
 ---
 
@@ -10,10 +12,18 @@ Bunch of standalone scripts I wrote for use in daily life
 Watches for html file changes and reload pages with selenium
 
 
+<br>
+<br>
+
+
 ---
 
 ### [copy_file_recursive.py](copy_file_recursive.py)
 Fetch all files with matching extension to script's location/Copied. Recursive.
+
+
+<br>
+<br>
 
 
 ---
@@ -23,11 +33,19 @@ Fetches transcript from YouTube video
 Currently broken as API is gone, will rewrite again when I need this
 
 
+<br>
+<br>
+
+
 ---
 
 ### [ffmpeg_playback_multiply_▽.py](ffmpeg_playback_multiply_▽.py)
 Multiplies video playback speed by discarding frames without encoding
 Requires FFMPEG
+
+
+<br>
+<br>
 
 
 ---
@@ -40,10 +58,18 @@ Check usage by executing without parameters
 ![Example](readme_res/files_2_image.png)
 
 
+<br>
+<br>
+
+
 ---
 
 ### [file_walker.py](file_walker.py)
 File system navigating class which remembers current director's contents
+
+
+<br>
+<br>
 
 
 ---
@@ -53,10 +79,18 @@ Script for generating markdown entry for this SingleScriptTools.
 Assuming every script in directory starts with docstring.
 
 
+<br>
+<br>
+
+
 ---
 
 ### [get_module_reference.py](get_module_reference.py)
 Module wrapping `inspect` module to list classes, functions in specified module
+
+
+<br>
+<br>
 
 
 ---
@@ -67,10 +101,18 @@ Merges multiple images into one big tiled image with desired height & width rati
 ![Example](readme_res/parallel_merge.png)
 
 
+<br>
+<br>
+
+
 ---
 
 ### [img_2_pdf_▽.py](img_2_pdf_▽.py)
 Convert multiples images into single pdf
+
+
+<br>
+<br>
 
 
 ---
@@ -81,16 +123,49 @@ Generates hardcoded turtle drawing script drawing contour out of image.
 ![Example](readme_res/img_2_turtle.webp)
 
 
+<br>
+<br>
+
+
+---
+
+### [img_auto_rename_○.py](img_auto_rename_○.py)
+THIS IS WORK IN PROGRESS - WON'T RUN YET
+
+Based on watchdog_file_events, renames newly added images using current time as name.
+
+On duplicated name, will start adding suffixes. Despite it being costly, it rarely happens anyway!
+
+This is purely for me who tend to drag-drop images I see online to desktop, then organize later.
+
+Since especially YouTube Community images are all named 'unnamed' which always duplicates,
+requiring me to rename existing images first, I made this just for that rare use-case.
+
+Due to use of FileExistsError this will only work properly on Windows (iirc).
+
+
+<br>
+<br>
+
+
 ---
 
 ### [logging_config.py](logging_config.py)
 Just use loguru, I used this until I found it.
 
 
+<br>
+<br>
+
+
 ---
 
 ### [m3u8_gen.py](m3u8_gen.py)
 Generates m3u8 file using audio files in current directory. Recursive.
+
+
+<br>
+<br>
 
 
 ---
@@ -100,6 +175,10 @@ Mimics functools.singledispatch, but for objects.
 usage is also almost identical.
 
 
+<br>
+<br>
+
+
 ---
 
 ### [split_img_fixed_size_▽.py](split_img_fixed_size_▽.py)
@@ -107,14 +186,21 @@ Cuts the image fixed-size from top left corner.
 
 Designed to cut some sprites in Armada Tanks for recreating.
 
-
 ![](readme_res/split_img_fixed_size.png)
+
+
+<br>
+<br>
 
 
 ---
 
 ### [squarefy_image_▽.py](squarefy_image_▽.py)
 Simply makes images perfect square by extending from shorter dimension.
+
+
+<br>
+<br>
 
 
 ---
@@ -130,16 +216,28 @@ Created this due to Bandicam keeps capturing images 2 pixel radius wider than ac
 Imagine dozens of such images to edit, hence this is.
 
 
+<br>
+<br>
+
+
 ---
 
 ### [twitch_point_clicker.py](twitch_point_clicker.py)
 Dumb script that looks for twitch points button element on chat and clicks it
 
 
+<br>
+<br>
+
+
 ---
 
 ### [unicodify_▽.py](unicodify_▽.py)
 A very primitive script to unicode-fy passed text files, such as mass csv files, etc
+
+
+<br>
+<br>
 
 
 ---
@@ -156,9 +254,29 @@ There is no safety feature in this, use with caution!
 ![](readme_res/update_registry_userdir.png)
 
 
+<br>
+<br>
+
+
 ---
 
 ### [validate_m3u_▽.py](validate_m3u_▽.py)
 Simply checks if all files in folder is included in m3u file in the same dir
 or if any of listed entry is missing
+
+
+<br>
+<br>
+
+
+---
+
+### [watchdog_file_events.py](watchdog_file_events.py)
+Watchdog callback register-able custom handler to see what's going on in current directory.
+
+![](readme_res/watchdog_file_events.png)
+
+
+<br>
+<br>
 

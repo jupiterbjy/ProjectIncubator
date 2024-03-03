@@ -8,6 +8,8 @@ Honestly this would've been better done with usual batchscript, or maybe not.
 There is no safety feature in this, use with caution!
 
 ![](readme_res/update_registry_userdir.png)
+
+:Author: jupiterbjy@gmail.com
 """
 
 import winreg

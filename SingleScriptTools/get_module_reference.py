@@ -1,5 +1,7 @@
 """
 Module wrapping `inspect` module to list classes, functions in specified module
+
+:Author: jupiterbjy@gmail.com
 """
 from sys import modules
 from inspect import getmembers, isclass, isfunction

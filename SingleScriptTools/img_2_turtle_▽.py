@@ -2,6 +2,8 @@
 Generates hardcoded turtle drawing script drawing contour out of image.
 
 ![Example](readme_res/img_2_turtle.webp)
+
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib

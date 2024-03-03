@@ -1,5 +1,7 @@
 """
 File system navigating class which remembers current director's contents
+
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib
