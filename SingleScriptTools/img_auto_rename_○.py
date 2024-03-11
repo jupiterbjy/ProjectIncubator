@@ -1,5 +1,5 @@
 """
-THIS IS WORK IN PROGRESS - WON'T RUN YET
+![](readme_res/img_auto_rename.webp)
 
 Based on watchdog_file_events, renames newly added images using current time as name.
 
@@ -10,7 +10,9 @@ This is purely for me who tend to drag-drop images I see online to desktop, then
 Since especially YouTube Community images are all named 'unnamed' which always duplicates,
 requiring me to rename existing images first, I made this just for that rare use-case.
 
-Due to use of FileExistsError this will only work properly on Windows (iirc).
+This may not work on non-Windows, due to this script depending on `pathlib.Path.rename` to
+[raise](https://docs.python.org/3.12/library/pathlib.html#pathlib.Path.rename) FileExistsError
+on failure.
 
 :Author: jupiterbjy@gmail.com
 """
@@ -26,6 +28,8 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileCreatedEvent
 
 
+# --- CONFIG ---
+
 # should this check files recursively?
 RECURSIVE = False
 
@@ -36,9 +40,11 @@ EXTENSIONS = {".png", ".PNG", ".jpg", ".jpeg", ".JPG", ".webp"}
 # this will look like this if there's 3 duplicated unix time: "img_12332342342_2.png"
 FORMAT = "img_{}_{}"
 
+# Desktop path
+ROOT = pathlib.Path.home() / "Desktop"
 
-ROOT = pathlib.Path(r"C:\Users\jupiterbjy\Desktop")
 
+# --- Handler ---
 
 class CustomHandler(FileSystemEventHandler):
     """Custom FileSystemEvent handler to Add custom callback on event."""
@@ -48,6 +54,7 @@ class CustomHandler(FileSystemEventHandler):
         # callback entries for each event
         self._table: defaultdict[Type[FileSystemEvent], List[Callable]] = defaultdict(list)
         self._default_callbacks: List[Callable] = [self._default_event_cb]
+        self._trio_token = trio.lowlevel.current_trio_token()
 
     @staticmethod
     def _default_event_cb(event: Type[FileSystemEvent]):
@@ -55,9 +62,12 @@ class CustomHandler(FileSystemEventHandler):
         pass
 
     def register(self, event: Type[FileSystemEvent], callback: Callable):
-        """Registers new callback to event"""
+        """Registers new callback to event, with trio-token wrapping"""
 
-        self._table[event].append(callback)
+        def wrapped(_event: Type[FileSystemEvent]):
+            self._trio_token.run_sync_soon(callback, _event)
+
+        self._table[event].append(wrapped)
 
     def on_created(self, event: Type[FileSystemEvent]) -> None:
         """Executes all the associated callbacks.
@@ -73,14 +83,14 @@ class CustomHandler(FileSystemEventHandler):
 async def rename_task_processor(recv_ch: trio.MemoryReceiveChannel):
     """Keep alive & process renaming queue"""
 
-    try:
-        task_id = 0
+    task_id = 0
 
-        async with trio.open_nursery() as nursery:
+    async with trio.open_nursery() as nursery:
 
-            # start task for each event
+        # start task for each event
 
-            path: pathlib.Path
+        path: pathlib.Path
+        try:
             async for path in recv_ch:
 
                 nursery.start_soon(
@@ -89,11 +99,10 @@ async def rename_task_processor(recv_ch: trio.MemoryReceiveChannel):
                     path,
                     time.time(),
                 )
-
                 task_id += 1
 
-    except KeyboardInterrupt:
-        return
+        except KeyboardInterrupt:
+            return
 
 
 async def wait_until_lock_release(path_obj: pathlib.Path):
@@ -129,8 +138,8 @@ async def rename_safely(task_id: int, path_obj: pathlib.Path, creation_time: int
     name = path_obj.with_stem(FORMAT.format(creation_time, suffix_idx))
 
     # start with wait, OS will not allow it anyway
-    await trio.sleep(0.5)
-    print(f"[{task_id}]Attempting to rename {path_obj}")
+    await trio.sleep(1)
+    print(f"[{task_id}] Attempting to rename {path_obj}")
 
     while True:
 

@@ -130,7 +130,7 @@ Generates hardcoded turtle drawing script drawing contour out of image.
 ---
 
 ### [img_auto_rename_○.py](img_auto_rename_○.py)
-THIS IS WORK IN PROGRESS - WON'T RUN YET
+![](readme_res/img_auto_rename.webp)
 
 Based on watchdog_file_events, renames newly added images using current time as name.
 
@@ -141,7 +141,9 @@ This is purely for me who tend to drag-drop images I see online to desktop, then
 Since especially YouTube Community images are all named 'unnamed' which always duplicates,
 requiring me to rename existing images first, I made this just for that rare use-case.
 
-Due to use of FileExistsError this will only work properly on Windows (iirc).
+This may not work on non-Windows, due to this script depending on `pathlib.Path.rename` to
+[raise](https://docs.python.org/3.12/library/pathlib.html#pathlib.Path.rename) FileExistsError
+on failure.
 
 
 <br>
