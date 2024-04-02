@@ -2,19 +2,21 @@
 #define HIN_CAM_H_
 
 #include "../Math/YAMath.h"
+#include "object_base.h"
 
 
-struct Cam
+// row-column access to 1d array
+#define MAT(r, c) m[r + c * 4]
+
+
+struct Cam : ObjectBase
 {
-	Mat4 transform;
 	Vec3 cam_target;
-
-	Mat4 view_matrix;
 
 	Vec3 forward() const {
 		// Cam z -axis is the opposite direction of the forward vector
 		// So subtract current position from target position
-		return (cam_target - transform.position()).Normalize();
+		return (cam_target - get_position()).Normalize();
 	}
 
 	Vec3 right() const {
@@ -27,13 +29,24 @@ struct Cam
 		return Vec3::cross(forward(), right()).Normalize();
 	}
 
-	Mat4 _lookAt()
-	{
-		// TODO: Add caching of these values
-		Vec3 right_v = right();
-		Vec3 up_v = up();
-		Vec3 forward_v = forward();
-		Vec3 pos = transform.position();
+	void translate(float x, float y, float z) {
+		((ObjectBase*)this)->position(x, y, z);
+		look_at(cam_target);
+	}
+
+	void position(const Vec3& pos) {
+		((ObjectBase*)this)->position(pos);
+		look_at(cam_target);
+	}
+
+	void look_at(const Vec3& target_pos, const Vec3 up_vec = basis_vec::DEFAULT_UP) {
+		// need to flip value so going dirty on copy paste
+		// TODO: Find if it's better to override forward only or not
+		
+		// Setup new vectors
+		Vec3 forward_v = (target_pos - get_position()).Normalize();
+		Vec3 right_v = Vec3::normalize(Vec3::cross(Vec3(0, 1, 0), forward_v));
+		Vec3 up_v = Vec3::normalize(Vec3::cross(forward_v, right_v));
 
 		// [ right_v,    0 ]
 		// [ up_v,       0 ]
@@ -41,46 +54,42 @@ struct Cam
 		// [ 0,  0,  0,  1 ]
 
 		Mat4 temp;
-		temp.m[0 + 0 * 4] = right_v.x;
-		temp.m[0 + 1 * 4] = right_v.y;
-		temp.m[0 + 2 * 4] = right_v.z;
 
-		temp.m[1 + 0 * 4] = up_v.x;
-		temp.m[1 + 1 * 4] = up_v.y;
-		temp.m[1 + 2 * 4] = up_v.z;
+		temp.MAT(0, 0) = right_v.x;
+		temp.MAT(0, 1) = right_v.y;
+		temp.MAT(0, 2) = right_v.z;
 
-		temp.m[2 + 0 * 4] = -forward_v.x;
-		temp.m[2 + 1 * 4] = -forward_v.y;
-		temp.m[2 + 2 * 4] = -forward_v.z;
+		temp.MAT(1, 0) = up_v.x;
+		temp.MAT(1, 1) = up_v.y;
+		temp.MAT(1, 2) = up_v.z;
+
+		temp.MAT(2, 0) = -forward_v.x;
+		temp.MAT(2, 1) = -forward_v.y;
+		temp.MAT(2, 2) = -forward_v.z;
 
 		// [ 1, 0, 0, -pos.x ]
 		// [ 0, 1, 0, -pos.y ]
 		// [ 0, 0, 1, -pos.z ]
 		// [ 0, 0, 0,      1 ]
+
 		Mat4 temp_2;
+		Vec3 pos = get_position();
 
-		temp_2.m[0 + 3 * 4] = -pos.x;
-		temp_2.m[1 + 3 * 4] = -pos.y;
-		temp_2.m[2 + 3 * 4] = -pos.z;
+		temp_2.MAT(0, 3) = -pos.x;
+		temp_2.MAT(1, 3) = -pos.y;
+		temp_2.MAT(2, 3) = -pos.z;
 
-		view_matrix =  temp * temp_2;
-		return view_matrix;
-	}
-
-	void translate(float x, float y, float z) {
-		transform.Translate(x, y, z);
-		view_matrix = _lookAt();
+		// return temp * temp_2;
+		transform = temp * temp_2;
 	}
 
 	void position(float x, float y, float z) {
-		transform.m[0 + 3 * 4] = x;
-		transform.m[1 + 3 * 4] = y;
-		transform.m[2 + 3 * 4] = z;
-		view_matrix = _lookAt();
+		((ObjectBase*)this)->position(x, y, z);
+		look_at(cam_target);
 	}
 
 	Cam() {
-		view_matrix = _lookAt();
+		look_at(cam_target);
 	}
 
 };

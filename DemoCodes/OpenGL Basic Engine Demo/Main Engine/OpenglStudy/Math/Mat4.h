@@ -1,11 +1,16 @@
 #pragma once
 #define M_PI       3.14159265358979323846   // pi
+
 #include "Vec3.h"
 
 inline float toRadians(float degrees)
 {
 	return degrees * ((float)M_PI / 180.f);
 }
+
+
+struct Mat4RowProxy;
+struct Mat4ColProxy;
 
 struct Mat4
 {
@@ -51,7 +56,44 @@ struct Mat4
 
 	static Mat4 orthographic(float left, float right, float bottom, float top, float near, float far); //Camera graphics
 	static Mat4 perspective(float fov, float aspectRatio, float near, float far);
-
-	// Custom methods
-	Vec3 position() const;
 };
+
+
+//struct Mat4RowProxy {
+//	Mat4& mat;
+//	int row;
+//
+//	Mat4RowProxy(Mat4 & mat, int row)
+//		: mat(mat), row(row)
+//	{}
+//
+//	//operator float() const;
+//	//Mat4ColProxy operator[](int row) const;
+//	Mat4ColProxy operator[](int col);
+//};
+//
+//
+//struct Mat4ColProxy {
+//	Mat4& mat;
+//	int idx;
+//
+//	Mat4ColProxy(Mat4RowProxy proxy, int col)
+//		: mat(proxy.mat), idx(proxy.row + col * 4)
+//	{}
+//
+//	operator float() const
+//	{
+//		return mat.m[idx];
+//	}
+//
+//	float& operator[](int col) const
+//	{
+//		return mat.m[idx];
+//	}
+//
+//	void operator=(float val)
+//	{
+//		mat.m[idx] = val;
+//	}
+//
+//};

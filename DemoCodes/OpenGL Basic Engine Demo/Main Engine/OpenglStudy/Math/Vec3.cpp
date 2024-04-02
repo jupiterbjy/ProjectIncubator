@@ -27,7 +27,7 @@ Vec3 Vec3::CrossProduct(const Vec3& v) const
 }
 
 
-float Vec3::Length()
+float Vec3::Length() const
 {
 	return sqrt(x * x + y * y + z * z);
 }
@@ -47,6 +47,9 @@ float Vec3::Distance(const Vec3& v) const
 
 Vec3& Vec3::Normalize()
 {
+	if (Length() == 0.0f)
+		return *this;
+
 	*this /= Length();
 	return *this;
 }
@@ -134,6 +137,14 @@ float Vec3::dot(const Vec3& v1, const Vec3& v2)
 
 Vec3 Vec3::normalize(const Vec3& v)
 {
+	if (v.Length() == 0.0f)
+		return v;
+
 	// TODO: check number of constructor calls
 	return Vec3(v.x, v.y, v.z).Normalize();
+}
+
+Vec3 Vec3::Normalized() const
+{
+	return Vec3::normalize(*this);
 }
