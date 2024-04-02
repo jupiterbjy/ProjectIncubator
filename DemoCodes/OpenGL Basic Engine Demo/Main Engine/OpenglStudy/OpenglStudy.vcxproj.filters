@@ -33,13 +33,13 @@
     <ClCompile Include="DataTypes\mesh.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Cam.cpp">
+    <ClCompile Include="DataTypes\cam.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="glad.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="DataTypes\object.cpp">
+    <ClCompile Include="DataTypes\object_base.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
@@ -77,7 +77,10 @@
     <ClInclude Include="Util\fps_control.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="DataTypes\object.h">
+    <ClInclude Include="DataTypes\object_base.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\shared_mem.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

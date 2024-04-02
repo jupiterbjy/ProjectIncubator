@@ -168,7 +168,7 @@ int main()
         // TODO: Create subclass of cam that has a fixed lookat target
         // TODO: Create subclass of cam that has a fixed lookat target & orbit
         // TODO: Create light class
-        // TODO: Create 
+        // TODO: fix angle reset on identical pos w/ target
 
 
         // Process input
@@ -180,10 +180,11 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Update cam pos
+        auto factor = 1.1f + sin(glfwGetTime());
         cam.position(
-            sin(glfwGetTime()) * cam_distance,
+            sin(glfwGetTime()) * cam_distance * factor,
             0.0f,
-            cos(glfwGetTime()) * cam_distance
+            cos(glfwGetTime()) * cam_distance * factor
         );
 
         // Activate our shader; if there's multiple shader this will be meaningful
@@ -192,7 +193,7 @@ int main()
         // send shader param
         mShader.setVec3("lightPos", Vec3(0.0f, 0.0f, 0.0f));
         mShader.setMat4("projection", projection);
-        mShader.setMat4("view", cam.view_matrix);
+        mShader.setMat4("view", cam.transform);
         
         for (size_t idx = 0; idx < meshes.size(); idx++) {
             

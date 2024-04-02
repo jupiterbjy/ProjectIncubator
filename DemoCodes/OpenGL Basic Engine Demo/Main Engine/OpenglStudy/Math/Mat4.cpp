@@ -1,15 +1,19 @@
 #include "mat4.h"
 
 
+// row-column access to 1d array
+#define MAT(r, c) m[r + c * 4]
+
+
 Mat4::Mat4(float diagonal)
 {
 	for (int i = 0; i < 4 * 4; i++)
 		m[i] = 0.0f;
 
-	m[0 + 0 * 4] = diagonal;
-	m[1 + 1 * 4] = diagonal;
-	m[2 + 2 * 4] = diagonal;
-	m[3 + 3 * 4] = diagonal;
+	MAT(0, 0) = diagonal;
+	MAT(1, 1) = diagonal;
+	MAT(2, 2) = diagonal;
+	MAT(3, 3) = diagonal;
 }
 
 Mat4 Mat4::Identity()
@@ -43,23 +47,23 @@ Mat4& Mat4::multiply(const Mat4& other)
 
 void Mat4::Translate(float x_, float y_, float z_)
 {
-	m[0 + 3 * 4] += x_;
-	m[1 + 3 * 4] += y_;
-	m[2 + 3 * 4] += z_;
+	MAT(0, 3) += x_;
+	MAT(1, 3) += y_;
+	MAT(2, 3) += z_;
 }
 
 void Mat4::Translate(const Vec3& rhs)
 {
-	m[0 + 3 * 4] += rhs.x;
-	m[1 + 3 * 4] += rhs.y;
-	m[2 + 3 * 4] += rhs.z;
+	MAT(0, 3) += rhs.x;
+	MAT(1, 3) += rhs.y;
+	MAT(2, 3) += rhs.z;
 }
 
 void Mat4::Scale(float x_, float y_, float z_)
 {
-	m[0 + 0 * 4] *= x_;
-	m[1 + 1 * 4] *= y_;
-	m[2 + 2 * 4] *= z_;
+	MAT(0, 0) *= x_;
+	MAT(1, 1) *= y_;
+	MAT(2, 2) *= z_;
 }
 
 void Mat4::Scale(const Vec3& scale)
@@ -78,10 +82,11 @@ void Mat4::RotateZ(float radians)
 	float s = sin(radians);
 
 	Mat4 rotationMatrix(1.0f);
-	rotationMatrix.m[0 + 0 * 4] = c;
-	rotationMatrix.m[1 + 0 * 4] = -s;
-	rotationMatrix.m[0 + 1 * 4] = s;
-	rotationMatrix.m[1 + 1 * 4] = c;
+
+	rotationMatrix.MAT(0, 0) = c;
+	rotationMatrix.MAT(1, 0) = -s;
+	rotationMatrix.MAT(0, 1) = s;
+	rotationMatrix.MAT(1, 1) = c;
 	
 	// TODO: check if this deepcopies array
 	*this = multiply(rotationMatrix);
@@ -129,9 +134,9 @@ Mat4 Mat4::operator*(const Mat4 other) const
 			float sum = 0.0f;
 
 			for (size_t k = 0; k < 4; k++)
-				sum += m[c + k * 4] * other.m[k + r * 4];
+				sum += MAT(c, k) * other.MAT(k, r);
 
-			new_mat.m[c + r * 4] = sum;
+			new_mat.MAT(c, r) = sum;
 		}
 	}
 
@@ -176,17 +181,17 @@ Mat4 Mat4::rotation(float radians, const Vec3& axis)
 
 	Mat4 result(1.0f);
 
-	result.m[0 + 0 * 4] = c + (1 - c) * axis.x * axis.x;
-	result.m[0 + 1 * 4] = (1 - c) * axis.x * axis.y - s * axis.z;
-	result.m[0 + 2 * 4] = (1 - c) * axis.x * axis.z + s * axis.y;
+	result.MAT(0, 0) = c + (1 - c) * axis.x * axis.x;
+	result.MAT(0, 1) = (1 - c) * axis.x * axis.y - s * axis.z;
+	result.MAT(0, 2) = (1 - c) * axis.x * axis.z + s * axis.y;
 
-	result.m[1 + 0 * 4] = axis.x * axis.y * (1 - c) + s * axis.z;
-	result.m[1 + 1 * 4] = c + (1 - c) * axis.y * axis.y;
-	result.m[1 + 2 * 4] = (1 - c) * axis.y * axis.z - s * axis.x;
+	result.MAT(1, 0) = axis.x * axis.y * (1 - c) + s * axis.z;
+	result.MAT(1, 1) = c + (1 - c) * axis.y * axis.y;
+	result.MAT(1, 2) = (1 - c) * axis.y * axis.z - s * axis.x;
 
-	result.m[2 + 0 * 4] = axis.x * axis.z * (1 - c) - s * axis.y;
-	result.m[2 + 1 * 4] = axis.y * axis.z * (1 - c) + s * axis.x;
-	result.m[2 + 2 * 4] = c + (1 - c) * axis.z * axis.z;
+	result.MAT(2, 0) = axis.x * axis.z * (1 - c) - s * axis.y;
+	result.MAT(2, 1) = axis.y * axis.z * (1 - c) + s * axis.x;
+	result.MAT(2, 2) = c + (1 - c) * axis.z * axis.z;
 
 	return result;
 }
@@ -221,12 +226,12 @@ Mat4 Mat4::orthographic(float left, float right, float bottom, float top, float 
 	0			0		0			1
 	*/
 
-	result.m[0 + 0 * 4] = 2.0f / (right - left);
-	result.m[1 + 1 * 4] = 2.0f / (top - bottom);
-	result.m[2 + 2 * 4] = 2.0f / (near - far);
-	result.m[3 + 0 * 4] = (left + right) / (left - right);
-	result.m[3 + 1 * 4] = (bottom + top) / (bottom - top);
-	result.m[3 + 2 * 4] = (far + near) / (far - near);
+	result.MAT(0, 0) = 2.0f / (right - left);
+	result.MAT(1, 1) = 2.0f / (top - bottom);
+	result.MAT(2, 2) = 2.0f / (near - far);
+	result.MAT(3, 0) = (left + right) / (left - right);
+	result.MAT(3, 1) = (bottom + top) / (bottom - top);
+	result.MAT(3, 2) = (far + near) / (far - near);
 
 	return result;
 }
@@ -246,17 +251,11 @@ Mat4 Mat4::perspective(float fov, float aspectRatio, float near, float far)
 	float b = (near + far) / (near - far);
 	float c = (2.0f * near * far) / (near - far);
 
-
-	result.m[0 + 0 * 4] = a;
-	result.m[1 + 1 * 4] = q;
-	result.m[2 + 2 * 4] = b;
-	result.m[2 + 3 * 4] = c;
-	result.m[3 + 2 * 4] = -1.0f;
+	result.MAT(0, 0) = a;
+	result.MAT(1, 1) = q;
+	result.MAT(2, 2) = b;
+	result.MAT(2, 3) = c;
+	result.MAT(3, 2) = -1.0f;
 
 	return result;
-}
-
-Vec3 Mat4::position() const
-{
-	return Vec3(m[0 + 3 * 4], m[1 + 3 * 4], m[2 + 3 * 4]);
 }

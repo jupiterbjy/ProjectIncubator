@@ -11,7 +11,7 @@ struct Vec3
 	float DotProduct(const Vec3& v) const;
 	Vec3 CrossProduct(const Vec3& v) const;
 
-	float Length();
+	float Length() const;
 
 	float DistanceSq(const Vec3& v) const;
 	float Distance(const Vec3& v) const;
@@ -43,5 +43,7 @@ struct Vec3
 	static Vec3 cross(const Vec3& v1, const Vec3& v2);
 	static float dot(const Vec3& v1, const Vec3& v2);
 	static Vec3 normalize(const Vec3& v);
+
+	Vec3 Normalized() const;
 };
 
