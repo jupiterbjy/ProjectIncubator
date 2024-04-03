@@ -161,6 +161,7 @@
     <ClInclude Include="DataTypes\cam.h" />
     <ClInclude Include="DataTypes\hash.h" />
     <ClInclude Include="DataTypes\mesh.h" />
+    <ClInclude Include="DataTypes\object.h" />
     <ClInclude Include="DataTypes\object_base.h" />
     <ClInclude Include="Math\Mat4.h" />
     <ClInclude Include="Math\YAMath.h" />

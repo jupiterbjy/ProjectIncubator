@@ -12,12 +12,12 @@ namespace basis_vec
 
 
 class ObjectBase {
-    // Honestly this doesn't need to be a class
+    // Honestly this doesn't need to be a class as we're gonna expose transform
 
     float _scaling_factor(int row) const;
 
 public:
-    Mat4 transform;
+    Mat4 transform = Mat4::Identity();
 
     // Local up vector
     Vec3 up() const;

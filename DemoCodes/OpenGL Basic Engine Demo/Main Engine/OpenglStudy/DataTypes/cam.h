@@ -40,7 +40,7 @@ struct Cam : ObjectBase
 	}
 
 	void look_at(const Vec3& target_pos, const Vec3 up_vec = basis_vec::DEFAULT_UP) {
-		// need to flip value so going dirty on copy paste
+		// need to flip value so going dirty on copy paste and violating DRY
 		// TODO: Find if it's better to override forward only or not
 		
 		// Setup new vectors
@@ -53,7 +53,7 @@ struct Cam : ObjectBase
 		// [ forward_v,  0 ]
 		// [ 0,  0,  0,  1 ]
 
-		Mat4 temp;
+		Mat4 temp = Mat4::Identity();
 
 		temp.MAT(0, 0) = right_v.x;
 		temp.MAT(0, 1) = right_v.y;
@@ -72,7 +72,7 @@ struct Cam : ObjectBase
 		// [ 0, 0, 1, -pos.z ]
 		// [ 0, 0, 0,      1 ]
 
-		Mat4 temp_2;
+		Mat4 temp_2 = Mat4::Identity();
 		Vec3 pos = get_position();
 
 		temp_2.MAT(0, 3) = -pos.x;

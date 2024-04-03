@@ -124,10 +124,14 @@ int main()
     float _near = 0.1f;
     float _far = 100.0f;
 
-    Mat4 projection;
-    projection = Mat4::perspective(
+    Mat4 projection = Mat4::perspective(
         fov, aspect_ratio, _near, _far
     );
+
+    // Near-far is based on World space (0, 0, 0) so need neg/pos combination
+    //projection = Mat4::orthographic(
+    //  -5, 5, -5, 5, -10.0, 10.0
+	//);
 
     // Shared memory creation
     HANDLE hMapFile;

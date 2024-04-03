@@ -12,7 +12,7 @@ void vao_bind(const Mesh& mesh)
     const auto VBO = vo_state::hash_vbo_map[mesh.hash];
 
     glBindVertexArray(VAO);
-    vo_state::bound_hash = mesh.hash;
+    //vo_state::bound_hash = mesh.hash;
 }
 
 
@@ -53,7 +53,7 @@ void vao_register(const Mesh& mesh)
 
     vo_state::hash_vao_map[mesh.hash] = new_vao;
     vo_state::hash_vbo_map[mesh.hash] = new_vbo;
-    vo_state::bound_hash = 0;
+    // vo_state::bound_hash = 0;
 }
 
 
@@ -77,24 +77,24 @@ void Mesh::swap(Mesh& mesh)
 
 void Mesh::rotate(float rad_amount, const Vec3& axis)
 {
-    transform.Rotate(rad_amount, axis);
+    transform.rotate(rad_amount, axis);
 }
 
 
 void Mesh::translate(const Vec3& translation)
 {
-    transform.Translate(translation);
+    transform.translate(translation);
 }
 
 void Mesh::translate(float x, float y, float z)
 {
-    transform.Translate(x, y, z);
+    transform.translate(x, y, z);
 }
 
 
 void Mesh::scale(const Vec3& scale)
 {
-	transform.Scale(scale);
+	transform.scale(scale);
 }
 
 
@@ -113,10 +113,10 @@ Mesh::Mesh(const float a_vert_arr[], size_t vert_count, size_t a_hash)
 }
 
 
-Mesh::Mesh(Mesh&& mesh) noexcept
-{
-    swap(mesh);
-}
+//Mesh::Mesh(Mesh&& mesh) noexcept
+//{
+//    swap(mesh);
+//}
 
 
 #define PRIMITIVE(m) { m, m##_size, m##_hash }

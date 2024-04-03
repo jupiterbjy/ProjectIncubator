@@ -52,7 +52,7 @@ void ObjectBase::look_at(const Vec3& target_pos, const Vec3 up_vec)
 	// [ forward_v,  0 ]
 	// [ 0,  0,  0,  1 ]
 
-	Mat4 temp;
+	Mat4 temp = Mat4::Identity();
 
 	temp.MAT(0, 0) = right_v.x;
 	temp.MAT(0, 1) = right_v.y;
@@ -71,7 +71,7 @@ void ObjectBase::look_at(const Vec3& target_pos, const Vec3 up_vec)
 	// [ 0, 0, 1, -pos.z ]
 	// [ 0, 0, 0,      1 ]
 
-	Mat4 temp_2;
+	Mat4 temp_2 = Mat4::Identity();
 	Vec3 pos = get_position();
 
 	temp_2.MAT(0, 3) = -pos.x;
@@ -90,7 +90,7 @@ void ObjectBase::look_at(const ObjectBase& target_obj, const Vec3 up_vec)
 
 void ObjectBase::rotate(float rad_amount, const Vec3& axis)
 {
-	transform.Rotate(rad_amount, axis);
+	transform.rotate(rad_amount, axis);
 }
 
 void ObjectBase::rotate(float rad_amount, float x, float y, float z)
@@ -100,7 +100,7 @@ void ObjectBase::rotate(float rad_amount, float x, float y, float z)
 
 void ObjectBase::translate(const Vec3& translation)
 {
-	transform.Translate(translation);
+	transform.translate(translation);
 }
 
 void ObjectBase::translate(float x, float y, float z)
@@ -111,7 +111,7 @@ void ObjectBase::translate(float x, float y, float z)
 void ObjectBase::scale(const Vec3& scale)
 {
 	// Revert back scaling of matrix & add it
-	transform.Scale(Vec3(
+	transform.scale(Vec3(
 		_scaling_factor(0) / scale.x,
 		_scaling_factor(1) / scale.y,
 		_scaling_factor(2) / scale.z
