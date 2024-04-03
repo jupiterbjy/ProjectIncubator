@@ -1,1 +1,9 @@
 #pragma once
+
+
+
+
+
+class SharedMemoryManager {
+
+};

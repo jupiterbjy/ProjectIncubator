@@ -6,11 +6,14 @@
 #include "glad/glad.h"
 
 
+// Contains VAO and VBO state for each mesh's hash value
 namespace vo_state {
+    // TODO: find better way to hash. This is relying on inefficient model file structure
+    // TODO: find way to remove associated buffer when mesh is removed
+
     static std::unordered_map<size_t, GLuint> hash_vbo_map;
     static std::unordered_map<size_t, GLuint> hash_vao_map;
 
-    static size_t bound_hash = 0;
     // void unregister_mesh();
 };
 
@@ -22,7 +25,7 @@ struct Mesh {
 
     Vec3 color = { 1.0f, 1.0f, 1.0f };
 
-    Mat4 transform;
+    Mat4 transform = Mat4::Identity();
 
     Mesh() {};
 
@@ -32,11 +35,8 @@ struct Mesh {
     // Create Mesh with known hash
     Mesh(const float a_vert_arr[], size_t vert_count, size_t a_hash);
 
-    // Move from another Mesh
-    Mesh(Mesh&& mesh) noexcept;
-
     ~Mesh() {
-        delete[] p_verts;
+        // delete[] p_verts;
     }
 
     // initializer job
@@ -64,6 +64,33 @@ struct Mesh {
 void vao_bind(const Mesh& mesh);
 
 void vao_register(const Mesh& mesh);
+
+
+class MeshManager {
+    // This better later be using string hash too
+    static std::unordered_map<size_t, Mesh> mesh_map;
+
+public:
+    size_t size() { return mesh_map.size(); }
+
+    Mesh& get_mesh(size_t id) {
+        return mesh_map[id];
+    }
+
+    //size_t add_mesh(Mesh&& mesh) {
+    //    size_t id = mesh.get_id();
+    //    mesh_map[id] = mesh;
+    //    return id;
+    //}
+
+    void remove_mesh(size_t id) {
+        mesh_map.erase(id);
+    }
+
+    void clear() {
+        mesh_map.clear();
+    }
+};
 
 
 struct Vertice {

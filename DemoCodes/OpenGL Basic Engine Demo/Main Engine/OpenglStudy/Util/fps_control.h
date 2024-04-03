@@ -27,8 +27,6 @@ protected:
 	unsigned int frame_time = 16;
 
 	void adjust_frame_time(std::chrono::duration<float> diff) {
-		if (!auto_adjust) return;
-
 		// TODO: implement frame time change delay timer
 
 		if (frame_time == 0) return;
@@ -72,6 +70,7 @@ public:
 			frames = 0;
 			start_t = last_t;
 
+			if (!auto_adjust) return;
 			adjust_frame_time(diff);
 		}
 	}
