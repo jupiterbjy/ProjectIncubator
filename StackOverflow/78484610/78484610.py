@@ -6,6 +6,7 @@ class ChainCall:
     def __init__(self, target):
         self.target_obj = target
         self.chained_calls = []
+        self.params = []
 
     def __getattr__(self, item):
         # try if it's target object's
@@ -31,19 +32,23 @@ class ChainCall:
 
         self.chained_calls.append(attribute)
 
-        # return lambda that returns this Chainable
-        return lambda: self
+        # return lambda that returns this Chainable, with param
+        def wrapper(*args, **kwargs) -> "ChainCall":
+            self.params.append((args, kwargs))
+            return self
+
+        return wrapper
 
     async def _await_calls(self):
         """Starts calling pending calls.
         Also checks if returning object is identical, excluding last call."""
         last_return = None
 
-        for idx, method in enumerate(self.chained_calls, start=1):
+        for idx, (method, (arg, kwarg)) in enumerate(zip(self.chained_calls, self.params), start=1):
             if inspect.iscoroutinefunction(method):
-                last_return = await method()
+                last_return = await method(*arg, **kwarg)
             else:
-                last_return = method()
+                last_return = method(*arg, **kwarg)
 
             # raise if identity is wrong, just in case.
             # ignored on the last call.
@@ -75,24 +80,24 @@ class Character:
     def __init__(self, human):
         self.human = human
 
-    def is_human(self) -> "Character":
-        print("Checking is_human!")
+    def is_human(self, *arg, **kwarg) -> "Character":
+        print("Checking is_human! Param:", arg, kwarg)
         if self.human:
             return self
         raise Exception("Behold! I am no human.")
 
-    async def has_job(self) -> "Character":
-        print("Checking has_job!")
+    async def has_job(self, *arg, **kwarg) -> "Character":
+        print("Checking has_job! Param:", arg, kwarg)
         await asyncio.sleep(1)
         return self
 
-    async def is_knight(self) -> "Character":
-        print("Checking is_knight!")
+    async def is_knight(self, *arg, **kwarg) -> "Character":
+        print("Checking is_knight! Param:", arg, kwarg)
         await asyncio.sleep(1)
         return self
 
-    async def non_self_returning(self) -> str:
-        print("In non_self_returning!")
+    async def non_self_returning(self, *arg, **kwarg) -> str:
+        print("In non_self_returning! Param:", arg, kwarg)
         await asyncio.sleep(1)
         return "Tho facing of a ambiguity, shall refuse the temptation to guess."
 
@@ -100,11 +105,11 @@ class Character:
 async def demo():
     chara = Character(True)
 
-    return_self = await chara.chain.is_human().has_job().is_knight()
+    return_self = await chara.chain.is_human(1, a=1).has_job(2, 3, b=2).is_knight(4, c=3, d=4)
     assert return_self is chara
     print("That character was a formidable knight who has job and is human.")
 
-    return_str = await chara.chain.is_knight().non_self_returning()
+    return_str = await chara.chain.is_knight().non_self_returning(name="hina", first_name="sorasaki")
     print("And that knight said,", return_str)
 
 
