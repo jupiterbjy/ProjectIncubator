@@ -172,6 +172,19 @@ Generates m3u8 file using audio files in current directory. Recursive.
 
 ---
 
+### [search.py](search.py)
+![](readme_res/search.png)
+
+Searches for lines containing given keyword.
+Has options to Filter multiple extensions for searching.
+
+
+<br>
+<br>
+
+
+---
+
 ### [singledispatch_for_object.py](singledispatch_for_object.py)
 Mimics functools.singledispatch, but for objects.
 usage is also almost identical.
