@@ -12,7 +12,7 @@ import pynput
 
 
 class RestartableThread:
-    def __init__(self, target, args=(), kwargs={}):
+    def __init__(self, target, *args, **kwargs):
         """Create a tiny thread manager that can be restarted.
 
         Args:
