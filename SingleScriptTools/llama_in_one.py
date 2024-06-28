@@ -1,14 +1,37 @@
 """
-A cross-platform script for the automatic llama 3 setup excluding 2 libraries - Because I'm lazy!
+A cross-platform script for the automatic llama 3B setup cpu-only, single user setup for my laziness.
+
+This is intended to be used for Godot plugin.
 
 Dependency installation:
 ```
 py -m pip install psutil llama-cpp-python httpx --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-WORK IN PROGRESS
 
 :Author: jupiterbjy@gmail.com
+
+: MIT License
+:
+: Copyright (c) 2024 jupiterbjy@gmail.com
+:
+: Permission is hereby granted, free of charge, to any person obtaining a copy
+: of this software and associated documentation files (the "Software"), to deal
+: in the Software without restriction, including without limitation the rights
+: to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+: copies of the Software, and to permit persons to whom the Software is
+: furnished to do so, subject to the following conditions:
+:
+: The above copyright notice and this permission notice shall be included in all
+: copies or substantial portions of the Software.
+:
+: THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+: IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+: FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+: AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+: LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+: OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+: SOFTWARE.
 """
 
 import json
@@ -20,13 +43,14 @@ from urllib.parse import urlparse
 from contextlib import contextmanager
 
 import httpx
-from llama_cpp import Llama
+from llama_cpp import Llama, LlamaCache
 from psutil import cpu_count
+
 
 # --- CONFIG ---
 
 MODEL_URL = """
-https://huggingface.co/bartowski/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct-Q6_K.gguf
+https://huggingface.co/NikolayKozloff/Meta-Llama-3-8B-Instruct-bf16-correct-pre-tokenizer-and-EOS-token-Q8_0-Q6_k-Q4_K_M-GGUF/resolve/main/Meta-Llama-3-8B-Instruct-bf16-correct-pre-tokenizer-and-EOS-token-Q6_K.gguf
 """.strip()
 
 # Initial prompt added to start of chat
@@ -37,7 +61,7 @@ SUBDIR_PATH = "_llm"
 
 DEFAULT_TOKENS = 512
 
-DEFAULT_CONTEXT_LENGTH = 4096
+DEFAULT_CONTEXT_LENGTH = 8912
 
 DEFAULT_SEED = -1
 
@@ -128,11 +152,11 @@ class LLMWrapper:
         self.llm = Llama(
             self.model_path.as_posix(),
             seed=seed,
-            context_length=context_length,
-            *args,
-            **kwargs,
+            n_ctx=context_length,
             verbose=LLM_VERBOSE,
             n_threads=THREAD_COUNT,
+            *args,
+            **kwargs,
         )
 
     def __str__(self):
@@ -174,6 +198,12 @@ class LLMWrapper:
 
         return extract_message(self.llm.create_chat_completion(messages, **kwargs))
 
+    def set_cache(self, cache: LlamaCache):
+        """
+# Uses cache for faster digest by keeping the state
+# https://github.com/abetlen/llama-cpp-python/issues/44#issuecomment-1509882229"""
+        self.llm.set_cache(cache)
+
 
 class ChatSession:
     """Represents single chat session"""
@@ -185,6 +215,7 @@ class ChatSession:
         init_prompt="",
         output_json=False,
         max_tokens=DEFAULT_TOKENS,
+        enable_cache=True,
     ):
         self.uuid = uuid
         self.llm = llm
@@ -207,6 +238,8 @@ class ChatSession:
                 "content": self.prompt,
             }
         ]
+
+        self.cache = LlamaCache() if enable_cache else None
 
     def __str__(self):
         return f"ChatSession({self.uuid})"
@@ -240,6 +273,7 @@ def main():
 
     llm = LLMWrapper(MODEL_URL)
     session = ChatSession(llm, "1")
+    llm.set_cache(session.cache)
 
     while True:
         print("----------------------------")
@@ -254,16 +288,16 @@ def main():
 
                 case "clear()":
                     session.clear()
+                    LOGGER.info(f"Session cleared")
 
                 case str(x) if x.startswith("temp(") and x.endswith(")"):
                     try:
-                        session.temperature = float(
-                            x.removeprefix("temp(").removesuffix(")")
-                        )
+                        session.temperature = float(x[len("temp("):-len(")")])
                     except ValueError:
                         pass
                     else:
                         LOGGER.info(f"Temp: {session.temperature}")
+            continue
 
         if prompt == "exit()":
             LOGGER.info("Stopping")
@@ -278,13 +312,13 @@ def main():
 
 
 if __name__ == "__main__":
-    _parser = argparse.ArgumentParser()
-    _parser.add_argument(
-        "-v",
-        "--verbose",
-        type=bool,
-        action="store_const",
-        default=False,
-    )
+    # _parser = argparse.ArgumentParser()
+    # _parser.add_argument(
+    #     "-v",
+    #     "--verbose",
+    #     type=bool,
+    #     action="store_bool",
+    #     default=False,
+    # )
 
     main()
