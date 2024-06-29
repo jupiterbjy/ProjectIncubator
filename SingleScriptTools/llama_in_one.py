@@ -47,10 +47,12 @@ from llama_cpp import Llama, LlamaCache
 from psutil import cpu_count
 
 
-# --- CONFIG ---
+# --- DEFAULT CONFIG ---
+# Change default config here.
+# Some of these can be overridden by arguments.
 
 MODEL_URL = """
-https://huggingface.co/NikolayKozloff/Meta-Llama-3-8B-Instruct-bf16-correct-pre-tokenizer-and-EOS-token-Q8_0-Q6_k-Q4_K_M-GGUF/resolve/main/Meta-Llama-3-8B-Instruct-bf16-correct-pre-tokenizer-and-EOS-token-Q6_K.gguf
+https://huggingface.co/MaziyarPanahi/Llama-3-8B-Instruct-32k-v0.1-GGUF/resolve/main/Llama-3-8B-Instruct-32k-v0.1.Q6_K.gguf
 """.strip()
 
 # Initial prompt added to start of chat
@@ -59,15 +61,17 @@ DEFAULT_PROMPT = "You are an assistant who proficiently answers to questions."
 # Subdirectory used for saving downloaded model files
 SUBDIR_PATH = "_llm"
 
-DEFAULT_TOKENS = 512
+DEFAULT_TOKENS = 4096
 
-DEFAULT_CONTEXT_LENGTH = 8912
+DEFAULT_CONTEXT_LENGTH = 32768
 
 DEFAULT_SEED = -1
 
 DEFAULT_TEMPERATURE = 0.7
 
-LLM_VERBOSE = True
+LLM_VERBOSE = False
+
+SERVER_MODE = False
 
 # STOP_AT = ["\n"]
 
@@ -200,8 +204,9 @@ class LLMWrapper:
 
     def set_cache(self, cache: LlamaCache):
         """
-# Uses cache for faster digest by keeping the state
-# https://github.com/abetlen/llama-cpp-python/issues/44#issuecomment-1509882229"""
+        # Uses cache for faster digest by keeping the state
+        # https://github.com/abetlen/llama-cpp-python/issues/44#issuecomment-1509882229
+        """
         self.llm.set_cache(cache)
 
 
@@ -268,7 +273,7 @@ class ChatSession:
         return reason, self.preprocessor(msg["content"])
 
 
-def main():
+def standalone_mode():
     """Some boilerplates setting up models and getting input"""
 
     llm = LLMWrapper(MODEL_URL)
@@ -277,7 +282,7 @@ def main():
 
     while True:
         print("----------------------------")
-        prompt = input("You >>")
+        prompt = input("You >> ")
 
         # assume that if prompt is short, check if it's command.
         # TODO: replace with regex
@@ -289,15 +294,17 @@ def main():
                 case "clear()":
                     session.clear()
                     LOGGER.info(f"Session cleared")
+                    continue
 
                 case str(x) if x.startswith("temp(") and x.endswith(")"):
                     try:
-                        session.temperature = float(x[len("temp("):-len(")")])
+                        session.temperature = float(x[len("temp(") : -len(")")])
                     except ValueError:
                         pass
                     else:
                         LOGGER.info(f"Temp: {session.temperature}")
-            continue
+
+                    continue
 
         if prompt == "exit()":
             LOGGER.info("Stopping")
@@ -312,13 +319,25 @@ def main():
 
 
 if __name__ == "__main__":
-    # _parser = argparse.ArgumentParser()
-    # _parser.add_argument(
-    #     "-v",
-    #     "--verbose",
-    #     type=bool,
-    #     action="store_bool",
-    #     default=False,
-    # )
+    _parser = argparse.ArgumentParser()
+    _parser.add_argument(
+        "-s",
+        "--server-mode",
+        action="store_true",
+        default=SERVER_MODE,
+    )
+    _parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        default=LLM_VERBOSE,
+    )
 
-    main()
+    _args = _parser.parse_args()
+    LLM_VERBOSE = _args.verbose
+
+    if _args.server_mode:
+        # I think we could just use llama.cpp's own server mod...
+        raise NotImplementedError("Server mode Not implemented yet")
+    else:
+        standalone_mode()
