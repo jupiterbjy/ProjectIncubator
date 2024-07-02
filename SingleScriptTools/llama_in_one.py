@@ -38,7 +38,8 @@ import json
 import pathlib
 import logging
 import argparse
-from typing import List, TypedDict, Tuple
+from typing import List, TypedDict, Tuple, Callable, Any
+from collections.abc import Generator, Iterator
 from urllib.parse import urlparse
 from contextlib import contextmanager
 
@@ -73,6 +74,7 @@ LLM_VERBOSE = False
 
 SERVER_MODE = False
 
+COMMAND_PREFIX = ":"
 # STOP_AT = ["\n"]
 
 
@@ -129,6 +131,18 @@ def extract_message(response: dict) -> Tuple[str, Message]:
     """Extracts message from output and returns (stop reason, message)"""
 
     return response["choices"][0]["finish_reason"], response["choices"][0]["message"]
+
+
+class StreamWrap:
+    """Makes return reason available"""
+
+    def __init__(self, gen: Generator):
+        self._gen = gen
+        self.value = None
+
+    def __iter__(self):
+        self.value = yield from self._gen
+        return self.value
 
 
 # --- WRAPPER ---
@@ -195,12 +209,15 @@ class LLMWrapper:
         temp.rename(self.model_path)
         LOGGER.info("Download complete")
 
-    def create_chat_completion(
-        self, messages: List[dict], **kwargs
-    ) -> Tuple[str, Message]:
+    def create_chat_completion(self, messages: List[dict], **kwargs) -> Iterator:
         """Creates chat completion. This just wraps the original function for type hinting."""
 
-        return extract_message(self.llm.create_chat_completion(messages, **kwargs))
+        return self.llm.create_chat_completion(messages, **kwargs)
+
+    def create_chat_completion_stream(self, messages: List[dict], **kwargs):
+        """Creates stream chat completion."""
+
+        return self.llm.create_chat_completion(messages, **kwargs)
 
     def set_cache(self, cache: LlamaCache):
         """
@@ -226,44 +243,128 @@ class ChatSession:
         self.llm = llm
 
         self.preprocessor = lambda x: x
-        self.prompt = f"{DEFAULT_PROMPT} {init_prompt}".strip()
+        prompt = f"{DEFAULT_PROMPT} {init_prompt}".strip()
         self.resp_format = None
 
         if output_json:
             self.preprocessor = json.loads
-            self.prompt += " You outputs in JSON."
+            prompt += " You outputs in JSON."
             self.resp_format = {"type": "json_object"}
 
         self.temperature = 0.7
         self.max_tokens = max_tokens
 
-        self.messages: List[Message] = [
-            {
-                "role": "system",
-                "content": self.prompt,
-            }
-        ]
+        self.messages: List[Message] = []
+        self.system_send(prompt)
 
         self.cache = LlamaCache() if enable_cache else None
 
     def __str__(self):
         return f"ChatSession({self.uuid})"
 
-    def clear(self):
-        """Clears session history excluding first system prompt."""
+    def serialize(self) -> str:
+        """Serializes session in plain text"""
+
+        return json.dumps(
+            {
+                "uuid": self.uuid,
+                "messages": json.dumps(self.messages),
+                "temperature": self.temperature,
+                "max_tokens": self.max_tokens,
+                "resp_format": self.resp_format,
+                "enable_cache": self.cache is not None,
+                "output_json": self.preprocessor == json.loads,
+            }
+        )
+
+    @classmethod
+    def deserialize(cls, serialized: str, llm: LLMWrapper):
+        """Deserializes session"""
+
+        data = json.loads(serialized)
+
+        session = cls(
+            llm,
+            data["uuid"],
+            "",
+            data["output_json"],
+            data["max_tokens"],
+            data["enable_cache"],
+        )
+        session.messages = json.loads(data["messages"])
+        session.temperature = data["temperature"]
+        session.max_tokens = data["max_tokens"]
+        session.resp_format = data["resp_format"]
+
+        return session
+
+    def clear(self, new_init_prompt):
+        """Clears session history excluding first system prompt.
+        Sets new first system prompt if provided."""
 
         first_msg = self.messages[0]
         self.messages.clear()
+
+        if new_init_prompt is not None:
+            first_msg["content"] = new_init_prompt
+
         self.messages.append(first_msg)
 
-    def send(self, content: str, role="user") -> Tuple[str, str | dict]:
-        """Send message to llm and get reply. Returns (stop reason, content)"""
+    def system_send(self, prompt: str):
+        """Sends system prompt(system role message)."""
 
+        self.messages.append(
+            {
+                "role": "system",
+                "content": prompt,
+            }
+        )
+
+    def get_reply_stream(self, content: str, role="user") -> Generator[str]:
+        """get_reply with streaming. Does not support json output mode.
+        Returns finish reason."""
+
+        # append user message
+        self.messages.append({"role": role, "content": content})
+
+        # generate message and append back to message list
+        output = self.llm.create_chat_completion_stream(
+            messages=self.messages,
+            temperature=self.temperature,
+            response_format=self.resp_format,
+            max_tokens=self.max_tokens,
+            stream=True,
+        )
+
+        current_role = ""
+        current_role_output = ""
+        finish_reason = ""
+
+        for chunk in output:
+            delta = chunk["choices"][0]["delta"]
+            if chunk["choices"][0]["finish_reason"] is not None:
+                finish_reason = chunk["choices"][0]["finish_reason"]
+
+            if "role" in delta:
+                current_role = delta["role"]
+
+            elif "content" in delta:
+                current_role_output += delta["content"]
+                yield delta["content"]
+
+        self.messages.append({"role": current_role, "content": current_role_output})
+        return finish_reason
+
+    def get_reply(self, content: str, role="user") -> Tuple[str, str | dict]:
+        """Send message to llm and get reply iterator. Returns (stop reason, content).
+        Can return dictionary if json output is enabled."""
+
+        # append user message
         self.messages.append({"role": role, "content": content})
 
         # generate message and append back to message list
         reason, msg = self.llm.create_chat_completion(
-            self.messages,
+            messages=self.messages,
             temperature=self.temperature,
             response_format=self.resp_format,
             max_tokens=self.max_tokens,
@@ -273,49 +374,119 @@ class ChatSession:
         return reason, self.preprocessor(msg["content"])
 
 
-def standalone_mode():
-    """Some boilerplates setting up models and getting input"""
+# --- COMMANDS ---
 
-    llm = LLMWrapper(MODEL_URL)
-    session = ChatSession(llm, "1")
-    llm.set_cache(session.cache)
 
-    while True:
-        print("----------------------------")
-        prompt = input("You >> ")
+class CommandMap:
+    """Class that acts like a command map. Each method is single command in chat session.
+    Commands can either return False to stop the session, or True to continue.
 
-        # assume that if prompt is short, check if it's command.
-        # TODO: replace with regex
-        if len(prompt) < 10:
-            match prompt:
-                case "exit()":
-                    break
+    Originally was `Dict[str, Callable[[ChatSession, Any], ...]]` like this:
 
-                case "clear()":
-                    session.clear()
-                    LOGGER.info(f"Session cleared")
-                    continue
+    COMMAND_MAP: Dict[str, Callable[[ChatSession, Any], bool]] = {
+        "exit": lambda _session, param: exit(),
+        "clear": lambda _session, param: _session.clear(),
+        "temp": lambda _session, param:
+    }
 
-                case str(x) if x.startswith("temp(") and x.endswith(")"):
-                    try:
-                        session.temperature = float(x[len("temp(") : -len(")")])
-                    except ValueError:
-                        pass
-                    else:
-                        LOGGER.info(f"Temp: {session.temperature}")
+    ... but changed to class to make type hint work and better readability.
+    You can still add new methods to class in runtime anyway!
 
-                    continue
+    Notes:
+        This is to be instanced so new command can be added in runtime if needed.
+    """
 
-        if prompt == "exit()":
-            LOGGER.info("Stopping")
-            break
+    def command(self, session: ChatSession, name: str, arg=None) -> bool:
+        """Search command via getattr and executes it.
 
-        print("----------------------------")
+        Raises:
+            NameError: When given command doesn't exist.
+            ValueError: When given argument for command is invalid.
 
-        reason, output = session.send(prompt)
-        LOGGER.info(f"[Stop reason: {reason}]")
+        Returns:
+            True if chat should continue, else False.
+        """
 
-        print(f"Bot: {output}\n")
+        try:
+            func: Callable[[ChatSession, Any], bool] = getattr(self, name)
+        except AttributeError as err:
+            raise NameError("No such command exists.") from err
+
+        return func(session, arg)
+
+    @staticmethod
+    def exit(_session, _) -> bool:
+        """Exits the session."""
+        return False
+
+    @staticmethod
+    def clear(session: ChatSession, new_init_prompt) -> bool:
+        """Clears chat histories and set new initial prompt if any.
+        Otherwise, will fall back to previous initial prompt."""
+
+        session.clear(new_init_prompt)
+        return True
+
+    @staticmethod
+    def temperature(session: ChatSession, amount_str: str) -> bool:
+        """Set model temperature to given value.
+
+        Raises:
+            ValueError: On invalid amount string
+        """
+
+        session.temperature = float(amount_str)
+        return True
+
+    @staticmethod
+    def system(session: ChatSession, prompt: str) -> bool:
+        """Give system prompt (system role message) to llm."""
+
+        session.system_send(prompt)
+        return True
+
+
+# --- STANDALONE MODE RUNNER ---
+
+
+class StandaloneMode:
+    def __init__(self):
+        self.session = ChatSession(LLMWrapper(MODEL_URL), "not_set")
+
+    def run(self):
+        """Runs standalone mode"""
+
+        command_map = CommandMap()
+        run = True
+
+        while run:
+            print("----------------------------")
+            user_input = input(">> ")
+
+            if user_input.startswith(COMMAND_PREFIX):
+                # it's some sort of command. cut at first whitespace if any.
+                sections = user_input[1:].split(" ", maxsplit=1)
+
+                try:
+                    run = command_map.command(
+                        self.session,
+                        sections[0],
+                        None if len(sections) == 1 else sections[1],
+                    )
+                except Exception as err:
+                    print(err)
+            else:
+                print("\n----------------------------")
+
+                # print("Bot <<")
+                gen = StreamWrap(self.session.get_reply_stream(user_input))
+                for token in gen:
+                    print(token, end="")
+
+                print(f"\n\n[Stop reason: {gen.value}]")
+
+
+# --- MAIN ---
 
 
 if __name__ == "__main__":
@@ -340,4 +511,5 @@ if __name__ == "__main__":
         # I think we could just use llama.cpp's own server mod...
         raise NotImplementedError("Server mode Not implemented yet")
     else:
-        standalone_mode()
+        _runner = StandaloneMode()
+        _runner.run()
