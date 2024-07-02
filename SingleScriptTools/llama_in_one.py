@@ -34,10 +34,12 @@ py -m pip install psutil llama-cpp-python httpx --extra-index-url https://abetle
 : SOFTWARE.
 """
 
+import base64
 import json
 import pathlib
 import logging
 import argparse
+import zlib
 from typing import List, TypedDict, Tuple, Callable, Any
 from collections.abc import Generator, Iterator
 from urllib.parse import urlparse
@@ -60,7 +62,10 @@ https://huggingface.co/MaziyarPanahi/Llama-3-8B-Instruct-32k-v0.1-GGUF/resolve/m
 DEFAULT_PROMPT = "You are an assistant who proficiently answers to questions."
 
 # Subdirectory used for saving downloaded model files
-SUBDIR_PATH = "_llm"
+LLM_SUBDIR = "_llm"
+
+# Subdirectory used for saved sessions
+SESSION_SUBDIR = "_session"
 
 DEFAULT_TOKENS = 4096
 
@@ -80,8 +85,12 @@ COMMAND_PREFIX = ":"
 
 # --- GLOBAL SETUP ---
 
-MODEL_PATH = pathlib.Path(__file__).parent / SUBDIR_PATH
+MODEL_PATH = pathlib.Path(__file__).parent / LLM_SUBDIR
 MODEL_PATH.mkdir(exist_ok=True)
+
+SESSION_PATH = MODEL_PATH.parent / SESSION_SUBDIR
+SESSION_PATH.mkdir(exist_ok=True)
+
 THREAD_COUNT = cpu_count(logical=False)
 
 
@@ -232,8 +241,8 @@ class ChatSession:
 
     def __init__(
         self,
-        llm: LLMWrapper,
         uuid: str,
+        llm: LLMWrapper,
         init_prompt="",
         output_json=False,
         max_tokens=DEFAULT_TOKENS,
@@ -262,10 +271,10 @@ class ChatSession:
     def __str__(self):
         return f"ChatSession({self.uuid})"
 
-    def serialize(self) -> str:
-        """Serializes session in plain text"""
+    def serialize(self) -> bytes:
+        """Serializes and compress session into plain text"""
 
-        return json.dumps(
+        raw = json.dumps(
             {
                 "uuid": self.uuid,
                 "messages": json.dumps(self.messages),
@@ -276,10 +285,15 @@ class ChatSession:
                 "output_json": self.preprocessor == json.loads,
             }
         )
+        # https://stackoverflow.com/a/4845324/10909029
+        compressed = zlib.compress(raw.encode("utf8"))
+        return compressed
 
     @classmethod
-    def deserialize(cls, serialized: str, llm: LLMWrapper):
+    def deserialize(cls, compressed: bytes, llm: LLMWrapper):
         """Deserializes session"""
+
+        serialized = zlib.decompress(base64.b64decode(compressed))
 
         data = json.loads(serialized)
 
@@ -297,6 +311,23 @@ class ChatSession:
         session.resp_format = data["resp_format"]
 
         return session
+
+    def save_session(self):
+        """Saves session in SESSION_SUBDIR."""
+
+        with open(SESSION_PATH / f"{self.uuid}", "wb") as fp:
+            fp.write(self.serialize())
+
+    @classmethod
+    def load_session(cls, uuid: str, llm: LLMWrapper) -> "ChatSession":
+        """Opens session from SESSION_SUBDIR.
+
+        Raises:
+            FileNotFoundError: When session file for given UUID is missing.
+        """
+
+        with open(SESSION_PATH / f"{uuid}", "rb") as fp:
+            return ChatSession.deserialize(fp.read(), llm)
 
     def clear(self, new_init_prompt):
         """Clears session history excluding first system prompt.
@@ -336,12 +367,15 @@ class ChatSession:
             stream=True,
         )
 
-        current_role = ""
+        # type hint to satisfy linter
+        current_role: str = ""
         current_role_output = ""
-        finish_reason = ""
+        finish_reason = "None"
 
         for chunk in output:
             delta = chunk["choices"][0]["delta"]
+
+            # if there's finish reason update it.
             if chunk["choices"][0]["finish_reason"] is not None:
                 finish_reason = chunk["choices"][0]["finish_reason"]
 
@@ -417,6 +451,7 @@ class CommandMap:
     @staticmethod
     def exit(_session, _) -> bool:
         """Exits the session."""
+        print("Exiting!")
         return False
 
     @staticmethod
@@ -425,6 +460,7 @@ class CommandMap:
         Otherwise, will fall back to previous initial prompt."""
 
         session.clear(new_init_prompt)
+        print("Session cleared.")
         return True
 
     @staticmethod
@@ -436,6 +472,7 @@ class CommandMap:
         """
 
         session.temperature = float(amount_str)
+        print(f"Temperature set to {session.temperature}.")
         return True
 
     @staticmethod
@@ -443,6 +480,15 @@ class CommandMap:
         """Give system prompt (system role message) to llm."""
 
         session.system_send(prompt)
+        print(f"System prompt sent.")
+        return True
+
+    @staticmethod
+    def save(session: ChatSession, prompt: str) -> bool:
+        """Save the chat session."""
+
+        session.save_session()
+        print(f"Session saved as '{session.uuid}'.")
         return True
 
 
@@ -451,18 +497,52 @@ class CommandMap:
 
 class StandaloneMode:
     def __init__(self):
-        self.session = ChatSession(LLMWrapper(MODEL_URL), "not_set")
+        self.llm = LLMWrapper(MODEL_URL)
+        self.session: ChatSession | None = None
+
+    def menu(self):
+        """Show menu"""
+
+        menus = ["Create new session", "Load session"]
+
+        print("\n".join(f"{idx}. {line}" for idx, line in enumerate(menus, start=1)))
+
+        while True:
+
+            # validate choice
+            try:
+                choice = int(input(">> "))
+                assert 0 < choice <= len(menus)
+
+            except (ValueError, AssertionError):
+                continue
+
+            match choice:
+                case 1:
+                    self.session = ChatSession("not_set", self.llm)
+                    return
+                case 2:
+                    # validate uuid
+                    try:
+                        self.session = ChatSession.load_session(
+                            input("uuid >> "), self.llm
+                        )
+                    except FileNotFoundError:
+                        continue
 
     def run(self):
         """Runs standalone mode"""
+
+        self.menu()
 
         command_map = CommandMap()
         run = True
 
         while run:
             print("----------------------------")
-            user_input = input(">> ")
+            user_input = input("[You]\n>> ")
 
+            print("\n----------------------------")
             if user_input.startswith(COMMAND_PREFIX):
                 # it's some sort of command. cut at first whitespace if any.
                 sections = user_input[1:].split(" ", maxsplit=1)
@@ -475,11 +555,11 @@ class StandaloneMode:
                     )
                 except Exception as err:
                     print(err)
-            else:
-                print("\n----------------------------")
 
-                # print("Bot <<")
+            else:
+                print("[Bot]")
                 gen = StreamWrap(self.session.get_reply_stream(user_input))
+
                 for token in gen:
                     print(token, end="")
 
@@ -487,7 +567,6 @@ class StandaloneMode:
 
 
 # --- MAIN ---
-
 
 if __name__ == "__main__":
     _parser = argparse.ArgumentParser()
