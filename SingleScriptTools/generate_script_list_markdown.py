@@ -13,7 +13,7 @@ ROOT = pathlib.Path(__file__).parent
 WRITE_TO = ROOT / "README.md"
 
 SKIP_LINE_STARTING_WITH = ":"
-DOCS_REGEX = re.compile(r'(?:^""")([\s\S]*?)(?:""")')
+DOCS_REGEX = re.compile(r'^"""([\s\S]*?)"""')
 ENCODING = "utf8"
 FORMAT = """
 ---
