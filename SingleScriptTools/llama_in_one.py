@@ -1,5 +1,5 @@
 """
-A cross-platform script for the automatic llama 3B setup cpu-only, single user setup for my laziness.
+A cross-platform script for the automatic llama 3 8B setup cpu-only, single user setup for my laziness.
 
 This is intended to be used for Godot plugin.
 
@@ -54,7 +54,7 @@ from psutil import cpu_count
 # Change default config here.
 # Some of these can be overridden by arguments.
 
-MODEL_URL = """
+MODEL_URL = r"""
 https://huggingface.co/MaziyarPanahi/Llama-3-8B-Instruct-32k-v0.1-GGUF/resolve/main/Llama-3-8B-Instruct-32k-v0.1.Q6_K.gguf
 """.strip()
 
@@ -69,7 +69,7 @@ SESSION_SUBDIR = "_session"
 
 DEFAULT_TOKENS = 4096
 
-DEFAULT_CONTEXT_LENGTH = 32768
+DEFAULT_CONTEXT_LENGTH = 32000
 
 DEFAULT_SEED = -1
 
@@ -560,8 +560,10 @@ class StandaloneMode:
                 print("[Bot]")
                 gen = StreamWrap(self.session.get_reply_stream(user_input))
 
+                # flush token by token, so it doesn't group up and print at once
+                # people willingly wait some extra overhead to complete the sentence to see the progress
                 for token in gen:
-                    print(token, end="")
+                    print(token, end="", flush=True)
 
                 print(f"\n\n[Stop reason: {gen.value}]")
 
