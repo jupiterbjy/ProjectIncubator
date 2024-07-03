@@ -152,23 +152,6 @@ on failure.
 
 ---
 
-### [llama_in_one.py](llama_in_one.py)
-A cross-platform script for the automatic llama 3 setup excluding 2 libraries - Because I'm lazy!
-
-Dependency installation:
-```
-py -m pip install psutil llama-cpp-python httpx --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-```
-
-WORK IN PROGRESS
-
-
-<br>
-<br>
-
-
----
-
 ### [logging_config.py](logging_config.py)
 Just use loguru, I used this until I found it.
 
