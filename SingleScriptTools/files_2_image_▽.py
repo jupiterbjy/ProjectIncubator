@@ -1,14 +1,16 @@
 """
 Embeds file inside jpg metadata. Any decent unzipper can open as zip.
 
-Check usage by executing without parameters
+Check usage by executing without parameters.
 
 ![Example](readme_res/files_2_image.png)
+
+# TODO: add one more image with zip file opened in BandiZip
 
 :Author: jupiterbjy@gmail.com
 """
 
-from typing import Sequence
+from collections.abc import MutableSequence, Sequence
 from io import BytesIO
 import argparse
 import shutil
@@ -18,11 +20,20 @@ import time
 
 from PIL import Image, ImageDraw, ImageFont
 
+
+# --- Config ---
+
+# Image file's stem(name without extension) to be used as disguise/display image.
+# If such file is provided, it will disable placeholder image generation and use this instead.
+DISGUISE_IMG_STEM = "_disguise"
+
 # Add font here - lower the index, higher the priority
 FONT_NAMES = ["not_existing_font_test.ttf", "malgunsl.ttf", "arial.ttf"]
 
 OUTPUT_IMAGE = pathlib.Path(__file__).parent.joinpath(f"output_{time.time_ns()}.png")
 
+
+# --- Font Load ---
 
 # try to load font
 for font in FONT_NAMES:
@@ -39,15 +50,17 @@ else:
     FONT = ImageFont.load_default()
 
 
-def generate_image_from_file_paths(paths: Sequence[pathlib.Path]) -> BytesIO:
+# --- Logics ---
+
+def generate_placeholder_img_from_paths(paths: Sequence[pathlib.Path]) -> BytesIO:
     """
-    Generate image from given file paths.
+    Generate placeholder image from given file paths.
 
     Args:
-        paths: Bytes IO file list
+        paths: File paths to include in image
 
     Returns:
-        Image's binary
+        Image's binary data writen by PIL
     """
 
     # sort path by DIR on top
@@ -101,6 +114,8 @@ def create_zip_archive(paths: Sequence[pathlib.Path]) -> BytesIO:
     # create temp dir to copy all requested files into
     with tempfile.TemporaryDirectory("IMG_ZIP_EMBED") as tmp_copy_str:
         tmp_copy_dir = pathlib.Path(tmp_copy_str)
+
+        # copy all files to temp dir
         for path in paths:
             print(path)
             if path.is_dir():
@@ -125,7 +140,12 @@ def create_zip_archive(paths: Sequence[pathlib.Path]) -> BytesIO:
 
 
 def embed_to_image(image_file: BytesIO, zipped_file: BytesIO):
+    """Embed zipped file to image file.
 
+    Args:
+        image_file: In-memory image file
+        zipped_file: In-memory zip file
+    """
     # reset zip cursor to start
     zipped_file.seek(0)
 
@@ -141,19 +161,58 @@ def embed_to_image(image_file: BytesIO, zipped_file: BytesIO):
             fp.write(data)
 
 
-def main():
+def extract_disguise_image(paths: MutableSequence[pathlib.Path]) -> BytesIO | None:
+    """
+    Find disguise image from given paths, Pop from given MutableSequence and return data of it.
+
+    Args:
+        paths: Paths to search for disguise image
+
+    Returns:
+        Image file's data if found, None otherwise
+    """
+
+    for path in paths:
+        if path.stem == DISGUISE_IMG_STEM:
+            data = Image.open(paths.pop(paths.index(path)))
+            buffer = BytesIO()
+            data.save(buffer, format="png")
+            return buffer
+
+    return None
+
+
+def write_embedded_image(paths: Sequence[pathlib.Path]):
+    """Write payload embedded image to disk.
+
+    Args:
+        paths: Files to embed inside image, optionally containing disguise image.
+    """
+
     OUTPUT_IMAGE.touch()
 
     try:
-        image_io = generate_image_from_file_paths(args.files)
-        zip_io = create_zip_archive(args.files)
+        # check if we have thumbnail image
+        disguise_img_bytes_io = extract_disguise_image(args.files)
 
-        embed_to_image(image_io, zip_io)
+        # if not create one
+        if disguise_img_bytes_io is None:
+            print(f"Disguise image with stem '{DISGUISE_IMG_STEM}' not found. Generating placeholder.")
+            disguise_img_bytes_io = generate_placeholder_img_from_paths(args.files)
+
+        # create in-memory zip archive
+        zip_bytes_io = create_zip_archive(args.files)
+
+        # create image from zip archive and thumbnail
+        embed_to_image(disguise_img_bytes_io, zip_bytes_io)
+
     except Exception:
         # operation failed, remove touched img file
         OUTPUT_IMAGE.unlink()
         raise
 
+
+# --- Driver ---
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -173,9 +232,9 @@ if __name__ == '__main__':
         metavar="F",
         type=pathlib.Path,
         nargs="+",
-        help="Files to embed inside image. Will be compressed as zip."
+        help=f"Files to embed inside image. Will be compressed as zip. Add '{DISGUISE_IMG_STEM}' to use as disguise."
+             f"If not found, will generate placeholder image."
     )
 
     args = parser.parse_args()
-
-    main()
+    write_embedded_image(args.files)
