@@ -20,7 +20,10 @@ OUTPUT_DIR = ROOT / "output"
 
 SUFFIX_WHITELIST = {
     ".gif",
+    ".webp",
 }
+
+OUTPUT_SUFFIX = ".gif"
 
 
 # --- Utilities ---
@@ -75,17 +78,20 @@ def remove_bg(img_path: pathlib.Path, bg_color=(0, 0, 0), speed_multiplier=1.0):
     converted_frames: List[Image.Image] = []
 
     for frame in img_iterator:
-        durations.append(max(frame.info["duration"] // speed_multiplier, 1))
+
         bg_img = Image.new("RGBA", frame.size, bg_color)
 
         # Overlay the original image onto the black background
         converted_frames.append(Image.alpha_composite(bg_img, frame.convert("RGBA")).convert("RGB"))
 
-    new_name = img_path.with_stem(img_path.stem + f"_{rgb_to_hex(bg_color, 'bg')}_x{speed_multiplier}").name
+        # in web. Only after accessing frame data it's loaded 'duration' is exposed.
+        durations.append(max(frame.info["duration"] // speed_multiplier, 1))
+
+    new_name = img_path.with_stem(img_path.stem + f"_{rgb_to_hex(bg_color, 'bg')}_x{speed_multiplier}")
 
     # combine to gif
     converted_frames[0].save(
-        str(OUTPUT_DIR / new_name),
+        str(OUTPUT_DIR / new_name.with_suffix(OUTPUT_SUFFIX).name),
         save_all=True,
         loop=0,
         append_images=converted_frames[1:],
