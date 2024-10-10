@@ -2,7 +2,7 @@
 Simple code generating Contour animation-ish video out of image drag-n-drop.
 Download GPL FFMPEG from https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest
 
-Author: jupiterbjy@gmail.com / nyarukoishi@gmial.com
+Author: jupiterbjy@gmail.com / nyarukoishi@gmail.com
 """
 
 import shutil
