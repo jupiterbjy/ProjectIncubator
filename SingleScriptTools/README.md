@@ -53,9 +53,11 @@ Requires FFMPEG
 ### [files_2_image_▽.py](files_2_image_▽.py)
 Embeds file inside jpg metadata. Any decent unzipper can open as zip.
 
-Check usage by executing without parameters
+Check usage by executing without parameters.
 
 ![Example](readme_res/files_2_image.png)
+
+# TODO: add one more image with zip file opened in BandiZip
 
 
 <br>
@@ -87,6 +89,16 @@ Assuming every script in directory starts with docstring.
 
 ### [get_module_reference.py](get_module_reference.py)
 Module wrapping `inspect` module to list classes, functions in specified module
+
+
+<br>
+<br>
+
+
+---
+
+### [gif_remove_alpha_▽.py](gif_remove_alpha_▽.py)
+Remove alpha channel from gif image, replacing it with desired color.
 
 
 <br>
@@ -144,6 +156,16 @@ requiring me to rename existing images first, I made this just for that rare use
 This may not work on non-Windows, due to this script depending on `pathlib.Path.rename` to
 [raise](https://docs.python.org/3.12/library/pathlib.html#pathlib.Path.rename) FileExistsError
 on failure.
+
+
+<br>
+<br>
+
+
+---
+
+### [img_remove_alpha_▽.py](img_remove_alpha_▽.py)
+Remove alpha channel from image with desired color.
 
 
 <br>
