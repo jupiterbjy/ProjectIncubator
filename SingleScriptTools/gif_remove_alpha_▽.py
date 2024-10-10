@@ -45,6 +45,12 @@ def _validate_color(supposed_to_be_color: Any):
     assert all(0 <= x <= 255 for x in supposed_to_be_color)
 
 
+def rgb_to_hex(color: Tuple[int, int, int], prefix: str = "#") -> str:
+    """Convert RGB to hex"""
+
+    return f"{prefix}{color[0]:02x}{color[1]:02x}{color[2]:02x}"
+
+
 # --- Logics ---
 
 def remove_bg(img_path: pathlib.Path, bg_color=(0, 0, 0), speed_multiplier=1.0):
@@ -75,7 +81,7 @@ def remove_bg(img_path: pathlib.Path, bg_color=(0, 0, 0), speed_multiplier=1.0):
         # Overlay the original image onto the black background
         converted_frames.append(Image.alpha_composite(bg_img, frame.convert("RGBA")).convert("RGB"))
 
-    new_name = img_path.with_stem(img_path.stem + "_non_alpha").name
+    new_name = img_path.with_stem(img_path.stem + f"_{rgb_to_hex(bg_color, 'bg')}_x{speed_multiplier}").name
 
     # combine to gif
     converted_frames[0].save(
