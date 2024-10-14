@@ -66,6 +66,16 @@ Check usage by executing without parameters.
 
 ---
 
+### [file_line_char_count.py](file_line_char_count.py)
+Counts number of lines and characters in predetermined file types.
+
+
+<br>
+<br>
+
+
+---
+
 ### [file_walker.py](file_walker.py)
 File system navigating class which remembers current director's contents
 
@@ -234,6 +244,21 @@ Designed to cut some sprites in Armada Tanks for recreating.
 
 ### [squarefy_image_▽.py](squarefy_image_▽.py)
 Simply makes images perfect square by extending from shorter dimension.
+
+
+<br>
+<br>
+
+
+---
+
+### [steam_m4s_merge.py](steam_m4s_merge.py)
+Merges m4s files of steam's recording clips into mp4.
+This script exists because as of 2024-10-14 steam beta is broken and can't export video properly.
+
+Refer -h for usage.
+
+Requires ffmpeg in PATH.
 
 
 <br>
