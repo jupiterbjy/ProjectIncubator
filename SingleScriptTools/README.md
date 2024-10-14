@@ -252,7 +252,7 @@ Simply makes images perfect square by extending from shorter dimension.
 
 ---
 
-### [steam_m4s_merge.py](steam_m4s_merge.py)
+### [steam_m4s_merge_▽.py](steam_m4s_merge_▽.py)
 Merges m4s files of steam's recording clips into mp4.
 This script exists because as of 2024-10-14 steam beta is broken and can't export video properly.
 
