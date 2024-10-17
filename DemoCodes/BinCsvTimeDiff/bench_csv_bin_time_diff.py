@@ -11,14 +11,13 @@ Check -h for more info.
 
 import csv
 import itertools
+import random
 import struct
 import pathlib
 import functools
 import time
 from argparse import ArgumentParser
 from typing import Sequence, Callable, Generator
-
-from .generate_random_csv import generate_one
 
 
 # --- Config ---
@@ -149,6 +148,22 @@ def measure_time_deco(repeats: int = 5) -> Callable[[Callable], Callable]:
     return _closure
 
 
+def generate_one() -> None:
+    """Generates one csv file with random data."""
+
+    with pathlib.Path("sample.csv").open("w", newline="") as fp:
+
+        # prep writer
+        writer = csv.writer(fp)
+
+        # write header-ish
+        writer.writerow(map(lambda x: x.__name__, CSV_CONV_FUNCS))
+
+        # write random data
+        for _ in range(50000):
+            writer.writerow(map(lambda x: x(random.random()), CSV_CONV_FUNCS))
+
+
 # --- Logics ---
 
 
@@ -226,7 +241,7 @@ if __name__ == "__main__":
         "-r",
         "--repeats",
         type=int,
-        default=1000,
+        default=100,
         help="Number of times to repeat the test",
     )
 
