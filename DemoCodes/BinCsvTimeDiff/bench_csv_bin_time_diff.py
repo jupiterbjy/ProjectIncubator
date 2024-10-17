@@ -246,4 +246,7 @@ if __name__ == "__main__":
     )
 
     _args = _parser.parse_args()
-    _main(_args.repeats)
+    try:
+        _main(_args.repeats)
+    finally:
+        input("Press enter to exit: ")
