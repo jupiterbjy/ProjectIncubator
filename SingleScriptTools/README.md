@@ -342,3 +342,15 @@ Watchdog callback register-able custom handler to see what's going on in current
 <br>
 <br>
 
+
+---
+
+### [webcam_periodic_capture.py](webcam_periodic_capture.py)
+Script to capture webcam images periodically.
+
+![](readme_res/webcam_periodic_capture.png)
+
+
+<br>
+<br>
+
