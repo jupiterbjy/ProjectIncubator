@@ -7,6 +7,7 @@ Refer -h for usage.
 Requires ffmpeg in PATH.
 
 :Author: jupiterbjy@gmail.com
+:Revision: 2 (2024-11-17)
 """
 
 import functools
@@ -15,7 +16,8 @@ import argparse
 import subprocess
 import tempfile
 import json
-import httpx
+import urllib.request
+import urllib.error
 from typing import Sequence, List, Tuple, Iterator
 
 
@@ -54,21 +56,21 @@ def app_id_2_name(app_id: int) -> str:
 
     print(f"Inquiring AppID {app_id} to steam API")
 
-    resp = httpx.get(STEAM_APP_DETAIL_URL + str(app_id), follow_redirects=True)
+    url = STEAM_APP_DETAIL_URL + str(app_id)
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    resp = urllib.request.urlopen(req)
 
-    print("Response code:", resp.status_code, resp.reason_phrase)
+    print("Response code:", resp.getcode())
 
-    try:
-        resp.raise_for_status()
-
-    except httpx.HTTPStatusError:
+    if resp.getcode() != 200:
         # probably rate limit if this fails
-        print("Content:", resp.text)
+        print("Content:", resp.read())
 
         print("Falling back to AppID")
         return str(app_id)
 
-    name = json.loads(resp.text)[str(app_id)]["data"]["name"]
+    data = json.loads(resp.read().decode())
+    name = data[str(app_id)]["data"]["name"]
     print("Got name:", name)
 
     return name
@@ -198,4 +200,21 @@ if __name__ == "__main__":
 
     _args = _parser.parse_args()
 
-    main(_p for _p in _args.clip_paths if _p.stem.startswith("clip") and _p.is_dir())
+    # make sure it's not just single directory with name 'clips' which is parent dir
+    if len(_args.clip_paths) == 1 and _args.clip_paths[0].name == "clips":
+        _args.clip_paths = _args.clip_paths[0].iterdir()
+
+    try:
+        main(
+            _p for _p in _args.clip_paths if _p.stem.startswith("clip") and _p.is_dir()
+        )
+
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+
+        input("Press Enter to exit: ")
+        raise
+
+    input("Press Enter to exit: ")
