@@ -1,13 +1,14 @@
 """
 Merges m4s files of steam's recording clips into mp4.
+
 This script exists because as of 2024-10-14 steam beta is broken and can't export video properly.
+As of 11-17 STILL NOT WORKING so we'll need this script a bit longer...
 
 Refer -h for usage.
 
 Requires ffmpeg in PATH.
 
 :Author: jupiterbjy@gmail.com
-:Revision: 2 (2024-11-17)
 """
 
 import functools
@@ -18,17 +19,27 @@ import tempfile
 import json
 import urllib.request
 import urllib.error
-from typing import Sequence, List, Tuple, Iterator
+from typing import Sequence, List, Tuple
 
 
-# --- Config ---
+# --- Configs ---
 
 # URL to json with all steam app's AppID-Name mapping.
 # Not using ISteamApps/GetAppList/v0002/ because it's not reliable.
 STEAM_APP_DETAIL_URL = "http://store.steampowered.com/api/appdetails?appids="
 
+# FFMPEG command to fix video full range flag (regardless of it being av1 h265 or h264)
+# FFMPEG_FIX_RANGE_FLAG = "-bsf:v h264_metadata=video_full_range_flag=1"
+FFMPEG_FIX_RANGE_FLAG = ""
+
 # FFMPEG command to run when merging final video and audio streams
-FFMPEG_CMD = 'ffmpeg -i "{}" -i "{}" -c copy -map 0:v:0 -map 1:a:0 "{}"'
+FFMPEG_CMD = " ".join(
+    [
+        'ffmpeg -i "{}" -i "{}" -c copy -map 0:v:0 -map 1:a:0 -y',
+        FFMPEG_FIX_RANGE_FLAG,
+        '"{}"',
+    ]
+)
 
 SUFFIX = ".m4s"
 
@@ -38,6 +49,15 @@ AUDIO_STREAM = "stream1"
 
 INIT_VIDEO_STREAM = "init-stream0.m4s"
 INIT_AUDIO_STREAM = "init-stream1.m4s"
+
+REVISION = "3 (2024-11-17)"
+
+SPLASH_MSG = f"""
+=========================================
+jupiterbjy's Steam clip extraction script
+Revision {REVISION}
+=========================================
+""".strip()
 
 
 # --- Utilities ---
@@ -132,16 +152,67 @@ def fetch_parts(
     return [init_video_part] + video_parts, [init_audio_part] + audio_parts
 
 
-def main(clip_paths: Iterator[pathlib.Path]):
+def merge_streams(
+    video_parts: List[pathlib.Path],
+    audio_parts: List[pathlib.Path],
+    temp_dir: pathlib.Path,
+    output_file: pathlib.Path,
+) -> bool:
+    """Merges video and audio parts into output_path.
+
+    Args:
+        video_parts: video parts
+        audio_parts: audio parts
+        temp_dir: path to store merged video and audio temporarily
+        output_file: final output path
+
+    Returns:
+        True if successful, False otherwise
+    """
+
+    # temp path for merged streams
+    merged_video_path = temp_dir / "merged_video.mp4"
+    merged_audio_path = temp_dir / "merged_audio.mp4"
+
+    # merge parts
+    print("Concatenating streams")
+    concat_file(video_parts, merged_video_path)
+    concat_file(audio_parts, merged_audio_path)
+
+    # merge video and audio via ffmpeg
+    print("Merging streams")
+    proc = subprocess.run(
+        FFMPEG_CMD.format(
+            merged_video_path.as_posix(),
+            merged_audio_path.as_posix(),
+            output_file,
+        ),
+        capture_output=True,
+    )
+
+    # if ffmpeg failed then let it be
+    if proc.returncode == 0:
+        print("Saved as", output_file.name)
+        return True
+
+    print("Failed to merge!")
+    print(proc.stderr.decode("utf8"))
+
+    return False
+
+
+# --- Drivers ---
+
+
+def main(clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path):
     """Main logic"""
+
+    # successful count
+    success_count = 0
 
     # setup temp dir
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = pathlib.Path(tmpdir)
-
-        # temp path for merged streams
-        merged_video_path = tmpdir / "merged_video.mp4"
-        merged_audio_path = tmpdir / "merged_audio.mp4"
 
         for clip_path in clip_paths:
 
@@ -161,34 +232,21 @@ def main(clip_paths: Iterator[pathlib.Path]):
             video_parts, audio_parts = fetch_parts(m4s_root)
             print(f"Found V:{len(video_parts)} + A:{len(audio_parts)} parts")
 
-            # merge parts
-            print("Concatenating streams")
-            concat_file(video_parts, merged_video_path)
-            concat_file(audio_parts, merged_audio_path)
-
-            # merge video and audio via ffmpeg
-            print("Merging streams")
-            proc = subprocess.run(
-                FFMPEG_CMD.format(
-                    merged_video_path.as_posix(),
-                    merged_audio_path.as_posix(),
-                    clip_path.parent / new_file_name,
-                ),
-                capture_output=True,
+            # merge streams
+            success_count += merge_streams(
+                video_parts, audio_parts, tmpdir, output_dir / new_file_name
             )
 
-            # if ffmpeg failed then let it be
-            if proc.returncode == 0:
-                print("Saved as", new_file_name)
-
-            else:
-                print("Failed to merge!")
-                print(proc.stderr.decode("utf8"))
+    print(f"\nAll done - {success_count}/{len(clip_paths)} successful")
 
 
 if __name__ == "__main__":
+
+    print(SPLASH_MSG)
+
     _parser = argparse.ArgumentParser(
-        description="Merges m4s files of steam's recording clips into mp4."
+        description="Merges m4s files of steam's recording clips into mp4.",
+        add_help=True,
     )
 
     _parser.add_argument(
@@ -198,23 +256,34 @@ if __name__ == "__main__":
         help="Paths to each clip directory containing m4s files with 'clip_<game_id>_YYYYDDMM_HHMMSS' naming.",
     )
 
+    _parser.add_argument(
+        "-o",
+        "--output-dir",
+        type=pathlib.Path,
+        default=pathlib.Path(__file__).parent,
+        help="Output directory for merged files. Defaults to script's directory.",
+    )
+
     _args = _parser.parse_args()
 
     # make sure it's not just single directory with name 'clips' which is parent dir
     if len(_args.clip_paths) == 1 and _args.clip_paths[0].name == "clips":
         _args.clip_paths = _args.clip_paths[0].iterdir()
 
+    # make sure directory is filtered
+    _args.clip_paths = [
+        _p for _p in _args.clip_paths if _p.stem.startswith("clip") and _p.is_dir()
+    ]
+
     try:
-        main(
-            _p for _p in _args.clip_paths if _p.stem.startswith("clip") and _p.is_dir()
-        )
+        main(_args.clip_paths, _args.output_dir)
 
     except Exception:
         import traceback
 
         traceback.print_exc()
 
-        input("Press Enter to exit: ")
+        input("\n\nPress Enter to exit: ")
         raise
 
-    input("Press Enter to exit: ")
+    input("\n\nPress Enter to exit: ")
