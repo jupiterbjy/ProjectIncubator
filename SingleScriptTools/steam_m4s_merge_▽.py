@@ -1,5 +1,5 @@
 """
-Merges m4s files of steam's recording clips into mp4.
+Merges m4s files of steam's recording clips into mp4. Zero dependency.
 
 This script exists because as of 2024-10-14 steam beta is broken and can't export video properly.
 As of 11-17 STILL NOT WORKING so we'll need this script a bit longer...
@@ -29,6 +29,7 @@ from typing import Sequence, List, Tuple
 STEAM_APP_DETAIL_URL = "http://store.steampowered.com/api/appdetails?appids="
 
 # FFMPEG command to fix video full range flag (regardless of it being av1 h265 or h264)
+# ONLY UNCOMMENT IF ALL YOUR CLIPS ARE H264
 # FFMPEG_FIX_RANGE_FLAG = "-bsf:v h264_metadata=video_full_range_flag=1"
 FFMPEG_FIX_RANGE_FLAG = ""
 
@@ -50,17 +51,35 @@ AUDIO_STREAM = "stream1"
 INIT_VIDEO_STREAM = "init-stream0.m4s"
 INIT_AUDIO_STREAM = "init-stream1.m4s"
 
-REVISION = "3 (2024-11-17)"
-
 SPLASH_MSG = f"""
 =========================================
-jupiterbjy's Steam clip extraction script
-Revision {REVISION}
+Steam Recording Extraction script
+by jupiterbjy's Prehistoric coding skills
+
+Revision 5 (2024-11-18)
 =========================================
-""".strip()
+""".lstrip()
 
 
 # --- Utilities ---
+
+
+class ANSI:
+    """Some colorful ANSI printer"""
+
+    _table = {
+        "RED": "\x1b[31m",
+        "GREEN": "\x1b[32m",
+        "YELLOW": "\x1b[33m",
+        "": "",
+    }
+    _end = "\x1b[0m"
+
+    @classmethod
+    def print(cls, *args, color="", sep=" ", **kwargs):
+        """Colored print"""
+
+        print(f"{cls._table[color]}{sep.join(args)}{cls._end}", **kwargs)
 
 
 @functools.cache
@@ -74,7 +93,8 @@ def app_id_2_name(app_id: int) -> str:
         app_name
     """
 
-    print(f"Inquiring AppID {app_id} to steam API")
+    ANSI.print(f"AppID {app_id} name not cached!", color="YELLOW")
+    ANSI.print(f"Inquiring AppID {app_id} to steam API", color="YELLOW")
 
     url = STEAM_APP_DETAIL_URL + str(app_id)
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -86,12 +106,13 @@ def app_id_2_name(app_id: int) -> str:
         # probably rate limit if this fails
         print("Content:", resp.read())
 
-        print("Falling back to AppID")
+        ANSI.print("Falling back to AppID", color="RED")
         return str(app_id)
 
     data = json.loads(resp.read().decode())
     name = data[str(app_id)]["data"]["name"]
-    print("Got name:", name)
+
+    ANSI.print(f"SteamAPI returned '{name}'", color="GREEN")
 
     return name
 
@@ -192,11 +213,13 @@ def merge_streams(
 
     # if ffmpeg failed then let it be
     if proc.returncode == 0:
-        print("Saved as", output_file.name)
+        ANSI.print(f"Saved as '{output_file.name}'", color="GREEN")
         return True
 
-    print("Failed to merge!")
-    print(proc.stderr.decode("utf8"))
+    ANSI.print(
+        f"Failed to merge!\n\n{proc.stderr.decode("utf8")}\n(End of output)",
+        color="RED",
+    )
 
     return False
 
@@ -242,7 +265,7 @@ def main(clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path):
 
 if __name__ == "__main__":
 
-    print(SPLASH_MSG)
+    ANSI.print(SPLASH_MSG, color="YELLOW")
 
     _parser = argparse.ArgumentParser(
         description="Merges m4s files of steam's recording clips into mp4.",
