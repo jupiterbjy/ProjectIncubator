@@ -90,7 +90,7 @@ def app_id_2_name(app_id: int) -> str:
         app_id: Steam AppID
 
     Returns:
-        app_name
+        app name string
     """
 
     ANSI.print(f"AppID {app_id} name not cached!", color="YELLOW")
@@ -216,8 +216,9 @@ def merge_streams(
         ANSI.print(f"Saved as '{output_file.name}'", color="GREEN")
         return True
 
+    # if failed print log
     ANSI.print(
-        f"Failed to merge!\n\n{proc.stderr.decode("utf8")}\n(End of output)",
+        f"Failed to merge!\n\n{proc.stderr.decode(errors="replace")}\n(End of output)",
         color="RED",
     )
 
@@ -228,9 +229,14 @@ def merge_streams(
 
 
 def main(clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path):
-    """Main logic"""
+    """Main logic
 
-    # successful count
+    Args:
+        clip_paths: paths to each clips
+        output_dir: output directory
+    """
+
+    # successful merged clip count
     success_count = 0
 
     # setup temp dir
@@ -248,10 +254,10 @@ def main(clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path):
             app_name = app_id_2_name(int(app_id))
             new_file_name = f"{app_name} {date}_{time}.mp4"
 
-            # get dir starting with fg
+            # follow into m4s directory - just fetching first subdir should be enough
             m4s_root: pathlib.Path = next((clip_path / "video").iterdir())
 
-            # fetch & sort parts
+            # fetch & sort each parts
             video_parts, audio_parts = fetch_parts(m4s_root)
             print(f"Found V:{len(video_parts)} + A:{len(audio_parts)} parts")
 
@@ -302,6 +308,7 @@ if __name__ == "__main__":
         main(_args.clip_paths, _args.output_dir)
 
     except Exception:
+        # if something went wrong give user a chance to see it at least
         import traceback
 
         traceback.print_exc()
