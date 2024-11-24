@@ -204,6 +204,23 @@ Generates m3u8 file using audio files in current directory. Recursive.
 
 ---
 
+### [replace_to_uid_▽.py](replace_to_uid_▽.py)
+WARING - Experimental script. Make sure to archive your project.
+
+Simple script to automatically follow & replace `res://` path to
+`uid://` introduced in godot 4.4 dev5.
+
+Assuming utf8 encoding as every sane people should do.
+
+Also ignores addon directory.
+
+
+<br>
+<br>
+
+
+---
+
 ### [search.py](search.py)
 ![](readme_res/search.png)
 
@@ -253,8 +270,10 @@ Simply makes images perfect square by extending from shorter dimension.
 ---
 
 ### [steam_m4s_merge_▽.py](steam_m4s_merge_▽.py)
-Merges m4s files of steam's recording clips into mp4.
+Merges m4s files of steam's recording clips into mp4. Zero dependency.
+
 This script exists because as of 2024-10-14 steam beta is broken and can't export video properly.
+As of 11-17 STILL NOT WORKING so we'll need this script a bit longer...
 
 Refer -h for usage.
 
