@@ -61,7 +61,7 @@ SPLASH_MSG = f"""
 Steam Recording Extraction script
 by jupiterbjy's Prehistoric coding skills
 
-Revision 6 (2024-12-05)
+Revision 7 (2024-12-05)
 =========================================
 """.lstrip()
 
