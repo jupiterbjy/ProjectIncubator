@@ -313,7 +313,7 @@ def main(
                 video_parts, audio_parts = fetch_parts(m4s_root)
                 print(f"Found V:{len(video_parts)} + A:{len(audio_parts)} parts")
 
-                # merge streams
+                # merge streamsK
                 success_count += merge_streams(
                     video_parts, audio_parts, tmpdir, output_path
                 )
@@ -370,8 +370,6 @@ if __name__ == "__main__":
 
     except Exception:
         # if something went wrong give user a chance to see it at least
-        import traceback
-
         traceback.print_exc()
 
         input("\n\nPress Enter to exit: ")
