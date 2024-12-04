@@ -14,12 +14,14 @@ Requires ffmpeg in PATH.
 import functools
 import pathlib
 import argparse
+import re
 import subprocess
 import tempfile
 import json
 import urllib.request
 import urllib.error
-from typing import Sequence, List, Tuple
+import traceback
+from typing import Sequence, List, Tuple, Iterator
 
 
 # --- Configs ---
@@ -42,6 +44,9 @@ FFMPEG_CMD = " ".join(
     ]
 )
 
+# Used to check whether directory is valid or not
+DIR_VALIDITY_CHECK = re.compile(r"(bg|clip)_\d+_\d{8}_\d{6}")
+
 SUFFIX = ".m4s"
 
 CHUNK_PREFIX = "chunk"
@@ -56,7 +61,7 @@ SPLASH_MSG = f"""
 Steam Recording Extraction script
 by jupiterbjy's Prehistoric coding skills
 
-Revision 5 (2024-11-18)
+Revision 6 (2024-12-05)
 =========================================
 """.lstrip()
 
@@ -80,6 +85,32 @@ class ANSI:
         """Colored print"""
 
         print(f"{cls._table[color]}{sep.join(args)}{cls._end}", **kwargs)
+
+
+def _recursive_recording_fetch_gen(path: pathlib.Path) -> Iterator[pathlib.Path]:
+    """Recursively fetch all directories with valid clip/background recording namings."""
+
+    # files shall not pass here!
+    if not path.is_dir():
+        return
+
+    # check naming, if valid then yield and return
+    if DIR_VALIDITY_CHECK.fullmatch(path.name):
+        yield path
+        return
+
+    # else recurse
+    for subdir in path.iterdir():
+        yield from _recursive_recording_fetch_gen(subdir)
+
+
+def _recursive_recording_fetch_batched_gen(
+    paths: Sequence[pathlib.Path],
+) -> Iterator[pathlib.Path]:
+    """Just a wrapper for _recursive_recording_fetch_gen to work with list of paths."""
+
+    for path in paths:
+        yield from _recursive_recording_fetch_gen(path)
 
 
 @functools.cache
@@ -228,16 +259,22 @@ def merge_streams(
 # --- Drivers ---
 
 
-def main(clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path):
+def main(
+    clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path, force_overwrite: bool
+):
     """Main logic
 
     Args:
         clip_paths: paths to each clips
         output_dir: output directory
+        force_overwrite: whether to reprocess & overwrite existing video files
     """
 
     # successful merged clip count
     success_count = 0
+
+    # skipped clip count
+    skipped_count = 0
 
     # setup temp dir
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -248,25 +285,47 @@ def main(clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path):
             print("\nProcessing", clip_path.name)
 
             # fetch app id
-            _, app_id, date, time = clip_path.name.split("_")
+            recording_type, app_id, date, time = clip_path.name.split("_")
 
             # fetch app name from id
             app_name = app_id_2_name(int(app_id))
-            new_file_name = f"{app_name} {date}_{time}.mp4"
+            output_path = output_dir / f"{app_name} {recording_type}_{date}_{time}.mp4"
 
-            # follow into m4s directory - just fetching first subdir should be enough
-            m4s_root: pathlib.Path = next((clip_path / "video").iterdir())
+            # skip if already exists
+            if output_path.exists():
+                if force_overwrite:
+                    ANSI.print("Video already exists - overwriting", color="YELLOW")
+                else:
+                    ANSI.print("Video already exists - skipping", color="GREEN")
+                    skipped_count += 1
+                    continue
 
-            # fetch & sort each parts
-            video_parts, audio_parts = fetch_parts(m4s_root)
-            print(f"Found V:{len(video_parts)} + A:{len(audio_parts)} parts")
+            # follow into m4s directory if clip - just fetching first subdir should be enough
+            # TODO: use timelines to trim vid
+            try:
+                m4s_root: pathlib.Path = (
+                    next((clip_path / "video").iterdir())
+                    if recording_type == "clip"
+                    else clip_path
+                )
 
-            # merge streams
-            success_count += merge_streams(
-                video_parts, audio_parts, tmpdir, output_dir / new_file_name
-            )
+                # fetch & sort each parts
+                video_parts, audio_parts = fetch_parts(m4s_root)
+                print(f"Found V:{len(video_parts)} + A:{len(audio_parts)} parts")
 
-    print(f"\nAll done - {success_count}/{len(clip_paths)} successful")
+                # merge streams
+                success_count += merge_streams(
+                    video_parts, audio_parts, tmpdir, output_path
+                )
+            except Exception as err:
+                ANSI.print(
+                    f"Failed to process due to {type(err).__name__}':", color="RED"
+                )
+                traceback.print_exc()
+
+    print(
+        f"\nAll done - {success_count}/{len(clip_paths)} successful, {skipped_count} skipped"
+    )
 
 
 if __name__ == "__main__":
@@ -293,19 +352,21 @@ if __name__ == "__main__":
         help="Output directory for merged files. Defaults to script's directory.",
     )
 
+    _parser.add_argument(
+        "-f",
+        "--force-overwrite",
+        action="store_true",
+        help="Ignores existing video files, re-merge and overwrites them.",
+    )
+
     _args = _parser.parse_args()
 
-    # make sure it's not just single directory with name 'clips' which is parent dir
-    if len(_args.clip_paths) == 1 and _args.clip_paths[0].name == "clips":
-        _args.clip_paths = _args.clip_paths[0].iterdir()
-
-    # make sure directory is filtered
-    _args.clip_paths = [
-        _p for _p in _args.clip_paths if _p.stem.startswith("clip") and _p.is_dir()
-    ]
-
     try:
-        main(_args.clip_paths, _args.output_dir)
+        main(
+            list(_recursive_recording_fetch_batched_gen(_args.clip_paths)),
+            _args.output_dir,
+            _args.force_overwrite,
+        )
 
     except Exception:
         # if something went wrong give user a chance to see it at least
