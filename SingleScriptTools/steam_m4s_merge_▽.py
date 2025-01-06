@@ -61,7 +61,7 @@ SPLASH_MSG = f"""
 Steam Recording Extraction script
 by jupiterbjy's Prehistoric coding skills
 
-Revision 7 (2024-12-05)
+Revision 8 (2025-01-06)
 =========================================
 """.lstrip()
 
@@ -117,6 +117,8 @@ def _recursive_recording_fetch_batched_gen(
 def app_id_2_name(app_id: int) -> str:
     """Converts app_id to app_name. Failsafe back to app_id if fails.
 
+    I REALLY hope there's no app that violates any of OS's file naming rules...
+
     Args:
         app_id: Steam AppID
 
@@ -124,28 +126,47 @@ def app_id_2_name(app_id: int) -> str:
         app name string
     """
 
+    str_id = str(app_id)
+
     ANSI.print(f"AppID {app_id} name not cached!", color="YELLOW")
     ANSI.print(f"Inquiring AppID {app_id} to steam API", color="YELLOW")
 
-    url = STEAM_APP_DETAIL_URL + str(app_id)
+    url = STEAM_APP_DETAIL_URL + str_id
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     resp = urllib.request.urlopen(req)
 
-    print("Response code:", resp.getcode())
-
     if resp.getcode() != 200:
         # probably rate limit if this fails
-        print("Content:", resp.read())
-
+        ANSI.print(
+            f"Response code was {resp.getcode()}\nContent: {resp.read()}", color="RED"
+        )
         ANSI.print("Falling back to AppID", color="RED")
-        return str(app_id)
+        return str_id
 
     data = json.loads(resp.read().decode())
+
+    # validate if we had access for app.
+    if not data[str_id]["success"]:
+        ANSI.print(
+            "Request failed, is app under CBT, pulled out or region Locked?",
+            color="RED",
+        )
+        ANSI.print("Falling back to AppID", color="RED")
+        return str_id
+
+    # assume most data is
     name = data[str(app_id)]["data"]["name"]
 
     ANSI.print(f"SteamAPI returned '{name}'", color="GREEN")
 
     return name
+
+
+# print(
+#     app_id_2_name(1277930),
+#     app_id_2_name(3171460),
+#     app_id_2_name(3325190),
+# )
 
 
 def concat_file(parts: Sequence[pathlib.Path], output_path: pathlib.Path) -> None:
