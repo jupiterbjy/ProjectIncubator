@@ -61,7 +61,7 @@ SPLASH_MSG = f"""
 Steam Recording Extraction script
 by jupiterbjy's Prehistoric coding skills
 
-Revision 8 (2025-01-06)
+Revision 9 (2025-01-12)
 =========================================
 """.lstrip()
 
@@ -146,9 +146,20 @@ def app_id_2_name(app_id: int) -> str:
     data = json.loads(resp.read().decode())
 
     # validate if we had access for app.
-    if not data[str_id]["success"]:
+    try:
+        if not data[str_id]["success"]:
+            ANSI.print(
+                "Request failed, is app under CBT, pulled out or region Locked?",
+                color="RED",
+            )
+            ANSI.print("Falling back to AppID", color="RED")
+            return str_id
+
+    except KeyError:
+        # in case for 3rd party non-steam app
+
         ANSI.print(
-            "Request failed, is app under CBT, pulled out or region Locked?",
+            "No such AppID in SteamAPI, is this non-steam app?",
             color="RED",
         )
         ANSI.print("Falling back to AppID", color="RED")
