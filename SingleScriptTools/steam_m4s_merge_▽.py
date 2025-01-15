@@ -47,6 +47,21 @@ FFMPEG_CMD = " ".join(
 # Used to check whether directory is valid or not
 DIR_VALIDITY_CHECK = re.compile(r"(bg|clip)_\d+_\d{8}_\d{6}")
 
+# Used to replace invalid characters in file name
+INVALID_CHAR_REPLACEMENT_TABLE = str.maketrans(
+    {
+        "/": "／",
+        "\\": "＼",
+        ":": "∶",
+        "*": "✱",
+        "?": "？",
+        '"': "``",
+        "<": "＜",
+        ">": "＞",
+        "|": "│",
+    }
+)
+
 SUFFIX = ".m4s"
 
 CHUNK_PREFIX = "chunk"
@@ -61,7 +76,7 @@ SPLASH_MSG = f"""
 Steam Recording Extraction script
 by jupiterbjy's Prehistoric coding skills
 
-Revision 9 (2025-01-12)
+Revision 10 (2025-01-13)
 =========================================
 """.lstrip()
 
@@ -155,8 +170,12 @@ def app_id_2_name(app_id: int) -> str:
             ANSI.print("Falling back to AppID", color="RED")
             return str_id
 
+        # factor in for missing name (few apps actually doesn't have name)
+        name = data[str(app_id)]["data"]["name"]
+        assert name
+
     except KeyError:
-        # in case for 3rd party non-steam app
+        # in case for 3rd party non-steam app, fall back to app_id
 
         ANSI.print(
             "No such AppID in SteamAPI, is this non-steam app?",
@@ -165,11 +184,24 @@ def app_id_2_name(app_id: int) -> str:
         ANSI.print("Falling back to AppID", color="RED")
         return str_id
 
-    # assume most data is
-    name = data[str(app_id)]["data"]["name"]
+    except AssertionError:
+        # in case for empty file name, fall back to app_id
+
+        ANSI.print(
+            "App has empty name!",
+            color="RED",
+        )
+        ANSI.print("Falling back to AppID", color="RED")
+        return str_id
+
+    # make sure file name is safe
+    safe_name = name.translate(INVALID_CHAR_REPLACEMENT_TABLE)
+
+    if safe_name != name:
+        ANSI.print(f"Renaming '{name}' to '{safe_name}'", color="YELLOW")
+        name = safe_name
 
     ANSI.print(f"SteamAPI returned '{name}'", color="GREEN")
-
     return name
 
 
@@ -292,7 +324,10 @@ def merge_streams(
 
 
 def main(
-    clip_paths: Sequence[pathlib.Path], output_dir: pathlib.Path, force_overwrite: bool
+    clip_paths: Sequence[pathlib.Path],
+    output_dir: pathlib.Path,
+    force_overwrite: bool,
+    use_app_id_as_name: bool,
 ):
     """Main logic
 
@@ -300,6 +335,7 @@ def main(
         clip_paths: paths to each clips
         output_dir: output directory
         force_overwrite: whether to reprocess & overwrite existing video files
+        use_app_id_as_name: use app id as name instead of app name
     """
 
     # successful merged clip count
@@ -320,7 +356,7 @@ def main(
             recording_type, app_id, date, time = clip_path.name.split("_")
 
             # fetch app name from id
-            app_name = app_id_2_name(int(app_id))
+            app_name = app_id if use_app_id_as_name else app_id_2_name(int(app_id))
             output_path = output_dir / f"{app_name} {recording_type}_{date}_{time}.mp4"
 
             # skip if already exists
@@ -391,6 +427,13 @@ if __name__ == "__main__":
         help="Ignores existing video files, re-merge and overwrites them.",
     )
 
+    _parser.add_argument(
+        "-u",
+        "--use-appid",
+        action="store_true",
+        help="Use appid instead of attempting to use app name.",
+    )
+
     _args = _parser.parse_args()
 
     try:
@@ -398,6 +441,7 @@ if __name__ == "__main__":
             list(_recursive_recording_fetch_batched_gen(_args.clip_paths)),
             _args.output_dir,
             _args.force_overwrite,
+            _args.use_appid,
         )
 
     except Exception:
