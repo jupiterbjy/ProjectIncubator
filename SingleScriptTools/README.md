@@ -129,6 +129,18 @@ Merges multiple images into one big tiled image with desired height & width rati
 
 ---
 
+### [image_remove_gps_▽.py](image_remove_gps_▽.py)
+Removes GPS tags from image EXIF data
+
+`pip install exif`
+
+
+<br>
+<br>
+
+
+---
+
 ### [img_2_pdf_▽.py](img_2_pdf_▽.py)
 Convert multiples images into single pdf
 
