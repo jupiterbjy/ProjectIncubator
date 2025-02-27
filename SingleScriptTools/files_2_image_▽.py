@@ -5,7 +5,7 @@ Check usage by executing without parameters.
 
 ![Example](readme_res/files_2_image.png)
 
-# TODO: add one more image with zip file opened in BandiZip
+:TODO: add one more image with zip file opened in BandiZip
 
 :Author: jupiterbjy@gmail.com
 """
@@ -51,6 +51,7 @@ else:
 
 
 # --- Logics ---
+
 
 def generate_placeholder_img_from_paths(paths: Sequence[pathlib.Path]) -> BytesIO:
     """
@@ -128,7 +129,9 @@ def create_zip_archive(paths: Sequence[pathlib.Path]) -> BytesIO:
             tmp_out_dir = pathlib.Path(tmp_out_str)
 
             # create zip file
-            shutil.make_archive(tmp_out_dir.joinpath("output").as_posix(), "zip", tmp_copy_dir)
+            shutil.make_archive(
+                tmp_out_dir.joinpath("output").as_posix(), "zip", tmp_copy_dir
+            )
 
             # now copy to memory
             with open(tmp_out_dir.joinpath("output.zip"), "rb") as fp:
@@ -197,7 +200,9 @@ def write_embedded_image(paths: Sequence[pathlib.Path]):
 
         # if not create one
         if disguise_img_bytes_io is None:
-            print(f"Disguise image with stem '{DISGUISE_IMG_STEM}' not found. Generating placeholder.")
+            print(
+                f"Disguise image with stem '{DISGUISE_IMG_STEM}' not found. Generating placeholder."
+            )
             disguise_img_bytes_io = generate_placeholder_img_from_paths(args.files)
 
         # create in-memory zip archive
@@ -214,10 +219,9 @@ def write_embedded_image(paths: Sequence[pathlib.Path]):
 
 # --- Driver ---
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        "Files2Image",
-        description="Embed files into image."
+        "Files2Image", description="Embed files into image."
     )
 
     # parser.add_argument(
@@ -233,7 +237,7 @@ if __name__ == '__main__':
         type=pathlib.Path,
         nargs="+",
         help=f"Files to embed inside image. Will be compressed as zip. Add '{DISGUISE_IMG_STEM}' to use as disguise."
-             f"If not found, will generate placeholder image."
+        f"If not found, will generate placeholder image.",
     )
 
     args = parser.parse_args()

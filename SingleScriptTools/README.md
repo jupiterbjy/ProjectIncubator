@@ -57,7 +57,6 @@ Check usage by executing without parameters.
 
 ![Example](readme_res/files_2_image.png)
 
-# TODO: add one more image with zip file opened in BandiZip
 
 
 <br>
