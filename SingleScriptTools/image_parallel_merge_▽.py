@@ -1,6 +1,10 @@
 """
 Merges multiple images into one big tiled image with desired height & width ratio.
 
+`pillow-avif-plugin` is optional, but recommended for AVIF support.
+
+`pip install pillow, pillow-avif-plugin`
+
 ![Example](readme_res/parallel_merge.png)
 
 :Author: jupiterbjy@gmail.com
@@ -14,6 +18,12 @@ import math
 from typing import List, Tuple
 
 from PIL import Image
+
+try:
+    import pillow_avif
+except ImportError:
+    print("pillow-avif-plugin not installed, skipping AVIF support")
+
 
 # Config --------------------------------------
 
@@ -42,7 +52,9 @@ def calculate_row_col_size(x_size, y_size, image_counts) -> Tuple[int, int]:
     for col_size in range(image_counts, 0, -1):
 
         # check if column pixel size ratio is below the target
-        if col_size * x_size <= MAX_XY_RATIO * y_size * math.ceil(image_counts / col_size):
+        if col_size * x_size <= MAX_XY_RATIO * y_size * math.ceil(
+            image_counts / col_size
+        ):
 
             # with decided img-per-line try dividing for even distribution
             final_row_size = math.ceil(image_counts / col_size)
@@ -58,7 +70,9 @@ def calculate_row_col_size(x_size, y_size, image_counts) -> Tuple[int, int]:
 
 def main():
     # load images - consider input is all fine.
-    images: List[Image.Image] = [Image.open(path_).convert("RGBA") for path_ in args.images]
+    images: List[Image.Image] = [
+        Image.open(path_).convert("RGBA") for path_ in args.images
+    ]
 
     # find the largest image dimension for each axis
     x_max = max(image.size[0] for image in images)
@@ -82,9 +96,15 @@ def main():
     new_empty.save(ROOT / f"{int(time.time())}_merged_{len(images)}.png")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("images", metavar="I", type=pathlib.Path, nargs="+", help="Images to merge with.")
+    parser.add_argument(
+        "images",
+        metavar="I",
+        type=pathlib.Path,
+        nargs="+",
+        help="Images to merge with.",
+    )
 
     args = parser.parse_args()
 

@@ -119,6 +119,10 @@ Remove alpha channel from gif image, replacing it with desired color.
 ### [image_parallel_merge_▽.py](image_parallel_merge_▽.py)
 Merges multiple images into one big tiled image with desired height & width ratio.
 
+`pillow-avif-plugin` is optional, but recommended for AVIF support.
+
+`pip install pillow, pillow-avif-plugin`
+
 ![Example](readme_res/parallel_merge.png)
 
 
