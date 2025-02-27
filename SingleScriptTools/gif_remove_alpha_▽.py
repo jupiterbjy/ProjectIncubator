@@ -1,6 +1,8 @@
 """
 Remove alpha channel from gif image, replacing it with desired color.
 
+`pip install pillow`
+
 :Author: jupiterbjy@gmail.com
 """
 
@@ -27,6 +29,7 @@ OUTPUT_SUFFIX = ".gif"
 
 
 # --- Utilities ---
+
 
 def _extract_path(path: pathlib.Path) -> Generator[pathlib.Path]:
     """Extract path recursively."""
@@ -56,6 +59,7 @@ def rgb_to_hex(color: Tuple[int, int, int], prefix: str = "#") -> str:
 
 # --- Logics ---
 
+
 def remove_bg(img_path: pathlib.Path, bg_color=(0, 0, 0), speed_multiplier=1.0):
     """
     Open & convert image to RGB with given background color
@@ -82,12 +86,16 @@ def remove_bg(img_path: pathlib.Path, bg_color=(0, 0, 0), speed_multiplier=1.0):
         bg_img = Image.new("RGBA", frame.size, bg_color)
 
         # Overlay the original image onto the black background
-        converted_frames.append(Image.alpha_composite(bg_img, frame.convert("RGBA")).convert("RGB"))
+        converted_frames.append(
+            Image.alpha_composite(bg_img, frame.convert("RGBA")).convert("RGB")
+        )
 
         # in web. Only after accessing frame data it's loaded 'duration' is exposed.
         durations.append(max(frame.info["duration"] // speed_multiplier, 1))
 
-    new_name = img_path.with_stem(img_path.stem + f"_{rgb_to_hex(bg_color, 'bg')}_x{speed_multiplier}")
+    new_name = img_path.with_stem(
+        img_path.stem + f"_{rgb_to_hex(bg_color, 'bg')}_x{speed_multiplier}"
+    )
 
     # combine to gif
     converted_frames[0].save(
@@ -99,7 +107,11 @@ def remove_bg(img_path: pathlib.Path, bg_color=(0, 0, 0), speed_multiplier=1.0):
     )
 
 
-def _main(img_paths: Sequence[pathlib.Path], bg_color: Tuple[int, int, int], speed_multiplier: float):
+def _main(
+    img_paths: Sequence[pathlib.Path],
+    bg_color: Tuple[int, int, int],
+    speed_multiplier: float,
+):
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     for path in img_paths:
@@ -144,6 +156,8 @@ if __name__ == "__main__":
 
     _paths = []
     for _path in _args.paths:
-        _paths.extend(_p for _p in  _extract_path(_path) if _p.suffix.lower() in SUFFIX_WHITELIST)
+        _paths.extend(
+            _p for _p in _extract_path(_path) if _p.suffix.lower() in SUFFIX_WHITELIST
+        )
 
     _main(_paths, _args.color, _args.speed_multiplier)

@@ -1,6 +1,8 @@
 """
 Script to capture webcam images periodically.
 
+`pip install opencv-python`
+
 ![](readme_res/webcam_periodic_capture.png)
 
 :Author: jupiterbjy@gmail.com

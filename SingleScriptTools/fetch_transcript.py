@@ -2,21 +2,30 @@
 Fetches transcript from YouTube video
 Currently broken as API is gone, will rewrite again when I need this
 
+`pip install youtube-transcript-api, httpx`
+
 :Author: jupiterbjy@gmail.com
 """
 
 # from argparse import ArgumentParser
 from typing import Iterable, Tuple, Dict, List, Any
 from urllib import parse
+import urllib.request
 import json
 
 from youtube_transcript_api import YouTubeTranscriptApi
+
 # import trio
 import httpx
 
 
-async def fetch_json(vid_id, async_context: httpx.AsyncClient = None, **kwargs) -> Dict[str, Any]:
-    params = {"format": "json", "url": f"https://www.youtube.com/watch?v={vid_id}"} | kwargs
+async def fetch_json(
+    vid_id, async_context: httpx.AsyncClient = None, **kwargs
+) -> Dict[str, Any]:
+    params = {
+        "format": "json",
+        "url": f"https://www.youtube.com/watch?v={vid_id}",
+    } | kwargs
     query_string = f"https://www.youtube.com/oembed?{parse.urlencode(params)}"
 
     if not async_context:
@@ -29,7 +38,10 @@ async def fetch_json(vid_id, async_context: httpx.AsyncClient = None, **kwargs) 
 
 
 def fetch_transcript(vid_id, **kwargs) -> Tuple[str, List[Dict[str, Any]]]:
-    params = {"format": "json", "url": f"https://www.youtube.com/watch?v={vid_id}"} | kwargs
+    params = {
+        "format": "json",
+        "url": f"https://www.youtube.com/watch?v={vid_id}",
+    } | kwargs
     url = "https://www.youtube.com/oembed"
 
     query_string = parse.urlencode(params)
@@ -44,7 +56,7 @@ def fetch_transcript(vid_id, **kwargs) -> Tuple[str, List[Dict[str, Any]]]:
     # retrieve the available transcripts
     transcript_list = YouTubeTranscriptApi.list_transcripts(vid_id)
 
-    return title, transcript_list.find_transcript(['en']).fetch()
+    return title, transcript_list.find_transcript(["en"]).fetch()
 
 
 def fetch_transcript_gen(vid_ids: Iterable):
@@ -52,8 +64,11 @@ def fetch_transcript_gen(vid_ids: Iterable):
         yield fetch_transcript(video_id)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from pprint import pprint
-    for title_, data_ in fetch_transcript_gen(['LfC6pv8VISk', 'befUVytFC80', '4c_rKOaTquM']):
+
+    for title_, data_ in fetch_transcript_gen(
+        ["LfC6pv8VISk", "befUVytFC80", "4c_rKOaTquM"]
+    ):
         print(f"\nTitle: {title_}\nData length: {len(data_)}\n")
         pprint(data_)

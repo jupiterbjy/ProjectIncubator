@@ -1,6 +1,8 @@
 """
 Embeds file inside jpg metadata. Any decent unzipper can open as zip.
 
+`pip install pillow`
+
 Check usage by executing without parameters.
 
 ![Example](readme_res/files_2_image.png)

@@ -1,6 +1,8 @@
 """
 Dumb script that looks for twitch points button element on chat and clicks it
 
+`pip install selenium`
+
 :Author: jupiterbjy@gmail.com
 """
 
@@ -23,8 +25,17 @@ def routine(driver, input_xform: str):
 
 def main():
     driver = webdriver.Chrome()
-    routine(driver, xpath_form.format_map({"type": "button", "attribute": "aria-label", "attribute_value": "보너스 받기"}))
+    routine(
+        driver,
+        xpath_form.format_map(
+            {
+                "type": "button",
+                "attribute": "aria-label",
+                "attribute_value": "보너스 받기",
+            }
+        ),
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,6 +1,8 @@
 """
 Convert multiples images into single pdf
 
+`pip install pillow`
+
 :Author: jupiterbjy@gmail.com
 """
 
@@ -16,7 +18,9 @@ from PIL import Image
 TIMEOUT = 10
 
 
-def fetch_image_gen(paths: Sequence[pathlib.Path]) -> Generator[Image.Image, None, None]:
+def fetch_image_gen(
+    paths: Sequence[pathlib.Path],
+) -> Generator[Image.Image, None, None]:
     """Fetch images from given Sequence of Path objects.
 
     Args:
@@ -69,11 +73,11 @@ def image_path_to_pdf(paths: Sequence[pathlib.Path]):
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         "Img2PDF",
         description="Combine images into single pdf file."
-                    "Will use first file name as resulting PDF."
+        "Will use first file name as resulting PDF.",
     )
 
     parser.add_argument(
@@ -81,7 +85,7 @@ if __name__ == '__main__':
         metavar="F",
         type=pathlib.Path,
         nargs="+",
-        help="Files to embed inside image. Will be compressed as zip."
+        help="Files to embed inside image. Will be compressed as zip.",
     )
 
     args = parser.parse_args()

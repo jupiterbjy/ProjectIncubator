@@ -1,6 +1,8 @@
 """
 Remove alpha channel from image with desired color.
 
+`pip install pillow`
+
 :Author: jupiterbjy@gmail.com
 """
 
@@ -29,6 +31,7 @@ SUFFIX_WHITELIST = {
 
 # --- Utilities ---
 
+
 def _extract_path(path: pathlib.Path) -> Generator[pathlib.Path]:
     """Extract path recursively."""
 
@@ -50,6 +53,7 @@ def _validate_color(supposed_to_be_color: Any):
 
 
 # --- Logics ---
+
 
 def remove_bg(img_path: pathlib.Path, bg_color=(0, 0, 0)) -> Image.Image:
     """
@@ -115,6 +119,8 @@ if __name__ == "__main__":
 
     _paths = []
     for _path in _args.paths:
-        _paths.extend(_p for _p in  _extract_path(_path) if _p.suffix.lower() in SUFFIX_WHITELIST)
+        _paths.extend(
+            _p for _p in _extract_path(_path) if _p.suffix.lower() in SUFFIX_WHITELIST
+        )
 
     _main(_paths, _args.color)

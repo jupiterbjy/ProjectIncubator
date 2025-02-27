@@ -1,6 +1,8 @@
 """
 ![](readme_res/strip_image_frame.png)
 
+`pip install pillow`
+
 Simple script to strip n pixel from its border.
 
 Resulting images will be saved at individual image locations with `_stripped` suffix.
@@ -10,7 +12,6 @@ Imagine dozens of such images to edit, hence this is.
 
 :Author: jupiterbjy@gmail.com
 """
-
 
 from argparse import ArgumentParser
 import pathlib
@@ -58,14 +59,14 @@ def main(args):
             print(f"Skipping file {path.name}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     _parser = ArgumentParser()
     _parser.add_argument(
         "images",
         metavar="I",
         type=pathlib.Path,
         nargs="+",
-        help="Images to cut borders."
+        help="Images to cut borders.",
     )
 
     try:

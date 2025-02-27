@@ -32,6 +32,8 @@ Fetch all files with matching extension to script's location/Copied. Recursive.
 Fetches transcript from YouTube video
 Currently broken as API is gone, will rewrite again when I need this
 
+`pip install youtube-transcript-api, httpx`
+
 
 <br>
 <br>
@@ -52,6 +54,8 @@ Requires FFMPEG
 
 ### [files_2_image_▽.py](files_2_image_▽.py)
 Embeds file inside jpg metadata. Any decent unzipper can open as zip.
+
+`pip install pillow`
 
 Check usage by executing without parameters.
 
@@ -109,6 +113,8 @@ Module wrapping `inspect` module to list classes, functions in specified module
 ### [gif_remove_alpha_▽.py](gif_remove_alpha_▽.py)
 Remove alpha channel from gif image, replacing it with desired color.
 
+`pip install pillow`
+
 
 <br>
 <br>
@@ -147,6 +153,8 @@ Removes GPS tags from image EXIF data
 ### [img_2_pdf_▽.py](img_2_pdf_▽.py)
 Convert multiples images into single pdf
 
+`pip install pillow`
+
 
 <br>
 <br>
@@ -156,6 +164,8 @@ Convert multiples images into single pdf
 
 ### [img_2_turtle_▽.py](img_2_turtle_▽.py)
 Generates hardcoded turtle drawing script drawing contour out of image.
+
+`pip install opencv-python, numpy, pillow`
 
 ![Example](readme_res/img_2_turtle.webp)
 
@@ -168,6 +178,8 @@ Generates hardcoded turtle drawing script drawing contour out of image.
 
 ### [img_auto_rename_○.py](img_auto_rename_○.py)
 ![](readme_res/img_auto_rename.webp)
+
+`pip install watchdog, trio`
 
 Based on watchdog_file_events, renames newly added images using current time as name.
 
@@ -192,6 +204,8 @@ on failure.
 ### [img_remove_alpha_▽.py](img_remove_alpha_▽.py)
 Remove alpha channel from image with desired color.
 
+`pip install pillow`
+
 
 <br>
 <br>
@@ -211,6 +225,8 @@ Just use loguru, I used this until I found it.
 
 ### [m3u8_gen.py](m3u8_gen.py)
 Generates m3u8 file using audio files in current directory. Recursive.
+
+`pip install mutagen`
 
 
 <br>
@@ -263,6 +279,8 @@ usage is also almost identical.
 ### [split_img_fixed_size_▽.py](split_img_fixed_size_▽.py)
 Cuts the image fixed-size from top left corner.
 
+`pip install pillow`
+
 Designed to cut some sprites in Armada Tanks for recreating.
 
 ![](readme_res/split_img_fixed_size.png)
@@ -276,6 +294,8 @@ Designed to cut some sprites in Armada Tanks for recreating.
 
 ### [squarefy_image_▽.py](squarefy_image_▽.py)
 Simply makes images perfect square by extending from shorter dimension.
+
+`pip install pillow`
 
 
 <br>
@@ -304,6 +324,8 @@ Requires ffmpeg in PATH.
 ### [strip_image_frame_▽.py](strip_image_frame_▽.py)
 ![](readme_res/strip_image_frame.png)
 
+`pip install pillow`
+
 Simple script to strip n pixel from its border.
 
 Resulting images will be saved at individual image locations with `_stripped` suffix.
@@ -320,6 +342,8 @@ Imagine dozens of such images to edit, hence this is.
 
 ### [twitch_point_clicker.py](twitch_point_clicker.py)
 Dumb script that looks for twitch points button element on chat and clicks it
+
+`pip install selenium`
 
 
 <br>
@@ -370,6 +394,8 @@ or if any of listed entry is missing
 ### [watchdog_file_events.py](watchdog_file_events.py)
 Watchdog callback register-able custom handler to see what's going on in current directory.
 
+`pip install watchdog`
+
 ![](readme_res/watchdog_file_events.png)
 
 
@@ -381,6 +407,8 @@ Watchdog callback register-able custom handler to see what's going on in current
 
 ### [webcam_periodic_capture.py](webcam_periodic_capture.py)
 Script to capture webcam images periodically.
+
+`pip install opencv-python`
 
 ![](readme_res/webcam_periodic_capture.png)
 

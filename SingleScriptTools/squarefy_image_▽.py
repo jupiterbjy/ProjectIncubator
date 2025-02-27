@@ -1,6 +1,8 @@
 """
 Simply makes images perfect square by extending from shorter dimension.
 
+`pip install pillow`
+
 :Author: jupiterbjy@gmail.com
 """
 
@@ -34,9 +36,11 @@ def main(image_files_: list[pathlib.Path]):
         new_empty.save(root.joinpath(image_path.name))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser("Makes all image dimension square.")
-    parser.add_argument("images", metavar="I", type=pathlib.Path, nargs="+", help="Images to square-fy")
+    parser.add_argument(
+        "images", metavar="I", type=pathlib.Path, nargs="+", help="Images to square-fy"
+    )
 
     args = parser.parse_args()
 
@@ -47,5 +51,6 @@ if __name__ == '__main__':
         main(image_files)
     except Exception:
         import traceback
+
         traceback.print_exc()
         input()

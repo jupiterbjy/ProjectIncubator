@@ -1,6 +1,8 @@
 """
 Generates hardcoded turtle drawing script drawing contour out of image.
 
+`pip install opencv-python, numpy, pillow`
+
 ![Example](readme_res/img_2_turtle.webp)
 
 :Author: jupiterbjy@gmail.com
@@ -11,19 +13,23 @@ import textwrap
 from argparse import ArgumentParser
 from typing import List, Sequence, Tuple
 
-try:
-    import cv2
-    import numpy as np
-    from PIL import Image
-except ImportError:
-    # install modules
-    import pip
-    for module in ("opencv-python", "numpy", "pillow"):
-        pip.main(["install", module])
+import cv2
+import numpy as np
+from PIL import Image
 
-    import cv2
-    import numpy as np
-    from PIL import Image
+# try:
+#     import cv2
+#     import numpy as np
+#     from PIL import Image
+# except ImportError:
+#     # install modules
+#     import pip
+#     for module in ("opencv-python", "numpy", "pillow"):
+#         pip.main(["install", module])
+#
+#     import cv2
+#     import numpy as np
+#     from PIL import Image
 
 
 MIN_VERTEX_TO_DRAW = 2
@@ -39,8 +45,12 @@ class CannyPreviewer:
 
         # cv2.WINDOW_AUTOSIZE
         cv2.namedWindow(self._win_name, cv2.WINDOW_AUTOSIZE)
-        cv2.createTrackbar("Threshold 2", self._win_name, 255, 255, self.update_threshold_2)
-        cv2.createTrackbar("Threshold 1", self._win_name, 255, 255, self.update_threshold_1)
+        cv2.createTrackbar(
+            "Threshold 2", self._win_name, 255, 255, self.update_threshold_2
+        )
+        cv2.createTrackbar(
+            "Threshold 1", self._win_name, 255, 255, self.update_threshold_1
+        )
         # cv2.createButton("Generate", self.on_button_press)
 
         cv2.resizeWindow(self._win_name, 600, 600)
@@ -62,11 +72,15 @@ class CannyPreviewer:
         self.trigger_preview_update()
 
     def trigger_preview_update(self):
-        ret, threshold = cv2.threshold(self.original_img, *self.threshold, cv2.THRESH_OTSU)
+        ret, threshold = cv2.threshold(
+            self.original_img, *self.threshold, cv2.THRESH_OTSU
+        )
         cv2.imshow(self._win_name, threshold)
 
 
-def extract_contour(image_path: pathlib.Path, th_low, th_high) -> List[Sequence[Tuple[int, int]]]:
+def extract_contour(
+    image_path: pathlib.Path, th_low, th_high
+) -> List[Sequence[Tuple[int, int]]]:
     """Extract outline points from image
 
     Args:
@@ -81,9 +95,13 @@ def extract_contour(image_path: pathlib.Path, th_low, th_high) -> List[Sequence[
     source_img = cv2.imread(image_path.as_posix())
     # base = cv2.Canny(source_img, th_low, th_high)
     gray = cv2.cvtColor(source_img, cv2.COLOR_BGR2GRAY)
-    ret, base = cv2.threshold(gray, th_low, th_high, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ret, base = cv2.threshold(
+        gray, th_low, th_high, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
 
-    contours, hierarchy = cv2.findContours(base, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)
+    contours, hierarchy = cv2.findContours(
+        base, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS
+    )
 
     # squeeze unnecessary dim and multiply contours to multiply resolutions
     squeezed = [np.squeeze(cnt, axis=1) for cnt in contours]
@@ -91,12 +109,15 @@ def extract_contour(image_path: pathlib.Path, th_low, th_high) -> List[Sequence[
     # convert to tuple & apply multiplier
     converted = [
         [(x, y) for x, y in contour]
-        for contour in squeezed if len(contour) >= MIN_VERTEX_TO_DRAW
+        for contour in squeezed
+        if len(contour) >= MIN_VERTEX_TO_DRAW
     ]
     return converted
 
 
-def save_script(image_path: pathlib.Path, image_dim, contours: Sequence[Sequence[Tuple[int, int]]]):
+def save_script(
+    image_path: pathlib.Path, image_dim, contours: Sequence[Sequence[Tuple[int, int]]]
+):
     """Save hard coded turtle code as image_name.py"""
 
     width, height = image_dim
@@ -152,7 +173,11 @@ def save_script(image_path: pathlib.Path, image_dim, contours: Sequence[Sequence
             end_points = [*start_points[1:], start_points[0]]
 
             # write start pos
-            fp.write(contour_header.format(start_points[0][0] - offset_x, offset_y - start_points[0][1]))
+            fp.write(
+                contour_header.format(
+                    start_points[0][0] - offset_x, offset_y - start_points[0][1]
+                )
+            )
 
             # write vertex
             for end_x, end_y in end_points:
@@ -179,11 +204,9 @@ def main(img_path: pathlib.Path):
     # contour_to_turtle(image.size, contours)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
-    parser = ArgumentParser(
-        "Script generating turtle image."
-    )
+    parser = ArgumentParser("Script generating turtle image.")
     parser.add_argument("file", type=pathlib.Path, help="Path to image")
 
     args = parser.parse_args()

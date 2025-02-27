@@ -1,6 +1,8 @@
 """
 Generates m3u8 file using audio files in current directory. Recursive.
 
+`pip install mutagen`
+
 :Author: jupiterbjy@gmail.com
 """
 
@@ -66,6 +68,6 @@ def main():
     print(f"Wrote {1 + 2 * len(lines)} lines.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
     input("Press enter to exit")

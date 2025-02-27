@@ -1,6 +1,8 @@
 """
 ![](readme_res/img_auto_rename.webp)
 
+`pip install watchdog, trio`
+
 Based on watchdog_file_events, renames newly added images using current time as name.
 
 On duplicated name, will start adding suffixes. Despite it being costly, it rarely happens anyway!
@@ -46,13 +48,16 @@ ROOT = pathlib.Path.home() / "Desktop"
 
 # --- Handler ---
 
+
 class CustomHandler(FileSystemEventHandler):
     """Custom FileSystemEvent handler to Add custom callback on event."""
 
     def __init__(self):
 
         # callback entries for each event
-        self._table: defaultdict[Type[FileSystemEvent], List[Callable]] = defaultdict(list)
+        self._table: defaultdict[Type[FileSystemEvent], List[Callable]] = defaultdict(
+            list
+        )
         self._default_callbacks: List[Callable] = [self._default_event_cb]
         self._trio_token = trio.lowlevel.current_trio_token()
 
@@ -164,6 +169,7 @@ async def rename_safely(task_id: int, path_obj: pathlib.Path, creation_time: int
 
 def enqueue_callback_closure(send_ch: trio.MemorySendChannel):
     """Create callback with given send channel."""
+
     def enqueue_callback(event: FileCreatedEvent):
         """Enqueue event to be renamed.
         This is due to Windows Python limitation of NOT implementing
@@ -210,5 +216,5 @@ async def main():
             await rename_task_processor(recv_ch)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     trio.run(main)

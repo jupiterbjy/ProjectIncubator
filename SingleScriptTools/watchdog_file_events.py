@@ -1,6 +1,8 @@
 """
 Watchdog callback register-able custom handler to see what's going on in current directory.
 
+`pip install watchdog`
+
 ![](readme_res/watchdog_file_events.png)
 
 :Author: jupiterbjy@gmail.com
@@ -32,7 +34,9 @@ class CustomHandler(FileSystemEventHandler):
     def _default_event_cb(event: FileSystemEvent):
         """Default fallback callback when given event has no registered callback."""
 
-        print(f"Discarding unregistered {type(event).event_type} event at:\n{event.src_path}")
+        print(
+            f"Discarding unregistered {type(event).event_type} event at:\n{event.src_path}"
+        )
 
     def register(self, event: FileSystemEvent, callback: Callable):
         """Registers new callback to event"""
@@ -71,5 +75,5 @@ def main():
     observer.join()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
