@@ -163,6 +163,7 @@ def _on_key_release(_key):
 
 
 def main():
+
     mouse_listener = pynput.mouse.Listener(
         on_move=_on_mouse_move,
         on_scroll=_on_mouse_scroll,
@@ -174,29 +175,26 @@ def main():
         on_release=_on_key_release,
     )
 
-    # with mouse_listener, keyboard_listener:
-    #     mouse_listener.join()
-    #     keyboard_listener.join()
+    with mouse_listener, keyboard_listener:
 
-    mouse_listener.start()
-    keyboard_listener.start()
-
-    try:
-        while True:
-            time.sleep(1000000)
-    except KeyboardInterrupt:
-        pass
-
-    mouse_listener.stop()
-    keyboard_listener.stop()
-
-    mouse_listener.join()
-    keyboard_listener.join()
+        # just a dumb ctrl+c catcher for windows
+        try:
+            while True:
+                time.sleep(1000000)
+        except KeyboardInterrupt:
+            pass
 
     input("\nPress enter to exit.")
 
 
 if __name__ == "__main__":
-    print("Press Ctrl+C here to exit.\n")
+    print("Started scanning for following processes:")
+
+    for proc_name in WORK_PROCESS_WHITELIST:
+        print(f" - {proc_name}")
+
+    print("\nPress Ctrl+C here to exit.\n")
+
+    # prime and start the main loop
     next(_LOOP)
     main()
