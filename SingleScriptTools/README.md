@@ -18,11 +18,8 @@ Watches for html file changes and reload pages with selenium
 
 ---
 
-### [back_to_work.py](back_to_work.py)
-Simple script to track focused window and measure total time
-whenever there's input with configurable margin, windows only.
-
-`pip install win32gui, win32process, psutil, pynput`
+### [copy_file_recursive.py](copy_file_recursive.py)
+Fetch all files with matching extension to script's location/Copied. Recursive.
 
 
 <br>
@@ -31,8 +28,13 @@ whenever there's input with configurable margin, windows only.
 
 ---
 
-### [copy_file_recursive.py](copy_file_recursive.py)
-Fetch all files with matching extension to script's location/Copied. Recursive.
+### [effective_work_timer.py](effective_work_timer.py)
+Simple script to track focused window and measure total time
+whenever there's input with configurable margin, windows only.
+
+`pip install win32gui, win32process, psutil, pynput`
+
+![](readme_res/effective_work_timer.png)
 
 
 <br>

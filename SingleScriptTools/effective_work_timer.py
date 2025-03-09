@@ -4,6 +4,8 @@ whenever there's input with configurable margin, windows only.
 
 `pip install win32gui, win32process, psutil, pynput`
 
+![](readme_res/effective_work_timer.png)
+
 :Author: jupiterbjy@gmail.com
 """
 
