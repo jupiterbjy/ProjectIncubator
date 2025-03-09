@@ -9,7 +9,6 @@ whenever there's input with configurable margin, windows only.
 
 import re
 import time
-import traceback
 import functools
 
 import win32gui
@@ -46,7 +45,7 @@ WORK_PROCESS_WHITELIST = {
 _MAX_PROC_NAME_LEN = max(len(proc_name) for proc_name in WORK_PROCESS_WHITELIST)
 
 
-RE_PATTERN = re.compile(r"[^\W\-.]+")
+RE_PATTERN = re.compile(r"[^\W\-_.]+")
 
 
 # --- Utilities ---
@@ -61,19 +60,13 @@ def _get_active_window_process_name() -> str:
 
     Returns:
         Process's Name. Raises
+
+    Raises:
+        ValueError: When negative PID is received
     """
 
-    # noinspection PyBroadException
-    try:
-        pid = win32process.GetWindowThreadProcessId(win32gui.GetForegroundWindow())
-        return psutil.Process(pid[-1]).name()
-
-    except Exception as _:
-        # not exactly sure what's raising what yet, so log trace and pass for now
-        # will update with appropriate error info or handling once identified
-        traceback.print_exc()
-
-    return ""
+    pid = win32process.GetWindowThreadProcessId(win32gui.GetForegroundWindow())[-1]
+    return psutil.Process(pid).name()
 
 
 def _normalize_process_name(raw_proc_name: str) -> str:
@@ -147,13 +140,20 @@ class Tracker:
         cur_time = time.time()
 
         # fetch process name
-        proc_name = _normalize_process_name(_get_active_window_process_name())
+        try:
+            proc_name = _normalize_process_name(_get_active_window_process_name())
+
+        except ValueError:
+            # negative PID received
+            proc_name = ""
 
         # check if last process was valid, if so accumulate
         if self._last_proc_name in WORK_PROCESS_WHITELIST:
             duration = min(cur_time - self._last_input_time, TIMEOUT_SEC)
             self._total_accumulated_sec += duration
 
+            # feels like setdefault better be fitting here, but whatever
+            # 99.9% gonna be success anyway so checking all time might be more wasteful
             try:
                 self._per_proc_accumulations[self._last_proc_name] += duration
             except KeyError:
