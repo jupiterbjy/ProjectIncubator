@@ -10,6 +10,7 @@ whenever there's input with configurable margin, windows only.
 import re
 import time
 import traceback
+import functools
 
 import win32gui
 import win32process
@@ -21,7 +22,7 @@ import pynput
 
 TIMEOUT_SEC = 30
 
-PRINT_INTERVAL_SEC = 1.0
+PRINT_INTERVAL_SEC = 1
 
 # List of process names to consider as "work" - this is just an example.
 # Will ignore all parts since underscore or hyphen of process's name, all lowercased.
@@ -40,6 +41,9 @@ WORK_PROCESS_WHITELIST = {
     "obs",
     "pycharm64",
 }
+
+# used for formatting
+_MAX_PROC_NAME_LEN = max(len(proc_name) for proc_name in WORK_PROCESS_WHITELIST)
 
 
 RE_PATTERN = re.compile(r"[^\W\-.]+")
@@ -72,13 +76,13 @@ def _get_active_window_process_name() -> str:
     return ""
 
 
-def _is_process_valid(proc_name: str) -> bool:
-    """Checks whether given process name is whitelisted as work or not."""
+def _normalize_process_name(raw_proc_name: str) -> str:
+    """Normalizes process name. Returns empty string if it's unable to be normalized."""
 
-    matched = RE_PATTERN.match(proc_name)
-    normalized_name = matched.group(0).lower() if matched else proc_name
+    matched = RE_PATTERN.match(raw_proc_name)
+    normalized_name = matched.group(0).lower() if matched else ""
 
-    return normalized_name in WORK_PROCESS_WHITELIST
+    return normalized_name
 
 
 # def flush_log(log_file: pathlib.Path, logs: list[tuple[str, float, float]]):
@@ -95,106 +99,162 @@ def _is_process_valid(proc_name: str) -> bool:
 #             fp.write(f"{proc_n},{duration:.2f},{total_t:.2f}\n")
 
 
+def _clear_screen(newlines=100):
+    """Just pushes a bunch of newlines to mimic screen clear."""
+
+    print("\n" * newlines)
+
+
 # --- Logics ---
 
 
-def _main_loop_coro():
+class Tracker:
+    """Tracks work time with non-busy method."""
 
-    accumulated_sec = 0.0
+    def __init__(self):
 
-    last_proc_name = ""
-    last_input_time = 0.0
+        # per process's accumulated time
+        self._per_proc_accumulations: dict[str, float] = {}
 
-    last_print_time = 0.0
+        # total accumulated time
+        self._total_accumulated_sec = 0.0
 
-    should_continue = True
+        # started time
+        self._start_time = time.time()
 
-    while should_continue:
-        should_continue = yield
+        # last process name
+        self._last_proc_name = ""
+
+        # last input time
+        self._last_input_time = 0.0
+
+    def print_stats(self):
+        """Prints total accumulated time and per process's accumulated time."""
+
+        _clear_screen()
+
+        print(f"Elapsed: {time.time() - self._start_time:.2f}s")
+        print(f"Total Accumulated: {self._total_accumulated_sec:.2f}s")
+
+        print("\nPer Process Accumulated:")
+        for proc_name, accumulated_sec in self._per_proc_accumulations.items():
+            print(f"{proc_name:{_MAX_PROC_NAME_LEN}}: {accumulated_sec:10.2f}s")
+
+    def tick(self):
+        """Updates per process's accumulated time and total accumulated time.
+        Call this on every new input events."""
 
         cur_time = time.time()
 
         # fetch process name
-        proc_name = _get_active_window_process_name()
+        proc_name = _normalize_process_name(_get_active_window_process_name())
 
         # check if last process was valid, if so accumulate
-        if _is_process_valid(last_proc_name):
-            duration = min(cur_time - last_input_time, TIMEOUT_SEC)
-            accumulated_sec += duration
+        if self._last_proc_name in WORK_PROCESS_WHITELIST:
+            duration = min(cur_time - self._last_input_time, TIMEOUT_SEC)
+            self._total_accumulated_sec += duration
 
-            # print if interval is met
-            if cur_time - last_print_time > PRINT_INTERVAL_SEC:
-                print(
-                    f"{proc_name}: Accumulated {duration:.2f} sec. total {accumulated_sec:.2f}"
-                )
-                last_print_time = cur_time
+            try:
+                self._per_proc_accumulations[self._last_proc_name] += duration
+            except KeyError:
+                self._per_proc_accumulations[self._last_proc_name] = duration
 
-        last_proc_name = proc_name
-        last_input_time = cur_time
-
-    print("Exit requested!")
+        self._last_proc_name = proc_name
+        self._last_input_time = cur_time
 
 
-_LOOP = _main_loop_coro()
+# def main_loop_coro():
+#     """Primary coroutine to track work time.
+#     Send True to continue, False to exit."""
+#
+#     total_accumulated = 0.0
+#
+#     last_proc_name = ""
+#     last_input_time = 0.0
+#
+#     should_continue = True
+#
+#     while should_continue:
+#         should_continue = yield
+#
+#         cur_time = time.time()
+#
+#         # fetch process name
+#         proc_name = _get_active_window_process_name()
+#
+#         # check if last process was valid, if so accumulate
+#         if _is_process_valid(last_proc_name):
+#             duration = min(cur_time - last_input_time, TIMEOUT_SEC)
+#             total_accumulated += duration
+#
+#         last_proc_name = proc_name
+#         last_input_time = cur_time
+#
+#     print("Exit requested!")
 
 
 # --- Drivers ---
 
 
-def _on_mouse_move(_x: int, _y: int):
-    _LOOP.send(True)
+def _on_mouse_move(tracker: Tracker, _x: int, _y: int):
+    tracker.tick()
 
 
-def _on_mouse_scroll(_x: int, _y: int, _dx: int, _dy: int):
-    _LOOP.send(True)
+def _on_mouse_scroll(tracker: Tracker, _x: int, _y: int, _dx: int, _dy: int):
+    tracker.tick()
 
 
-def _on_mouse_click(_x: int, _y: int, _button: pynput.mouse.Button, _pressed: bool):
-    _LOOP.send(True)
+def _on_mouse_click(
+    tracker: Tracker, _x: int, _y: int, _button: pynput.mouse.Button, _pressed: bool
+):
+    tracker.tick()
 
 
-def _on_key_press(_key):
-    # set your own specific key here for sending false so it can stop
-    _LOOP.send(True)
+def _on_key_press(tracker: Tracker, _key):
+    tracker.tick()
 
 
-def _on_key_release(_key):
-    _LOOP.send(True)
+def _on_key_release(tracker: Tracker, _key):
+    tracker.tick()
 
 
-def main():
+def _main():
+
+    tracker = Tracker()
 
     mouse_listener = pynput.mouse.Listener(
-        on_move=_on_mouse_move,
-        on_scroll=_on_mouse_scroll,
-        on_click=_on_mouse_click,
+        on_move=functools.partial(_on_mouse_move, tracker),
+        on_scroll=functools.partial(_on_mouse_scroll, tracker),
+        on_click=functools.partial(_on_mouse_click, tracker),
     )
 
     keyboard_listener = pynput.keyboard.Listener(
-        on_press=_on_key_press,
-        on_release=_on_key_release,
+        on_press=functools.partial(_on_key_press, tracker),
+        on_release=functools.partial(_on_key_release, tracker),
     )
 
     with mouse_listener, keyboard_listener:
 
-        # just a dumb ctrl+c catcher for windows
+        # just a dumb ctrl+c catcher for windows. with occasional logging
         try:
             while True:
-                time.sleep(1000000)
+                tracker.print_stats()
+                time.sleep(PRINT_INTERVAL_SEC)
         except KeyboardInterrupt:
             pass
 
-    input("\nPress enter to exit.")
+    input("\nPress enter to exit:")
 
 
 if __name__ == "__main__":
     print("Started scanning for following processes:")
 
-    for proc_name in WORK_PROCESS_WHITELIST:
-        print(f" - {proc_name}")
+    for _proc_name in WORK_PROCESS_WHITELIST:
+        print(f" - {_proc_name}")
 
-    print("\nPress Ctrl+C here to exit.\n")
+    print(f"\nWith timeout of {TIMEOUT_SEC} sec.")
+    print(f"Status is logged only on every {PRINT_INTERVAL_SEC} sec.")
 
-    # prime and start the main loop
-    next(_LOOP)
-    main()
+    input("\nPress enter to start:")
+
+    _main()
