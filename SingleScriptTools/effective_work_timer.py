@@ -9,9 +9,13 @@ whenever there's input with configurable margin, windows only.
 :Author: jupiterbjy@gmail.com
 """
 
+import pathlib
 import re
 import time
 import functools
+import json
+from argparse import ArgumentParser
+from typing import TypedDict, Sequence
 
 import win32gui
 import win32process
@@ -24,6 +28,21 @@ import pynput
 TIMEOUT_SEC = 30
 
 PRINT_INTERVAL_SEC = 1
+
+KEY_TYPE = pynput.keyboard.Key | pynput.keyboard.KeyCode
+
+# Combination of keys to pause/quit timer. Uses pynput's Key.
+STOP_HOTKEY: list[KEY_TYPE] = [
+    pynput.keyboard.KeyCode.from_char("8"),
+    pynput.keyboard.KeyCode.from_char("9"),
+    pynput.keyboard.KeyCode.from_char("0"),
+    # pynput.keyboard.Key.f12,
+]
+
+LOG_ENCODING = "utf-8"
+
+LOG_LOCATION = pathlib.Path(__file__).parent / "effective_work_timer_results.json"
+
 
 # List of process names to consider as "work" - this is just an example.
 # Will ignore all parts since underscore or hyphen of process's name, all lowercased.
@@ -80,27 +99,50 @@ def _normalize_process_name(raw_proc_name: str) -> str:
     return normalized_name
 
 
-# def flush_log(log_file: pathlib.Path, logs: list[tuple[str, float, float]]):
-#     """Flush logs to file.
-#
-#     Args:
-#         log_file (pathlib.Path): Path to log file.
-#         logs (list[tuple[str, float, float]]): List of logs to be flushed. Each log is a tuple of
-#             process name, duration and total time.
-#     """
-#
-#     with log_file.open("a", encoding=LOG_ENCODING) as fp:
-#         for proc_n, duration, total_t in logs:
-#             fp.write(f"{proc_n},{duration:.2f},{total_t:.2f}\n")
-
-
 def _clear_screen(newlines=100):
     """Just pushes a bunch of newlines to mimic screen clear."""
 
     print("\n" * newlines)
 
 
+class _ProcessEntryType(TypedDict):
+    proc_name: str
+    accumulated_sec: float
+
+
+class _ResultEntryType(TypedDict):
+    duration: float
+    processes: list[_ProcessEntryType]
+
+
+_ResultsType: dict[int, _ResultEntryType]
+
+
 # --- Logics ---
+
+
+class HotKeyManager:
+    """Class managing hotkey state.
+    This is due to pynput seemingly can't mix global hotkey to listeners."""
+
+    def __init__(self, hotkeys: Sequence[KEY_TYPE]):
+
+        # hotkey status
+        self._hotkey_status: dict[KEY_TYPE, bool] = {key: False for key in hotkeys}
+
+        self.triggered = False
+
+    def update_hotkey_status(self, key: KEY_TYPE, pressed: bool):
+        """Check which keys are currently pressed, and toggle pause flag when all keys are pressed.
+        Ignores non-hotkey keys."""
+
+        if key not in self._hotkey_status:
+            return
+
+        self._hotkey_status[key] = pressed
+
+        if all(self._hotkey_status.values()):
+            self.triggered = not self.triggered
 
 
 class Tracker:
@@ -111,11 +153,8 @@ class Tracker:
         # per process's accumulated time
         self._per_proc_accumulations: dict[str, float] = {}
 
-        # total accumulated time
-        self._total_accumulated_sec = 0.0
-
-        # started time
-        self._start_time = time.time()
+        # started time, floored so it can act as key in dict without being too long.
+        self._start_time = int(time.time())
 
         # last process name
         self._last_proc_name = ""
@@ -123,21 +162,31 @@ class Tracker:
         # last input time
         self._last_input_time = 0.0
 
+    @property
+    def _total_active_duration(self) -> float:
+        """Returns sum of active duration of all processes."""
+
+        # would love to see caching of these sum... but welp doesn't matter much for now
+        return sum(self._per_proc_accumulations.values())
+
     def print_stats(self):
         """Prints total accumulated time and per process's accumulated time."""
 
         _clear_screen()
 
         print(f"Elapsed: {time.time() - self._start_time:.2f}s")
-        print(f"Total Accumulated: {self._total_accumulated_sec:.2f}s")
+        print(f"Total Accumulated: {self._total_active_duration:.2f}s")
 
         print("\nPer Process Accumulated:")
         for proc_name, accumulated_sec in self._per_proc_accumulations.items():
             print(f"{proc_name:{_MAX_PROC_NAME_LEN}}: {accumulated_sec:10.2f}s")
 
+        # print(self._hotkey_status)
+        print(f"\nPress {STOP_HOTKEY} to stop timer.")
+
     def tick(self):
         """Updates per process's accumulated time and total accumulated time.
-        Call this on every new input events."""
+        Call this on every new input events. Does nothing when paused."""
 
         cur_time = time.time()
 
@@ -152,7 +201,6 @@ class Tracker:
         # check if last process was valid, if so accumulate
         if self._last_proc_name in WORK_PROCESS_WHITELIST:
             duration = min(cur_time - self._last_input_time, TIMEOUT_SEC)
-            self._total_accumulated_sec += duration
 
             # feels like setdefault better be fitting here, but whatever
             # 99.9% gonna be success anyway so checking all time might be more wasteful
@@ -163,6 +211,33 @@ class Tracker:
 
         self._last_proc_name = proc_name
         self._last_input_time = cur_time
+
+    def write_result(self):
+        """Flush log to file as json. If file exists, attempts to open and add entry to it."""
+
+        # wish to use SQLite here but feels like it's overkill...
+
+        existing: _ResultsType = {}
+
+        # attempt load existing, if failure just overwrite
+        if LOG_LOCATION.exists():
+            try:
+                existing.update(json.loads(LOG_LOCATION.read_text(LOG_ENCODING)))
+            except (ValueError, json.JSONDecodeError):
+                pass
+
+        # add new entry, this automatically overwrites existing entry with same key(start time)
+        existing[self._start_time] = {
+            "duration": time.time() - self._start_time,
+            "processes": [
+                {"proc_name": proc_name, "accumulated_sec": accumulated_sec}
+                for proc_name, accumulated_sec in self._per_proc_accumulations.items()
+            ],
+        }
+
+        # write back
+        LOG_LOCATION.write_text(json.dumps(existing, indent=2), LOG_ENCODING)
+        print(f"Result saved!")
 
 
 # def main_loop_coro():
@@ -212,44 +287,26 @@ def _on_mouse_click(
     tracker.tick()
 
 
-def _on_key_press(tracker: Tracker, _key):
+def _on_key_press(tracker: Tracker, hotkey_manager: HotKeyManager, key: KEY_TYPE):
+    # print("p", type(key), repr(key))
     tracker.tick()
+    hotkey_manager.update_hotkey_status(key, True)
 
 
-def _on_key_release(tracker: Tracker, _key):
+def _on_key_release(tracker: Tracker, hotkey_manager: HotKeyManager, key: KEY_TYPE):
+    # print("r", repr(key))
     tracker.tick()
+    hotkey_manager.update_hotkey_status(key, False)
+    # due to design when paused it may record as TIMEOUT_SEC but that's small enough error
+    # when this deals with hours
 
 
-def _main():
+def _main(save_result: bool):
 
-    tracker = Tracker()
+    if save_result:
+        print("Result will be saved to:", LOG_LOCATION, end="\n\n")
 
-    mouse_listener = pynput.mouse.Listener(
-        on_move=functools.partial(_on_mouse_move, tracker),
-        on_scroll=functools.partial(_on_mouse_scroll, tracker),
-        on_click=functools.partial(_on_mouse_click, tracker),
-    )
-
-    keyboard_listener = pynput.keyboard.Listener(
-        on_press=functools.partial(_on_key_press, tracker),
-        on_release=functools.partial(_on_key_release, tracker),
-    )
-
-    with mouse_listener, keyboard_listener:
-
-        # just a dumb ctrl+c catcher for windows. with occasional logging
-        try:
-            while True:
-                tracker.print_stats()
-                time.sleep(PRINT_INTERVAL_SEC)
-        except KeyboardInterrupt:
-            pass
-
-    input("\nPress enter to exit:")
-
-
-if __name__ == "__main__":
-    print("Started scanning for following processes:")
+    print("Will start scanning for following processes:")
 
     for _proc_name in WORK_PROCESS_WHITELIST:
         print(f" - {_proc_name}")
@@ -257,6 +314,49 @@ if __name__ == "__main__":
     print(f"\nWith timeout of {TIMEOUT_SEC} sec.")
     print(f"Status is logged only on every {PRINT_INTERVAL_SEC} sec.")
 
-    input("\nPress enter to start:")
+    while True:
+        # check whether to start new session or to quit.
+        # only consider last input as some input might get mixed
+        if not input("\nStart new session? [y/n]: ")[-1] in "yY":
+            return
 
-    _main()
+        tracker = Tracker()
+
+        # prep listeners
+        hotkey_mgr = HotKeyManager(STOP_HOTKEY)
+
+        mouse_listener = pynput.mouse.Listener(
+            on_move=functools.partial(_on_mouse_move, tracker),
+            on_scroll=functools.partial(_on_mouse_scroll, tracker),
+            on_click=functools.partial(_on_mouse_click, tracker),
+        )
+
+        keyboard_listener = pynput.keyboard.Listener(
+            on_press=functools.partial(_on_key_press, tracker, hotkey_mgr),
+            on_release=functools.partial(_on_key_release, tracker, hotkey_mgr),
+        )
+
+        with mouse_listener, keyboard_listener:
+            # just a dumb ctrl+c catcher for windows. with occasional logging
+            while not hotkey_mgr.triggered:
+                tracker.print_stats()
+                time.sleep(PRINT_INTERVAL_SEC)
+
+            if save_result:
+                tracker.write_result()
+
+
+if __name__ == "__main__":
+    _parser = ArgumentParser(
+        description="Script to track time spent on work processes."
+    )
+
+    _parser.add_argument(
+        "-s",
+        "--save-result",
+        action="store_true",
+        help="Enable result saving to file (created next to script)",
+    )
+
+    _args = _parser.parse_args()
+    _main(_args.save_result)
