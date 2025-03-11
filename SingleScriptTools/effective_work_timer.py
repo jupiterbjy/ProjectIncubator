@@ -43,9 +43,10 @@ LOG_ENCODING = "utf-8"
 
 LOG_LOCATION = pathlib.Path(__file__).parent / "effective_work_timer_results.json"
 
+RE_PATTERN = re.compile(r"[^\W\-_.]+")
 
 # List of process names to consider as "work" - this is just an example.
-# Will ignore all parts since underscore or hyphen of process's name, all lowercased.
+# Will ignore all parts unmatched from above RE_PATTERN. Name is all lowercased prior to matching.
 # i.e. "SomeProcess_abc.exe" -> "someprocess"
 # noinspection SpellCheckingInspection
 WORK_PROCESS_WHITELIST = {
@@ -57,16 +58,14 @@ WORK_PROCESS_WHITELIST = {
     "inkscape",
     "windowsterminal",
     "audacity",
-    "notepad++",
+    # "notepad++",
+    "notepad",
     "obs",
     "pycharm64",
 }
 
 # used for formatting
 _MAX_PROC_NAME_LEN = max(len(proc_name) for proc_name in WORK_PROCESS_WHITELIST)
-
-
-RE_PATTERN = re.compile(r"[^\W\-_.]+")
 
 
 # --- Utilities ---
