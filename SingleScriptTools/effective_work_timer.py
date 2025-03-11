@@ -111,6 +111,7 @@ class _ProcessEntryType(TypedDict):
 
 class _ResultEntryType(TypedDict):
     duration: float
+    effective_duration: float
     processes: list[_ProcessEntryType]
 
 
@@ -228,6 +229,7 @@ class Tracker:
         # add new entry, this automatically overwrites existing entry with same key(start time)
         existing[self._start_time] = {
             "duration": time.time() - self._start_time,
+            "effective_duration": self._total_active_duration,
             "processes": [
                 {"proc_name": proc_name, "accumulated_sec": accumulated_sec}
                 for proc_name, accumulated_sec in self._per_proc_accumulations.items()
