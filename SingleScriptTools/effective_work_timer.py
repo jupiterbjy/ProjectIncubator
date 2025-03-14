@@ -14,6 +14,7 @@ import re
 import time
 import functools
 import json
+import traceback
 from argparse import ArgumentParser
 from typing import TypedDict, Sequence
 
@@ -83,6 +84,7 @@ def _get_active_window_process_name() -> str:
 
     Raises:
         ValueError: When negative PID is received
+        psutil.NoSuchProcess: When process with given PID is not found(idk how yet)
     """
 
     pid = win32process.GetWindowThreadProcessId(win32gui.GetForegroundWindow())[-1]
@@ -196,6 +198,15 @@ class Tracker:
 
         except ValueError:
             # negative PID received
+            proc_name = ""
+
+        except psutil.NoSuchProcess:
+            # process not found, probably due to delay or some system process?
+            proc_name = ""
+
+        except Exception as err:
+            # unknown error, but gotta catch anyway to prevent listeners dying.
+            traceback.print_tb(err.__traceback__)
             proc_name = ""
 
         # check if last process was valid, if so accumulate
