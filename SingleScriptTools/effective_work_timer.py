@@ -9,6 +9,7 @@ whenever there's input with configurable margin, windows only.
 :Author: jupiterbjy@gmail.com
 """
 
+import datetime
 import pathlib
 import re
 import time
@@ -106,6 +107,14 @@ def _clear_screen(newlines=100):
     print("\n" * newlines)
 
 
+def _sec_to_human_readable(sec: float) -> str:
+    """Converts seconds to human-readable format.
+    (Personally raw seconds isn't that bad though)
+    """
+
+    return str(datetime.timedelta(seconds=sec))
+
+
 class _ProcessEntryType(TypedDict):
     proc_name: str
     accumulated_sec: float
@@ -165,7 +174,11 @@ class Tracker:
         self._last_input_time = 0.0
 
     @property
-    def _total_active_duration(self) -> float:
+    def _elapsed(self) -> float:
+        return time.time() - self._start_time
+
+    @property
+    def _active_total(self) -> float:
         """Returns sum of active duration of all processes."""
 
         # would love to see caching of these sum... but welp doesn't matter much for now
@@ -176,12 +189,18 @@ class Tracker:
 
         _clear_screen()
 
-        print(f"Elapsed: {time.time() - self._start_time:.2f}s")
-        print(f"Total Accumulated: {self._total_active_duration:.2f}s")
+        elapsed = int(self._elapsed)
+        active_total = int(self._active_total)
+        print(f"Elapsed: {_sec_to_human_readable(elapsed)} ({elapsed}s)")
+        print(
+            f"Total Accumulated: {_sec_to_human_readable(active_total)} ({active_total}s)"
+        )
 
         print("\nPer Process Accumulated:")
         for proc_name, accumulated_sec in self._per_proc_accumulations.items():
-            print(f"{proc_name:{_MAX_PROC_NAME_LEN}}: {accumulated_sec:10.2f}s")
+            print(
+                f"{proc_name:{_MAX_PROC_NAME_LEN}}: {_sec_to_human_readable(int(accumulated_sec))}s"
+            )
 
         # print(self._hotkey_status)
         print(f"\nPress {STOP_HOTKEY} to stop timer.")
@@ -239,8 +258,8 @@ class Tracker:
 
         # add new entry, this automatically overwrites existing entry with same key(start time)
         existing[self._start_time] = {
-            "duration": time.time() - self._start_time,
-            "effective_duration": self._total_active_duration,
+            "duration": self._elapsed,
+            "effective_duration": self._active_total,
             "processes": [
                 {"proc_name": proc_name, "accumulated_sec": accumulated_sec}
                 for proc_name, accumulated_sec in self._per_proc_accumulations.items()
