@@ -64,6 +64,8 @@ WORK_PROCESS_WHITELIST = {
     "notepad",
     "obs",
     "pycharm64",
+    "rider64",
+    "explorer",
 }
 
 # used for formatting
@@ -173,6 +175,11 @@ class Tracker:
         # last input time
         self._last_input_time = 0.0
 
+        # started time string
+        self._start_time_str = datetime.datetime.fromtimestamp(
+            self._start_time
+        ).strftime("%Y-%m-%d %H:%M:%S")
+
     @property
     def _elapsed(self) -> float:
         return time.time() - self._start_time
@@ -191,12 +198,18 @@ class Tracker:
 
         elapsed = int(self._elapsed)
         active_total = int(self._active_total)
-        print(f"Elapsed: {_sec_to_human_readable(elapsed)} ({elapsed}s)")
+
+        # print generic info
         print(
-            f"Total Accumulated: {_sec_to_human_readable(active_total)} ({active_total}s)"
+            f"Start Time       : {self._start_time_str}",
+            f"Elapsed          : {_sec_to_human_readable(elapsed)} ({elapsed}s)",
+            f"Total Accumulated: {_sec_to_human_readable(active_total)} ({active_total}s)",
+            f"Current Focused  : {self._last_proc_name}",
+            sep="\n",
         )
 
-        print("\nPer Process Accumulated:")
+        # print per process time
+        print("\n# Per Process Accumulated")
         for proc_name, accumulated_sec in self._per_proc_accumulations.items():
             print(
                 f"{proc_name:{_MAX_PROC_NAME_LEN}}: {_sec_to_human_readable(int(accumulated_sec))}s"
