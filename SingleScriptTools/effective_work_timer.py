@@ -345,10 +345,13 @@ def _on_key_release(tracker: Tracker, hotkey_manager: HotKeyManager, key: KEY_TY
     # when this deals with hours
 
 
-def _main(save_result: bool):
+def _main(extra_processes: Sequence[str], save_result: bool):
 
     if save_result:
         print("Result will be saved to:", LOG_LOCATION, end="\n\n")
+
+    # add extra processes to whitelist
+    WORK_PROCESS_WHITELIST.update(extra_processes)
 
     print("Will start scanning for following processes:")
 
@@ -402,5 +405,20 @@ if __name__ == "__main__":
         help="Enable result saving to file (created next to script)",
     )
 
-    _args = _parser.parse_args()
-    _main(_args.save_result)
+    _parser.add_argument(
+        "-a",
+        "--add-processes",
+        action="extend",
+        nargs="+",
+        type=str,
+        help="Add process to whitelist, for use-cases where editing script isn't viable.",
+    )
+
+    try:
+        _args = _parser.parse_args()
+        _main(_args.add_processes, _args.save_result)
+
+    except Exception as err:
+        print(err)
+        input("\nPress enter to exit:")
+        raise
