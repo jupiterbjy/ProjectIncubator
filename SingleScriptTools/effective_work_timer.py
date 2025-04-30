@@ -112,6 +112,7 @@ def _clear_screen(newlines=100):
 def _sec_to_human_readable(sec: float) -> str:
     """Converts seconds to human-readable format.
     (Personally raw seconds isn't that bad though)
+    (nvm it is helpful to have both actually, mybad)
     """
 
     return str(datetime.timedelta(seconds=sec))
@@ -205,6 +206,7 @@ class Tracker:
             f"Elapsed          : {_sec_to_human_readable(elapsed)} ({elapsed}s)",
             f"Total Accumulated: {_sec_to_human_readable(active_total)} ({active_total}s)",
             f"Current Focused  : {self._last_proc_name}",
+            f"Efficiency       : {active_total / elapsed if elapsed else 0:.2%}",
             sep="\n",
         )
 
@@ -236,9 +238,9 @@ class Tracker:
             # process not found, probably due to delay or some system process?
             proc_name = ""
 
-        except Exception as err:
+        except Exception as _err:
             # unknown error, but gotta catch anyway to prevent listeners dying.
-            traceback.print_tb(err.__traceback__)
+            traceback.print_tb(_err.__traceback__)
             proc_name = ""
 
         # check if last process was valid, if so accumulate
@@ -416,7 +418,7 @@ if __name__ == "__main__":
 
     try:
         _args = _parser.parse_args()
-        _main(_args.add_processes, _args.save_result)
+        _main(_args.add_processes if _args.add_processes else [], _args.save_result)
 
     except Exception as err:
         print(err)
