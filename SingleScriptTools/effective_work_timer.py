@@ -205,8 +205,8 @@ class Tracker:
             f"Start Time       : {self._start_time_str}",
             f"Elapsed          : {_sec_to_human_readable(elapsed)} ({elapsed}s)",
             f"Total Accumulated: {_sec_to_human_readable(active_total)} ({active_total}s)",
-            f"Current Focused  : {self._last_proc_name}",
             f"Efficiency       : {active_total / elapsed if elapsed else 0:.2%}",
+            f"Current Focused  : {self._last_proc_name}",
             sep="\n",
         )
 
