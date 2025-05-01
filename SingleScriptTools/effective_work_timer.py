@@ -2,7 +2,7 @@
 Simple script to track focused window and measure total time
 whenever there's input with configurable margin, windows only.
 
-`pip install pywin32 win32gui win32process psutil pynput`
+`pip install pywin32 psutil pynput`
 
 ![](readme_res/effective_work_timer.png)
 
