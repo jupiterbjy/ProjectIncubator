@@ -32,7 +32,7 @@ Fetch all files with matching extension to script's location/Copied. Recursive.
 Simple script to track focused window and measure total time
 whenever there's input with configurable margin, windows only.
 
-`pip install win32gui, win32process, psutil, pynput`
+`pip install pywin32 win32gui win32process psutil pynput`
 
 ![](readme_res/effective_work_timer.png)
 
