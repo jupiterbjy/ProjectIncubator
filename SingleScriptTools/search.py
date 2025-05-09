@@ -35,85 +35,98 @@ def colored_print(text: str, color: str = YELLOW):
 
 def _read_file(path: pathlib.Path, decode_priority=ENCODINGS) -> str:
     """Reads file and return content as string.
-    
+
     Raises:
         UnicodeDecodingError: on decoding error
     """
-    
+
+    last_err = None
+
     for encoding in decode_priority:
         try:
             return path.read_text(encoding)
-        
-        except UnicodeDecodeError:
+
+        except UnicodeDecodeError as err:
+            last_err = err
             continue
-    
+
     # all attempt failed, throw again with the last encoding
-    path.read_text(encoding)
+    raise last_err
 
 
 def find_in_file(keyword: str, path: pathlib.Path) -> List[int]:
     """Finds line number where keyword appears in file.
     Returns -1 if keyword is not found.
+
     Args:
         keyword (str): keyword to search for
         path (pathlib.Path): path to file to search in
+
     Returns:
         int: line number where keyword appears, or -1 if not found
-    
+
     Raises:
         UnicodeDecodeError: on decoding error
     """
-    
+
     return [
-        idx for idx, line in enumerate(_read_file(path).splitlines())
-        if keyword in line
+        idx for idx, line in enumerate(_read_file(path).splitlines()) if keyword in line
     ]
 
 
 def search_file(
-    keyword: str, path: pathlib.Path, ext_whitelist: set
+    keyword: str, path: pathlib.Path, ext_whitelist: set, ignore_error: bool = False
 ) -> Generator[Tuple[pathlib.Path, List[int]], None, None]:
     """Generator that searches for keyword in files with specified extensions.
+
     Args:
         keyword (str): keyword to search for.
         path (pathlib.Path): path to search in.
         ext_whitelist (set): Extensions to search for. If empty ignores extension.
+        ignore_error: ignore decoding errors
+
     Yields:
         Tuple[pathlib.Path, List[int]: path to file & list of line# where keyword appears.
     """
-    
+
     for path in path.iterdir():
-        
+
         # if path is a directory, recursively search in it
         if path.is_dir():
-            yield from search_file(keyword, path, ext_whitelist)
+            yield from search_file(keyword, path, ext_whitelist, ignore_error)
             continue
-        
+
         # if path is not a file we're looking for, skip
         if ext_whitelist and path.suffix not in ext_whitelist:
             continue
-        
+
         try:
             results = find_in_file(keyword, path)
-            
+
         except UnicodeDecodeError:
-            # we can't do a shete on encoding errors
-            colored_print(f"Failed to read file {path} with encoding {ENCODINGS}", RED)
+            # we can't do shete on encoding errors
+            if not ignore_error:
+                colored_print(
+                    f"Failed to read file {path} with encoding {ENCODINGS}", RED
+                )
             continue
-        
+
         if results:
             yield path, results
 
 
 def get_search_target() -> set:
-    raw = colored_input("\nEnter extensions separated by space(blank for all files):\n> ")
+    raw = colored_input(
+        "\nEnter extensions separated by space(blank for all files):\n> "
+    )
     return set(raw.split())
 
 
 def get_search_target_preset() -> set:
     """Get a set of extensions to search for from a preset list.
-    Type 'm' to manually type in extensions."""
-    
+    Type 'm' to manually type in extensions.
+    """
+
     ext_set_dict = {
         "all": {},
         "c": {".c", ".h", ".cpp", ".hpp"},
@@ -125,33 +138,35 @@ def get_search_target_preset() -> set:
         "godot": {".gd", ".gdshader"},
     }
     digits = max(len(name) for name in ext_set_dict.keys())
-    
+
     colored_print("\nSelect extension set index to search for (default all):")
     print(f"{GREEN}m{END} Type yourself")
-    
+
     for i, (name, ext_set) in enumerate(ext_set_dict.items()):
         print(f"{GREEN}{i}{END} {name:{digits}} : {RED}{' '.join(ext_set)}{END}")
-    
+
     _input = 0
     while True:
         raw = colored_input("> ").strip()
-        
+
         match raw:
-            case "": break
-            case "m": return get_search_target()
-        
+            case "":
+                break
+            case "m":
+                return get_search_target()
+
         try:
             _input = int(raw)
             assert 0 <= _input <= len(ext_set_dict)
-        
+
         except (ValueError, AssertionError):
             continue
-        
+
         break
-    
+
     key = list(ext_set_dict.keys())[_input]
     exts = ext_set_dict[key]
-    
+
     colored_print(f"Extension Filter: {key}", GREEN)
     return exts
 
@@ -159,51 +174,89 @@ def get_search_target_preset() -> set:
 def get_search_path() -> pathlib.Path:
     """Get user input for path to search in.
     If blank, return Script path.
+
     Returns:
         pathlib.Path: path to search in.
     """
-    
-    colored_print("\nEnter search path (blank for Script path):")
-    
+
+    colored_print("\nEnter search path (blank for script's path):")
+
     while True:
         path = colored_input("> ")
         if not path:
             break
-        
+
         path = pathlib.Path(path)
         if path.exists():
             break
-    
+
     selected = pathlib.Path(path) if path else ROOT
     colored_print(f"Searching in: {selected.absolute().as_posix()}", GREEN)
     return selected
 
 
-def main():
+def get_error_ignore_behavior() -> bool:
+    """Let user decide whether to ignore decoding errors or not.
+
+    Returns:
+        bool: if true, ignore decoding errors, otherwise prints to console
+    """
+    colored_print("\nIgnore decoding errors? (y/N)")
+
+    while True:
+        raw = colored_input("> ")
+
+        if raw and raw in "Yy":
+            return True
+
+        return False
+
+
+def main() -> bool:
+    """Main search loop.
+
+    Returns:
+        bool: if true, will restart, else will quit.
+    """
+
+    colored_print(f"Active encodings: {ENCODINGS}", YELLOW)
+
+    ignore_error = get_error_ignore_behavior()
     search_path = get_search_path()
     search_extensions = get_search_target_preset()
 
     while True:
-        query = colored_input("\n\nKeyword (q to exit): ")
+        query = colored_input("\n\nKeyword (q to exit, r to restart): ")
         if not query:
             continue
-        
+
         if query in "Qq":
-            return
-        
-        for path, line_nos in search_file(query, search_path, search_extensions):
+            return False
+
+        if query in "Rr":
+            return True
+
+        for path, line_nos in search_file(
+            query, search_path, search_extensions, ignore_error
+        ):
             colored_print(f"\nIn {path.absolute().as_posix()}:", GREEN)
-            
+
             # search for lines in file. Reading file here again cause IDC.
             # QOL > performance
             lines = path.read_text("utf8").splitlines()
             digits = len(str(len(lines)))
-            
+
             for line_no in line_nos:
                 print(f"{GREEN} {line_no + 1:0{digits}}|{END}  {lines[line_no]}")
-        
+
         colored_print("\n-- END OF RESULTS --", RED)
+
+    return True
 
 
 if __name__ == "__main__":
-    main()
+    _restart = True
+
+    while _restart:
+        print("\n" * 50)
+        _restart = main()
