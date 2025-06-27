@@ -17,6 +17,7 @@ To send api call:
 POST http://127.0.0.1:8000/file with Multipart file attachment.
 
 """
+
 import argparse
 import time
 import hashlib
@@ -62,7 +63,8 @@ async def file_upload(file: UploadFile) -> str:
     # Pass it to global nursery immediately.
     # Meanwhile, I am not sure how this is possible, is it downloading somewhere?
     # No info on documents afaik
-    NURSERY.start_soon(write_to_file, file)
+    # NURSERY.start_soon(write_to_file, file)
+    await write_to_file(file)
     return "Success"
 
 
@@ -108,11 +110,19 @@ async def write_to_file(file: UploadFile):
 
             # if there's file extension, keep it
             # then rename file with record ID.
-            suffix = "." + file_name.split('.')[-1] if "." in file_name else ""
+            suffix = "." + file_name.split(".")[-1] if "." in file_name else ""
             new_name = f"{(await cursor.fetchone())[0]}{suffix}"
 
-    await save_file.rename(save_file.with_name(new_name))
-    print(f"DB COMMIT DONE; RENAMING {file_name} to {new_name}")
+        while True:
+            await trio.sleep(0.1)
+            try:
+                await save_file.rename(save_file.with_name(new_name))
+            except PermissionError:
+                print("File locked, retrying...")
+                continue
+            break
+
+    print(f"DB COMMIT DONE; RENAMED {file_name} TO {new_name}")
 
 
 def get_db_connection() -> trio_mysql.Connection:
@@ -177,6 +187,6 @@ if __name__ == "__main__":
 
     # HyperCorn's config, so Cornfig. I'm sorry.
     cornfig = Config()
-    cornfig.bind = "localhost:8000"
+    cornfig.bind = "0.0.0.0:8000"
 
     trio.run(main_task)
