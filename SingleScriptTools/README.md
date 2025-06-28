@@ -32,9 +32,39 @@ Fetch all files with matching extension to script's location/Copied. Recursive.
 Simple script to track focused window and measure total time
 whenever there's input with configurable margin, windows only.
 
-`pip install pywin32 win32gui win32process psutil pynput`
+`pip install pywin32 psutil pynput`
 
 ![](readme_res/effective_work_timer.png)
+
+
+<br>
+<br>
+
+
+---
+
+### [favorite_save_file_reorder_▽.py](favorite_save_file_reorder_▽.py)
+Script to reorder save files from 'Irotoridori no Sekai'.
+Should work for all visual novels from FAVORITE.
+
+ALWAYS backup first.
+
+Example output:
+```
+Save start idx: 1
+Input files: s004.bin s005.bin s010.bin s012.bin ... s121.bin s122.bin s123.bin
+
+Proceed? (y/N): y
+Renamed s004.bin to s001.bin
+Renamed s005.bin to s002.bin
+Renamed s010.bin to s003.bin
+Renamed s012.bin to s004.bin
+Renamed s015.bin to s005.bin
+...
+Renamed s123.bin to s088.bin
+
+Press enter to exit:
+```
 
 
 <br>
@@ -183,6 +213,21 @@ Generates hardcoded turtle drawing script drawing contour out of image.
 `pip install opencv-python, numpy, pillow`
 
 ![Example](readme_res/img_2_turtle.webp)
+
+
+<br>
+<br>
+
+
+---
+
+### [img_audio_2_vid_▽.py](img_audio_2_vid_▽.py)
+Script to convert image + audio to video via FFMPEG. (Basically bloated bash script)
+Assumes FFMPEG exists in PATH.
+
+If not, install via `scoop install ffmpeg` or `sudo apt install ffmpeg` or whatever pkg manager you use.
+
+Drag & drop image and audio to create video.
 
 
 <br>
