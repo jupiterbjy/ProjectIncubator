@@ -8,6 +8,25 @@ Bunch of standalone scripts I wrote for use in daily life
 
 ---
 
+### [strip_image_frame_▽.py](strip_image_frame_▽.py)
+![](readme_res/strip_image_frame.png)
+
+`pip install pillow`
+
+Simple script to strip n pixel from its border.
+
+Resulting images will be saved at individual image locations with `_stripped` suffix.
+
+Created this due to Bandicam keeps capturing images 2 pixel radius wider than actual window is.
+Imagine dozens of such images to edit, hence this is.
+
+
+<br>
+<br>
+
+
+---
+
 ### [auto_html_reload.py](auto_html_reload.py)
 Watches for html file changes and reload pages with selenium
 
@@ -18,8 +37,14 @@ Watches for html file changes and reload pages with selenium
 
 ---
 
-### [copy_file_recursive.py](copy_file_recursive.py)
-Fetch all files with matching extension to script's location/Copied. Recursive.
+### [split_img_fixed_size_▽.py](split_img_fixed_size_▽.py)
+Cuts the image fixed-size from top left corner.
+
+`pip install pillow`
+
+Designed to cut some sprites in Armada Tanks for recreating.
+
+![](readme_res/split_img_fixed_size.png)
 
 
 <br>
@@ -28,13 +53,108 @@ Fetch all files with matching extension to script's location/Copied. Recursive.
 
 ---
 
-### [effective_work_timer.py](effective_work_timer.py)
-Simple script to track focused window and measure total time
-whenever there's input with configurable margin, windows only.
+### [search.py](search.py)
+![](readme_res/search.png)
 
-`pip install pywin32 psutil pynput`
+Searches for lines containing given keyword.
+Has options to Filter multiple extensions for searching.
 
-![](readme_res/effective_work_timer.png)
+
+<br>
+<br>
+
+
+---
+
+### [watchdog_file_events.py](watchdog_file_events.py)
+Watchdog callback register-able custom handler to see what's going on in current directory.
+
+`pip install watchdog`
+
+![](readme_res/watchdog_file_events.png)
+
+
+<br>
+<br>
+
+
+---
+
+### [validate_m3u_▽.py](validate_m3u_▽.py)
+Simply checks if all files in folder is included in m3u file in the same dir
+or if any of listed entry is missing
+
+
+<br>
+<br>
+
+
+---
+
+### [img_2_turtle_▽.py](img_2_turtle_▽.py)
+Generates hardcoded turtle drawing script drawing contour out of image.
+
+`pip install opencv-python, numpy, pillow`
+
+![Example](readme_res/img_2_turtle.webp)
+
+
+<br>
+<br>
+
+
+---
+
+### [img_audio_2_vid_▽.py](img_audio_2_vid_▽.py)
+Script to convert image + audio to video via FFMPEG. (Basically bloated bash script)
+Assumes FFMPEG exists in PATH.
+
+If not, install via `scoop install ffmpeg` or `sudo apt install ffmpeg` or whatever pkg manager you use.
+
+Drag & drop image and audio to create video.
+
+
+<br>
+<br>
+
+
+---
+
+### [process_runtime_tracker.py](process_runtime_tracker.py)
+Simple (& terrible) script to track process runtime by pooling processes every 10 seconds.
+
+Tracked time is written to a sqlite3 database created next to this script.
+
+`pip install psutil`
+
+
+<br>
+<br>
+
+
+---
+
+### [replace_to_uid_▽.py](replace_to_uid_▽.py)
+WARING - Experimental script. Make sure to archive your project.
+
+Simple script to automatically follow & replace `res://` path to
+`uid://` introduced in godot 4.4 dev5.
+
+Assuming utf8 encoding as every sane people should do.
+
+Also ignores addon directory.
+
+
+<br>
+<br>
+
+
+---
+
+### [img_2_pdf_▽.py](img_2_pdf_▽.py)
+Convert multiples images into single pdf
+
+`pip install pillow`
 
 
 <br>
@@ -73,59 +193,16 @@ Press enter to exit:
 
 ---
 
-### [fetch_transcript.py](fetch_transcript.py)
-Fetches transcript from YouTube video
-Currently broken as API is gone, will rewrite again when I need this
+### [update_registry_userdir.py](update_registry_userdir.py)
+Script to update all registry entries after changing user directory name.
+Primarily intended to be used for Win10 as a stopgap measure before reinstalling.
 
-`pip install youtube-transcript-api, httpx`
+This script recursively update all affected paths containing *target* keyword
+Honestly this would've been better done with usual batchscript, or maybe not.
 
+There is no safety feature in this, use with caution!
 
-<br>
-<br>
-
-
----
-
-### [ffmpeg_playback_multiply_▽.py](ffmpeg_playback_multiply_▽.py)
-Multiplies video playback speed by discarding frames without encoding
-Requires FFMPEG
-
-
-<br>
-<br>
-
-
----
-
-### [files_2_image_▽.py](files_2_image_▽.py)
-Embeds file inside jpg metadata. Any decent unzipper can open as zip.
-
-`pip install pillow`
-
-Check usage by executing without parameters.
-
-![Example](readme_res/files_2_image.png)
-
-
-
-<br>
-<br>
-
-
----
-
-### [file_line_char_count.py](file_line_char_count.py)
-Counts number of lines and characters in predetermined file types.
-
-
-<br>
-<br>
-
-
----
-
-### [file_walker.py](file_walker.py)
-File system navigating class which remembers current director's contents
+![](readme_res/update_registry_userdir.png)
 
 
 <br>
@@ -145,8 +222,9 @@ Assuming every script in directory starts with docstring.
 
 ---
 
-### [get_module_reference.py](get_module_reference.py)
-Module wrapping `inspect` module to list classes, functions in specified module
+### [singledispatch_for_object.py](singledispatch_for_object.py)
+Mimics functools.singledispatch, but for objects.
+usage is also almost identical.
 
 
 <br>
@@ -155,10 +233,8 @@ Module wrapping `inspect` module to list classes, functions in specified module
 
 ---
 
-### [gif_remove_alpha_▽.py](gif_remove_alpha_▽.py)
-Remove alpha channel from gif image, replacing it with desired color.
-
-`pip install pillow`
+### [unicodify_▽.py](unicodify_▽.py)
+A very primitive script to unicode-fy passed text files, such as mass csv files, etc
 
 
 <br>
@@ -195,8 +271,18 @@ Removes GPS tags from image EXIF data
 
 ---
 
-### [img_2_pdf_▽.py](img_2_pdf_▽.py)
-Convert multiples images into single pdf
+### [logging_config.py](logging_config.py)
+Just use loguru, I used this until I found it.
+
+
+<br>
+<br>
+
+
+---
+
+### [squarefy_image_▽.py](squarefy_image_▽.py)
+Simply makes images perfect square by extending from shorter dimension.
 
 `pip install pillow`
 
@@ -207,12 +293,9 @@ Convert multiples images into single pdf
 
 ---
 
-### [img_2_turtle_▽.py](img_2_turtle_▽.py)
-Generates hardcoded turtle drawing script drawing contour out of image.
-
-`pip install opencv-python, numpy, pillow`
-
-![Example](readme_res/img_2_turtle.webp)
+### [ffmpeg_playback_multiply_▽.py](ffmpeg_playback_multiply_▽.py)
+Multiplies video playback speed by discarding frames without encoding
+Requires FFMPEG
 
 
 <br>
@@ -221,13 +304,10 @@ Generates hardcoded turtle drawing script drawing contour out of image.
 
 ---
 
-### [img_audio_2_vid_▽.py](img_audio_2_vid_▽.py)
-Script to convert image + audio to video via FFMPEG. (Basically bloated bash script)
-Assumes FFMPEG exists in PATH.
+### [gif_remove_alpha_▽.py](gif_remove_alpha_▽.py)
+Remove alpha channel from gif image, replacing it with desired color.
 
-If not, install via `scoop install ffmpeg` or `sudo apt install ffmpeg` or whatever pkg manager you use.
-
-Drag & drop image and audio to create video.
+`pip install pillow`
 
 
 <br>
@@ -261,10 +341,13 @@ on failure.
 
 ---
 
-### [img_remove_alpha_▽.py](img_remove_alpha_▽.py)
-Remove alpha channel from image with desired color.
+### [effective_work_timer.py](effective_work_timer.py)
+Simple script to track focused window and measure total time
+whenever there's input with configurable margin, windows only.
 
-`pip install pillow`
+`pip install pywin32 psutil pynput`
+
+![](readme_res/effective_work_timer.png)
 
 
 <br>
@@ -273,8 +356,32 @@ Remove alpha channel from image with desired color.
 
 ---
 
-### [logging_config.py](logging_config.py)
-Just use loguru, I used this until I found it.
+### [get_module_reference.py](get_module_reference.py)
+Module wrapping `inspect` module to list classes, functions in specified module
+
+
+<br>
+<br>
+
+
+---
+
+### [webcam_periodic_capture.py](webcam_periodic_capture.py)
+Script to capture webcam images periodically.
+
+`pip install opencv-python`
+
+![](readme_res/webcam_periodic_capture.png)
+
+
+<br>
+<br>
+
+
+---
+
+### [file_line_char_count.py](file_line_char_count.py)
+Counts number of lines and characters in predetermined file types.
 
 
 <br>
@@ -295,15 +402,11 @@ Generates m3u8 file using audio files in current directory. Recursive.
 
 ---
 
-### [replace_to_uid_▽.py](replace_to_uid_▽.py)
-WARING - Experimental script. Make sure to archive your project.
+### [fetch_transcript.py](fetch_transcript.py)
+Fetches transcript from YouTube video
+Currently broken as API is gone, will rewrite again when I need this
 
-Simple script to automatically follow & replace `res://` path to
-`uid://` introduced in godot 4.4 dev5.
-
-Assuming utf8 encoding as every sane people should do.
-
-Also ignores addon directory.
+`pip install youtube-transcript-api, httpx`
 
 
 <br>
@@ -312,48 +415,8 @@ Also ignores addon directory.
 
 ---
 
-### [search.py](search.py)
-![](readme_res/search.png)
-
-Searches for lines containing given keyword.
-Has options to Filter multiple extensions for searching.
-
-
-<br>
-<br>
-
-
----
-
-### [singledispatch_for_object.py](singledispatch_for_object.py)
-Mimics functools.singledispatch, but for objects.
-usage is also almost identical.
-
-
-<br>
-<br>
-
-
----
-
-### [split_img_fixed_size_▽.py](split_img_fixed_size_▽.py)
-Cuts the image fixed-size from top left corner.
-
-`pip install pillow`
-
-Designed to cut some sprites in Armada Tanks for recreating.
-
-![](readme_res/split_img_fixed_size.png)
-
-
-<br>
-<br>
-
-
----
-
-### [squarefy_image_▽.py](squarefy_image_▽.py)
-Simply makes images perfect square by extending from shorter dimension.
+### [img_remove_alpha_▽.py](img_remove_alpha_▽.py)
+Remove alpha channel from image with desired color.
 
 `pip install pillow`
 
@@ -381,17 +444,25 @@ Requires ffmpeg in PATH.
 
 ---
 
-### [strip_image_frame_▽.py](strip_image_frame_▽.py)
-![](readme_res/strip_image_frame.png)
+### [copy_file_recursive.py](copy_file_recursive.py)
+Fetch all files with matching extension to script's location/Copied. Recursive.
+
+
+<br>
+<br>
+
+
+---
+
+### [files_2_image_▽.py](files_2_image_▽.py)
+Embeds file inside jpg metadata. Any decent unzipper can open as zip.
 
 `pip install pillow`
 
-Simple script to strip n pixel from its border.
+Check usage by executing without parameters.
 
-Resulting images will be saved at individual image locations with `_stripped` suffix.
+![Example](readme_res/files_2_image.png)
 
-Created this due to Bandicam keeps capturing images 2 pixel radius wider than actual window is.
-Imagine dozens of such images to edit, hence this is.
 
 
 <br>
@@ -412,65 +483,8 @@ Dumb script that looks for twitch points button element on chat and clicks it
 
 ---
 
-### [unicodify_▽.py](unicodify_▽.py)
-A very primitive script to unicode-fy passed text files, such as mass csv files, etc
-
-
-<br>
-<br>
-
-
----
-
-### [update_registry_userdir.py](update_registry_userdir.py)
-Script to update all registry entries after changing user directory name.
-Primarily intended to be used for Win10 as a stopgap measure before reinstalling.
-
-This script recursively update all affected paths containing *target* keyword
-Honestly this would've been better done with usual batchscript, or maybe not.
-
-There is no safety feature in this, use with caution!
-
-![](readme_res/update_registry_userdir.png)
-
-
-<br>
-<br>
-
-
----
-
-### [validate_m3u_▽.py](validate_m3u_▽.py)
-Simply checks if all files in folder is included in m3u file in the same dir
-or if any of listed entry is missing
-
-
-<br>
-<br>
-
-
----
-
-### [watchdog_file_events.py](watchdog_file_events.py)
-Watchdog callback register-able custom handler to see what's going on in current directory.
-
-`pip install watchdog`
-
-![](readme_res/watchdog_file_events.png)
-
-
-<br>
-<br>
-
-
----
-
-### [webcam_periodic_capture.py](webcam_periodic_capture.py)
-Script to capture webcam images periodically.
-
-`pip install opencv-python`
-
-![](readme_res/webcam_periodic_capture.png)
+### [file_walker.py](file_walker.py)
+File system navigating class which remembers current director's contents
 
 
 <br>
