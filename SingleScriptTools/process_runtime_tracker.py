@@ -98,8 +98,8 @@ def main_loop(conn: sqlite3.Connection):
         next_t += CHECK_INTERVAL_SEC
         time.sleep(next_t - time.time())
 
-        for process in psutil.process_iter():
-            normalized = _normalize_process_name(process.name())
+        for process in psutil.process_iter(["name"]):
+            normalized = _normalize_process_name(process.info["name"])
 
             if normalized in PROCESS_WHITELIST:
                 db_update_time(conn, normalized, CHECK_INTERVAL_SEC)
