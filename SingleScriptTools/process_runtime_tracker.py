@@ -27,12 +27,16 @@ DB_PATH = pathlib.Path(__file__).parent / "process_runtime_tracker.sqlite"
 CHECK_INTERVAL_SEC = 5.0
 
 # DB Configurations
-TABLE_NAME = "process_times"
-CREATE_QUERY = (
-    f"CREATE TABLE IF NOT EXISTS {TABLE_NAME} (process TEXT PRIMARY KEY, time REAL)"
-)
-UPDATE_QUERY = f"INSERT INTO {TABLE_NAME} (process, time) VALUES (?, ?) ON CONFLICT(process) DO UPDATE SET time=time+?"
-FETCH_ALL_QUERY = f"SELECT * FROM {TABLE_NAME}"
+TABLE = "process_times"
+
+CREATE_QUERY = f"CREATE TABLE IF NOT EXISTS {TABLE} (process TEXT PRIMARY KEY, time REAL, last_play_utc INTEGER)"
+
+UPDATE_QUERY = f"""
+INSERT INTO {TABLE} (process, time, last_play_utc) VALUES (?, ?, ?)
+ON CONFLICT(process) DO UPDATE SET time=time+?, last_play_utc=?
+""".strip()
+
+FETCH_ALL_QUERY = f"SELECT * FROM {TABLE}"
 
 RE_PATTERN = re.compile(r"[^\W.]+")
 
@@ -40,7 +44,7 @@ RE_PATTERN = re.compile(r"[^\W.]+")
 # Will ignore all parts unmatched from above RE_PATTERN.
 # i.e. "SomeProcess_abc.exe" -> "someprocess_abc"
 # noinspection SpellCheckingInspection
-PROCESS_WHITELIST = {"hikari_kr", "shinku_kr", "kate", "pycharm"}
+PROCESS_WHITELIST = {"hikari_kr", "shinku_kr", "kate", "pycharm64"}
 
 
 # --- Utilities ---
@@ -80,7 +84,10 @@ def db_update_time(
 ):
     """Adds the process's runtime to db"""
 
-    db_conn.execute(UPDATE_QUERY, (process_name, duration_added, duration_added))
+    unix_t = int(time.time())
+    db_conn.execute(
+        UPDATE_QUERY, (process_name, duration_added, unix_t, duration_added, unix_t)
+    )
 
 
 def db_list_records(db_conn: sqlite3.Connection):
@@ -110,11 +117,24 @@ def main_loop(conn: sqlite3.Connection):
         print("Process Time Summary:")
         print(
             *(
-                f"{pn:10}:{_sec_to_human_readable(t)}"
-                for pn, t in db_list_records(conn)
+                f"{pn:10} - {_sec_to_human_readable(t)} - {datetime.datetime.fromtimestamp(last_unix_t)}"
+                for pn, t, last_unix_t in db_list_records(conn)
             ),
             sep="\n",
         )
+
+
+def write_to_local_db(local_conn: sqlite3.Connection, in_mem_conn: sqlite3.Connection):
+    """Syncs db with current process time"""
+
+    # add in-mem db times to local data
+    local_conn.executemany(
+        UPDATE_QUERY,
+        (
+            (pn, t, unix_t, t, unix_t)
+            for (pn, t, unix_t) in db_list_records(in_mem_conn)
+        ),
+    )
 
 
 def main():
@@ -131,12 +151,7 @@ def main():
 
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute(CREATE_QUERY)
-
-            # add in-mem db times to local data
-            conn.executemany(
-                UPDATE_QUERY,
-                ((pn, t, t) for (pn, t) in db_list_records(in_mem_conn)),
-            )
+            write_to_local_db(conn, in_mem_conn)
             conn.commit()
 
         print("All done!")
