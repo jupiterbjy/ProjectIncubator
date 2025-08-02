@@ -1,23 +1,23 @@
 """
 Simple (& terrible) script to track process runtime by pooling processes every 10 seconds.
 
-Tracked time is written to a sqlite3 database created next to this script.
+Pure python so no external dependencies are required.
+(One might want to edit PROC_LIST_CMD to match their OS instead)
 
-`pip install psutil`
+Tracked time is written to a sqlite3 database created next to this script.
 
 :Author: jupiterbjy@gmail.com
 """
 
-import datetime
 import itertools
+import platform
 import re
 import time
 import pathlib
 import sqlite3
 import subprocess
-from textwrap import dedent
+from datetime import timedelta
 from argparse import ArgumentParser
-from typing import TypedDict
 
 
 # --- Config ---
@@ -29,46 +29,31 @@ PN_NORMALIZE_PATTERN = re.compile(r"\w+")
 # List of process names to track time of.
 # noinspection SpellCheckingInspection
 PROCESS_WHITELIST = {
-    _pn
-    # PN_NORMALIZE_PATTERN.match(_pn).group(0)
-    for _pn in {"Hikari_KR", "Shinku_KR", "kate", "pycharm64", "notepad++"}
+    "Hikari_KR",
+    "Shinku_KR",
+    "kate",
+    "pycharm64",
+    "notepad++",
+    "HoshimemoEH_HD",
+    "HoshiMemo_HD",
+    "iroseka_HD_EN_steam",
+    "Sakura_KR",
 }
+# PROCESS_WHITELIST = {PN_NORMALIZE_PATTERN.match(_pn).group(0) for _pn in PROCESS_WHITELIST}
 
-# Command to use to get process name list
-PROC_LIST_CMD = (
-    'powershell -Command "Get-Process | Select-Object -ExpandProperty ProcessName"'
-)
-# PROC_LIST_CMD = "ps -e -o comm="
+# Command to use to fetch process names, so we don't need psutil dependency
+PROC_LIST_CMD = {
+    "Windows": 'powershell -Command "Get-Process | Select-Object -ExpandProperty ProcessName"',
+    "Linux": "ps -e -o comm=",
+}[platform.system()]
 
 DB_PATH = pathlib.Path(__file__).parent / "process_runtime_tracker.sqlite"
 
 # Check intervals in seconds
 CHECK_INTERVAL_SEC = 5.0
 
-# Commit intervals in iteration(CHECK_INTERVAL_SEC)
+# Commit intervals in iteration (CHECK_INTERVAL_SEC * COMMIT_INTERVAL_ITER)
 COMMIT_INTERVAL_ITER = 12
-
-
-class Query:
-    """Namespace for queries, so it's easier to edit"""
-
-    create_table = """
-    CREATE TABLE IF NOT EXISTS "{}"
-    (start_utc INTEGER, end_utc INTEGER, time REAL, PRIMARY KEY(start_utc))
-    """
-    create_table = dedent(create_table).strip().replace("\n", " ")
-
-    update = """
-    INSERT INTO "{}" VALUES (?, ?, ?)
-    ON CONFLICT(start_utc) DO UPDATE SET end_utc=?, time=time+?
-    """
-    update = dedent(update).strip().replace("\n", " ")
-
-    total_time = 'SELECT SUM(time) FROM "{}"'
-
-    fetch_all = 'SELECT * FROM "{}"'
-
-    single_time = 'SELECT time FROM "{}" WHERE start_utc=?'
 
 
 # --- Utilities ---
@@ -90,17 +75,6 @@ def _clear_screen(newlines=100):
     print("\n" * newlines)
 
 
-def _sec_to_human_readable(sec: float) -> str:
-    """Converts seconds to human-readable format"""
-
-    return str(datetime.timedelta(seconds=sec))
-
-
-class _ProcessEntryType(TypedDict):
-    proc_name: str
-    accumulated_sec: float
-
-
 def get_processes() -> set[str]:
     """Returns a set of process names. Errors are ignored."""
 
@@ -108,120 +82,158 @@ def get_processes() -> set[str]:
     return set(result.stdout.decode("utf-8").splitlines())
 
 
-def print_time(conn: sqlite3.Connection, process_name: str, start_t: int):
-    """Print give process's accumulated time"""
+class _Query:
+    """Namespace for queries, so it's easier to edit"""
 
-    p_time = _sec_to_human_readable(db_single_time(conn, process_name, start_t))
-    total_time = _sec_to_human_readable(db_total_time(conn, process_name))
-    print(f"{process_name:20} - {p_time:>10} ({total_time})")
+    create_table = """
+    CREATE TABLE IF NOT EXISTS "{}" (start_utc INTEGER, end_utc INTEGER, time REAL, PRIMARY KEY(start_utc))
+    """
+    # create_table = dedent(create_table).strip().replace("\n", " ")
+
+    update = """
+    INSERT INTO "{}" VALUES (?, ?, ?) ON CONFLICT(start_utc) DO UPDATE SET end_utc=?, time=time+?
+    """
+    # update = dedent(update).strip().replace("\n", " ")
+
+    total_time = 'SELECT SUM(time) FROM "{}"'
+
+    fetch_all = 'SELECT * FROM "{}"'
+
+    single_time = 'SELECT time FROM "{}" WHERE start_utc=?'
+
+
+class DBWrapper:
+    """Wraps sqlite3 database. Use this as context manager."""
+
+    def __init__(self, db_path: pathlib.Path):
+        self._path = db_path
+        self._conn = None
+
+    def __enter__(self):
+        self._conn = sqlite3.connect(self._path)
+        self._ensure_tables_exist()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._conn.commit()
+        self._conn.close()
+
+    def _ensure_tables_exist(self):
+        """Makes sure all tables exist in the db"""
+
+        for process_name in PROCESS_WHITELIST:
+            self._conn.execute(_Query.create_table.format(process_name))
+
+        self._conn.commit()
+
+    def commit(self):
+        """Commit changes to DB"""
+
+        self._conn.commit()
+
+    def update_session_record(
+        self,
+        process_name: str,
+        start_t: int,
+        duration_added: float,
+    ):
+        """Increases/Set duration for given session."""
+
+        end_t = int(time.time())
+        self._conn.execute(
+            _Query.update.format(process_name),
+            (start_t, end_t, duration_added, end_t, duration_added),
+        )
+
+    def get_session_records(self, process_name: str) -> list[tuple[int, int, float]]:
+        """Returns a list of (start_unix_time, end_unix_time, duration) tuples"""
+
+        return self._conn.execute(_Query.fetch_all.format(process_name)).fetchall()
+
+    def get_total_time(self, process_name: str) -> float:
+        """Returns total accumulated playtime for the given process"""
+
+        return (
+            self._conn.execute(_Query.total_time.format(process_name)).fetchone()[0]
+            or 0.0
+        )
+
+    def get_session_time(self, process_name: str, start_t: int) -> float:
+        """Returns single process's runtime"""
+
+        return (
+            self._conn.execute(
+                _Query.single_time.format(process_name), (start_t,)
+            ).fetchone()[0]
+            or 0.0
+        )
+
+    def print_time(self, process_name: str, start_t: int):
+        """Print give process's accumulated time in human-readable format"""
+
+        p_time = str(timedelta(seconds=self.get_session_time(process_name, start_t)))
+        total_time = str(timedelta(seconds=self.get_total_time(process_name)))
+
+        print(f"{process_name:20} - {p_time:>10} ({total_time})")
 
 
 # --- Logics ---
 
 
-def db_update_time(
-    db_conn: sqlite3.Connection, process_name: str, start_t: int, duration_added: float
-):
-    """Adds the process's runtime to db"""
+def update_time(db: DBWrapper, start_ts: dict[str, int], commit=False):
+    """Fetch processes and update process runtime in db.
 
-    end_t = int(time.time())
-    db_conn.execute(
-        Query.update.format(process_name),
-        (start_t, end_t, duration_added, end_t, duration_added),
-    )
+    Args:
+        db: DBWrapper instance
+        start_ts: (process_name: start_time_of_session) dict
+        commit: whether to commit changes to db or not.
+    """
 
+    processes = PROCESS_WHITELIST & get_processes()
 
-def db_list_records(db_conn: sqlite3.Connection, process_name: str) -> list[tuple]:
-    """Returns a list of (process_name, duration) tuples"""
+    _clear_screen()
+    print("Process Time Summary:")
 
-    return db_conn.execute(Query.fetch_all.format(process_name)).fetchall()
+    for process in processes:
+        pn = process
+        # pn = _normalize_process_name(process.info["name"])
 
+        # if it wasn't started before, register start time
+        if pn not in start_ts:
+            start_ts[pn] = int(time.time())
 
-def db_total_time(db_conn: sqlite3.Connection, process_name: str) -> float:
-    """Returns total accumulated playtime"""
+        db.update_session_record(pn, start_ts[pn], CHECK_INTERVAL_SEC)
+        db.print_time(pn, start_ts[pn])
 
-    return db_conn.execute(Query.total_time.format(process_name)).fetchone()[0] or 0.0
+    # check for inactive processes and clear start times
+    for process in PROCESS_WHITELIST - processes:
+        start_ts.pop(process, None)
 
-
-def db_single_time(
-    db_conn: sqlite3.Connection, process_name: str, start_t: int
-) -> float:
-    """Returns single process's runtime"""
-
-    return (
-        db_conn.execute(Query.single_time.format(process_name), (start_t,)).fetchone()[
-            0
-        ]
-        or 0.0
-    )
-
-
-def ensure_table_exists(db_conn: sqlite3.Connection):
-    """Ensures that the given table exists in the db"""
-
-    for process_name in PROCESS_WHITELIST:
-        db_conn.execute(Query.create_table.format(process_name))
-
-
-def main_loop(conn: sqlite3.Connection):
-    """Primary loop"""
-
-    start_ts = {}
-    next_t = time.time()
-    next_commit = itertools.cycle(range(COMMIT_INTERVAL_ITER))
-
-    while True:
-        next_t += CHECK_INTERVAL_SEC
-        try:
-            time.sleep(next_t - time.time())
-
-        except ValueError:
-            # python process must've been paused and gives negative sleep time, reset time
-            next_t = time.time() + CHECK_INTERVAL_SEC
-            continue
-
-        processes = get_processes()
-
-        _clear_screen()
-        print("Process Time Summary:")
-
-        for process in processes:
-            pn = process
-            # pn = _normalize_process_name(process.info["name"])
-
-            if pn not in PROCESS_WHITELIST:
-                continue
-
-            # if it wasn't started before register start time to use as pkey
-            if pn not in start_ts:
-                start_ts[pn] = int(time.time())
-
-            db_update_time(conn, pn, start_ts[pn], CHECK_INTERVAL_SEC)
-            print_time(conn, pn, start_ts[pn])
-
-        # check for inactive processes and clear start times
-        for process in PROCESS_WHITELIST:
-            if process not in processes:
-                start_ts.pop(process, None)
-
-        if next(next_commit) == 0:
-            conn.commit()
+    if commit:
+        db.commit()
 
 
 def main():
     print(f"Tracking following processes:\n{PROCESS_WHITELIST}\n")
 
-    # in_mem_conn = sqlite3.connect(":memory:")
-    # in_mem_conn.execute(CREATE_QUERY)
+    start_ts = {}
+    next_t = time.time()
+    next_commit = itertools.cycle(range(COMMIT_INTERVAL_ITER))
 
-    with sqlite3.connect(DB_PATH) as conn:
-        ensure_table_exists(conn)
-        conn.commit()
+    with DBWrapper(DB_PATH) as db:
+        while True:
 
-        try:
-            main_loop(conn)
-        finally:
-            conn.commit()
+            # set next wakeup time
+            next_t += CHECK_INTERVAL_SEC
+            try:
+                time.sleep(next_t - time.time())
+
+            except ValueError:
+                # python process must've been paused and gives negative sleep time, reset time
+                next_t = time.time() + CHECK_INTERVAL_SEC
+                continue
+
+            update_time(db, start_ts, next(next_commit) == 0)
 
 
 if __name__ == "__main__":
