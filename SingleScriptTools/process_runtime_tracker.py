@@ -213,7 +213,7 @@ def main():
 
             except ValueError:
                 # python process must've been paused and gives negative sleep time, reset time
-                next_t = time.time() + CHECK_INTERVAL_SEC
+                next_t = time.time()
                 continue
 
             update_time(db, start_ts, next(next_commit) == 0)
