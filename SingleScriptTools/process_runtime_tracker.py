@@ -39,7 +39,7 @@ PROCESS_WHITELIST = {
 # Command to use to fetch process names, so we don't need psutil dependency
 PROC_LIST_CMD = {
     "Windows": 'powershell -Command "Get-Process | Select-Object -ExpandProperty ProcessName"',
-    "Linux": "ps -e -o comm=",
+    "Linux": "ps -u $(whoami) -o comm=",
 }[platform.system()]
 
 DB_PATH = pathlib.Path(__file__).parent / "process_runtime_tracker.sqlite"
