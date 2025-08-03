@@ -298,10 +298,11 @@ Generates m3u8 file using audio files in current directory. Recursive.
 ### [process_runtime_tracker.py](process_runtime_tracker.py)
 Simple (& terrible) script to track process runtime by pooling processes every 10 seconds.
 
-Pure python so no external dependencies are required.
-(One might want to edit PROC_LIST_CMD to match their OS instead)
-
+Either edit `PROCESS_WHITELIST` or use argument to specify which processes to track.
 Tracked time is written to a sqlite3 database created next to this script.
+
+No external dependencies are required, as long as provided default `PROC_LIST_CMD` works for you.
+
 
 
 <br>

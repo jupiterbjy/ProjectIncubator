@@ -1,17 +1,17 @@
 """
 Simple (& terrible) script to track process runtime by pooling processes every 10 seconds.
 
-Pure python so no external dependencies are required.
-(One might want to edit PROC_LIST_CMD to match their OS instead)
-
+Either edit `PROCESS_WHITELIST` or use argument to specify which processes to track.
 Tracked time is written to a sqlite3 database created next to this script.
+
+No external dependencies are required, as long as provided default `PROC_LIST_CMD` works for you.
+
 
 :Author: jupiterbjy@gmail.com
 """
 
 import itertools
 import platform
-import re
 import time
 import pathlib
 import sqlite3
@@ -22,11 +22,7 @@ from argparse import ArgumentParser
 
 # --- Config ---
 
-# Compiled regex pattern for normalizing process name
-# PN_NORMALIZE_PATTERN = re.compile(r"[^\W.]+")
-PN_NORMALIZE_PATTERN = re.compile(r"\w+")
-
-# List of process names to track time of.
+# List of process names to track time of
 # noinspection SpellCheckingInspection
 PROCESS_WHITELIST = {
     "Hikari_KR",
@@ -39,7 +35,6 @@ PROCESS_WHITELIST = {
     "iroseka_HD_EN_steam",
     "Sakura_KR",
 }
-# PROCESS_WHITELIST = {PN_NORMALIZE_PATTERN.match(_pn).group(0) for _pn in PROCESS_WHITELIST}
 
 # Command to use to fetch process names, so we don't need psutil dependency
 PROC_LIST_CMD = {
@@ -59,16 +54,6 @@ COMMIT_INTERVAL_ITER = 12
 # --- Utilities ---
 
 
-def _normalize_process_name(raw_proc_name: str) -> str:
-    """Normalizes process name. Returns an empty string if it's unable to be normalized."""
-
-    matched = PN_NORMALIZE_PATTERN.match(raw_proc_name)
-    normalized_name = matched.group(0) if matched else ""
-    # normalized_name = matched.group(0).lower() if matched else ""
-
-    return normalized_name
-
-
 def _clear_screen(newlines=100):
     """Just pushes a bunch of newlines to mimic screen clear."""
 
@@ -82,18 +67,17 @@ def get_processes() -> set[str]:
     return set(result.stdout.decode("utf-8").splitlines())
 
 
+# noinspection SqlNoDataSourceInspection,SqlResolve
 class _Query:
     """Namespace for queries, so it's easier to edit"""
 
     create_table = """
     CREATE TABLE IF NOT EXISTS "{}" (start_utc INTEGER, end_utc INTEGER, time REAL, PRIMARY KEY(start_utc))
     """
-    # create_table = dedent(create_table).strip().replace("\n", " ")
 
     update = """
     INSERT INTO "{}" VALUES (?, ?, ?) ON CONFLICT(start_utc) DO UPDATE SET end_utc=?, time=time+?
     """
-    # update = dedent(update).strip().replace("\n", " ")
 
     total_time = 'SELECT SUM(time) FROM "{}"'
 
@@ -103,7 +87,7 @@ class _Query:
 
 
 class DBWrapper:
-    """Wraps sqlite3 database. Use this as context manager."""
+    """Wraps sqlite3 database to simplify interfaces. Use this as context manager."""
 
     def __init__(self, db_path: pathlib.Path):
         self._path = db_path
@@ -185,8 +169,8 @@ def update_time(db: DBWrapper, start_ts: dict[str, int], commit=False):
 
     Args:
         db: DBWrapper instance
-        start_ts: (process_name: start_time_of_session) dict
-        commit: whether to commit changes to db or not.
+        start_ts: {process_name: start_time_of_session} dict
+        commit: Whether to commit changes to db or not.
     """
 
     processes = PROCESS_WHITELIST & get_processes()
@@ -196,7 +180,6 @@ def update_time(db: DBWrapper, start_ts: dict[str, int], commit=False):
 
     for process in processes:
         pn = process
-        # pn = _normalize_process_name(process.info["name"])
 
         # if it wasn't started before, register start time
         if pn not in start_ts:
@@ -241,19 +224,15 @@ if __name__ == "__main__":
 
     _parser.add_argument(
         "-a",
-        "--add-processes",
+        "--whitelist",
         action="extend",
         nargs="+",
         type=str,
-        help="Add process to whitelist, for use-cases where editing script isn't viable.",
+        help="Process name whitelist, for use-cases where editing script isn't viable.",
     )
 
     _args = _parser.parse_args()
-    if _args.add_processes:
-        PROCESS_WHITELIST.update(
-            # _normalize_process_name(_pn) for _pn in _args.add_processes
-            _pn
-            for _pn in _args.add_processes
-        )
+    if _args.whitelist:
+        PROCESS_WHITELIST = set(_args.whitelist)
 
     main()
