@@ -195,6 +195,37 @@ Removes GPS tags from image EXIF data
 
 ---
 
+### [imgur_album_to_html.py](imgur_album_to_html.py)
+Downloads imgur album(with descriptions) and converts into html with concurrent downloading.
+
+Downloads all image/videos and generates:
+
+- `online_lookup.html`: Uses imgur's original link, a workaround for sharing private album since imgur blocked it
+- `offline_lookup.html`: Uses downloaded image/video paths
+
+
+Example output:
+```text
+Album list: ['abcdefg']
+---
+[abcdefg] Downloading 413 images
+[4uwdbyL] Downloaded
+...
+[qvuPRUh] File already exists, skipping
+[abcdefg] Generating HTML for standalone HTML share
+[abcdefg] Generating HTML for lookup
+[abcdefg] All done
+```
+
+![](readme_res/imgur_album_to_html.png)
+
+
+<br>
+<br>
+
+
+---
+
 ### [img_2_pdf_▽.py](img_2_pdf_▽.py)
 Convert multiples images into single pdf
 
