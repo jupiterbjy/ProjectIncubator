@@ -1,7 +1,5 @@
 """
-(Abandoned - use [process_runtime_tracker_O.py](process_runtime_tracker_O.py) instead.)
-
-Simple script to track focused window and measure total time
+Simple script to track focused window and measure total **ACTIVE** time
 whenever there's input with configurable margin, windows only.
 
 `pip install pywin32 psutil pynput`
