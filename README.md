@@ -1,10 +1,10 @@
+[SingleScriptTools documentation](SingleScriptTools)
+
 ## Project Incubator
 
-Thought that there was too many repositories I'm creating for something I can't assure its future for.
+A personal junkyard, consisting various toy projects and tools that isn't huge enough to be its own repository!
 
-Therefore, I've created this repository to literally live up to it's name.
+If any gets larger (rarely happens), then it's split into separate repo, hence the name *Project Incubator*.
 
-This will hold new ideas for repositories. When sub-project became clear, then will use ```subtree split```
-to separate from subtree and create a new repository.
-
-Mostly will look like a personal junkyard!
+Mostly focused on [SingleScriptTools](SingleScriptTools),
+which are sets of self-contained singular scripts focused on solving various problems I've encountered in my daily life.
