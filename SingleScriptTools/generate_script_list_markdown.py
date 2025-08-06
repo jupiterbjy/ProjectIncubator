@@ -38,7 +38,9 @@ def docstring_extract_gen(file_iterator: Iterator[pathlib.Path]):
 
         # discard any line starting with specific strings
         docs = "\n".join(
-            line for line in docs.splitlines() if not line.startswith(SKIP_LINE_STARTING_WITH)
+            line
+            for line in docs.splitlines()
+            if not line.startswith(SKIP_LINE_STARTING_WITH)
         )
         yield file.name, file.as_posix(), docs
 
@@ -46,7 +48,9 @@ def docstring_extract_gen(file_iterator: Iterator[pathlib.Path]):
 def main():
 
     # create .py script list iterator except one starting with underscore
-    file_list = (p for p in ROOT.iterdir() if p.stem[0] != "_" and p.suffix == ".py")
+    file_list = sorted(
+        p for p in ROOT.iterdir() if p.stem[0] != "_" and p.suffix == ".py"
+    )
 
     # cut in first --- & strip all newlines, then add single newline
     data = WRITE_TO.read_text("utf8").split("---")[0].strip() + "\n"
@@ -61,5 +65,5 @@ def main():
             fp.write(FORMAT.format(name, name, docs))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
