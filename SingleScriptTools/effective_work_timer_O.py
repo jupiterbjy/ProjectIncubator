@@ -1,4 +1,6 @@
 """
+(Abandoned - use [process_runtime_tracker_O.py](process_runtime_tracker_O.py) instead.)
+
 Simple script to track focused window and measure total time
 whenever there's input with configurable margin, windows only.
 

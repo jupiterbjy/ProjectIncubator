@@ -1,14 +1,17 @@
 # Singlescript Tools
-Bunch of standalone scripts I wrote for use in daily life
+Bunch of standalone scripts I wrote for use in daily life.
+
+### Suffixes
+
+- `_▽` : indicates drag & drop tool
+- `_O` : indicates continuously running tool
+- `_m` : indicates module
 
 ## List
 
-- ▽ : indicates that it's drag & drop tool.
-- ○ : indicates that it's background running tool.
-
 ---
 
-### [auto_html_reload.py](auto_html_reload.py)
+### [auto_html_reload_O.py](auto_html_reload_O.py)
 Watches for html file changes and reload pages with selenium
 
 
@@ -28,7 +31,69 @@ Fetch all files with matching extension to script's location/Copied. Recursive.
 
 ---
 
-### [effective_work_timer.py](effective_work_timer.py)
+### [dumb_pure_async_api_server_m.py](dumb_pure_async_api_server_m.py)
+Dumb probably unsafe async API server, purely made of included batteries for fun.
+
+Example Usage:
+```python
+import asyncio
+import pathlib
+
+from dumb_async_api_server import *
+
+
+APP = DumbAPIServer()
+ROOT = pathlib.Path(__file__).parent
+
+@APP.get("/hello")
+async def hello(subdir: str, fail="", **kwargs) -> HTTPResponse:
+    await asyncio.sleep(1)
+
+    # if this wasn't the exact dir match, ignore it
+    if subdir:
+        return HTTPResponse(404)
+
+    # for status test
+    if fail == "true":
+        return HTTPResponse(400)
+
+    return HTTPResponse.text(f"Hello, world!\nparams:{kwargs}")
+
+@APP.get("/")
+async def index(subdir: str) -> HTTPResponse:
+    return serve_path(ROOT / subdir)
+
+
+if __name__ == "__main__":
+    asyncio.run(APP.serve())
+```
+
+
+<br>
+<br>
+
+
+---
+
+### [dumb_pure_async_server_O.py](dumb_pure_async_server_O.py)
+Dumb probably unsafe async HTTP server, purely made of included batteries for fun.
+
+Provides minimal-escape-protected file listing interface by default, can also serve static files such as HTML.
+
+Rewrite of [stackoverflow answer](https://stackoverflow.com/a/70649803) I wrote.
+
+![](readme_res/dumb_async_server.png)
+
+
+<br>
+<br>
+
+
+---
+
+### [effective_work_timer_O.py](effective_work_timer_O.py)
+(Abandoned - use [process_runtime_tracker_O.py](process_runtime_tracker_O.py) instead.)
+
 Simple script to track focused window and measure total time
 whenever there's input with configurable margin, windows only.
 
@@ -97,23 +162,6 @@ Requires FFMPEG
 
 ---
 
-### [files_2_image_▽.py](files_2_image_▽.py)
-Embeds file inside jpg metadata. Any decent unzipper can open as zip.
-
-`pip install pillow`
-
-Check usage by executing without parameters.
-
-![Example](readme_res/files_2_image.png)
-
-
-
-<br>
-<br>
-
-
----
-
 ### [file_line_char_count.py](file_line_char_count.py)
 Counts number of lines and characters in predetermined file types.
 
@@ -124,8 +172,25 @@ Counts number of lines and characters in predetermined file types.
 
 ---
 
-### [file_walker.py](file_walker.py)
+### [file_walker_m.py](file_walker_m.py)
 File system navigating class which remembers current director's contents
+
+
+<br>
+<br>
+
+
+---
+
+### [files_2_image_▽.py](files_2_image_▽.py)
+Embeds file inside jpg metadata. Any decent unzipper can open as zip.
+
+`pip install pillow`
+
+Check usage by executing without parameters.
+
+![Example](readme_res/files_2_image.png)
+
 
 
 <br>
@@ -145,7 +210,7 @@ Assuming every script in directory starts with docstring.
 
 ---
 
-### [get_module_reference.py](get_module_reference.py)
+### [get_module_reference_m.py](get_module_reference_m.py)
 Module wrapping `inspect` module to list classes, functions in specified module
 
 
@@ -195,37 +260,6 @@ Removes GPS tags from image EXIF data
 
 ---
 
-### [imgur_album_to_html.py](imgur_album_to_html.py)
-Downloads imgur album(with descriptions) and converts into html with concurrent downloading.
-
-Downloads all image/videos and generates:
-
-- `online_lookup.html`: Uses imgur's original link, a workaround for sharing private album since imgur blocked it
-- `offline_lookup.html`: Uses downloaded image/video paths
-
-
-Example output:
-```text
-Album list: ['abcdefg']
----
-[abcdefg] Downloading 413 images
-[4uwdbyL] Downloaded
-...
-[qvuPRUh] File already exists, skipping
-[abcdefg] Generating HTML for standalone HTML share
-[abcdefg] Generating HTML for lookup
-[abcdefg] All done
-```
-
-![](readme_res/imgur_album_to_html.png)
-
-
-<br>
-<br>
-
-
----
-
 ### [img_2_pdf_▽.py](img_2_pdf_▽.py)
 Convert multiples images into single pdf
 
@@ -267,7 +301,7 @@ Drag & drop image and audio to create video.
 
 ---
 
-### [img_auto_rename_○.py](img_auto_rename_○.py)
+### [img_auto_rename_O.py](img_auto_rename_O.py)
 ![](readme_res/img_auto_rename.webp)
 
 `pip install watchdog, trio`
@@ -304,7 +338,38 @@ Remove alpha channel from image with desired color.
 
 ---
 
-### [logging_config.py](logging_config.py)
+### [imgur_album_to_html.py](imgur_album_to_html.py)
+Downloads imgur album(with descriptions) and converts into html with concurrent downloading.
+
+Downloads all image/videos and generates:
+
+- `online_lookup.html`: Uses imgur's original link, a workaround for sharing private album since imgur blocked it
+- `offline_lookup.html`: Uses downloaded image/video paths
+
+
+Example output:
+```text
+Album list: ['abcdefg']
+---
+[abcdefg] Downloading 413 images
+[4uwdbyL] Downloaded
+...
+[qvuPRUh] File already exists, skipping
+[abcdefg] Generating HTML for standalone HTML share
+[abcdefg] Generating HTML for lookup
+[abcdefg] All done
+```
+
+![](readme_res/imgur_album_to_html.png)
+
+
+<br>
+<br>
+
+
+---
+
+### [logging_config_m.py](logging_config_m.py)
 Just use loguru, I used this until I found it.
 
 
@@ -326,7 +391,7 @@ Generates m3u8 file using audio files in current directory. Recursive.
 
 ---
 
-### [process_runtime_tracker.py](process_runtime_tracker.py)
+### [process_runtime_tracker_O.py](process_runtime_tracker_O.py)
 Simple (& terrible) script to track process runtime by pooling processes every 10 seconds.
 
 Either edit `PROCESS_WHITELIST` or use argument to specify which processes to track.
@@ -372,7 +437,7 @@ Has options to Filter multiple extensions for searching.
 
 ---
 
-### [singledispatch_for_object.py](singledispatch_for_object.py)
+### [singledispatch_for_object_m.py](singledispatch_for_object_m.py)
 Mimics functools.singledispatch, but for objects.
 usage is also almost identical.
 
@@ -512,7 +577,7 @@ Watchdog callback register-able custom handler to see what's going on in current
 
 ---
 
-### [webcam_periodic_capture.py](webcam_periodic_capture.py)
+### [webcam_periodic_capture_O.py](webcam_periodic_capture_O.py)
 Script to capture webcam images periodically.
 
 `pip install opencv-python`
