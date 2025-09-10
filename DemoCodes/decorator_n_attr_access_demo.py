@@ -154,7 +154,7 @@ try:
     a.not_fox
 except AttributeError as err:
     colored_print(traceback.format_exc(), end="\n\n", color="red")
-    # note that `__getattribute__` is called with "__class__" to get class name for traceback
+    # note that `__getattribute__` is called with "__class__" to get class for traceback
 
 
 colored_print(">>> a.not_fox = 10")
