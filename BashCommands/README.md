@@ -1,7 +1,7 @@
 Personal Commands memo/scripts for Debian home server management-ish  
 <sup> (since my memory is terrible) </sup>
 
-License does not apply here 
+License does not apply here .
 
 # Storage
 
@@ -10,6 +10,20 @@ License does not apply here
 Dumb script to print device name & temp of one megaraid controller (`/c0`) and other disks.
 
 Need [storcli64](https://docs.broadcom.com/docs/STORCLI_SAS3.5_P35.zip)
+for SAS drive controllers, but you can comment out that line if you don't use one.
+
+
+```shell
+#!/bin/bash
+
+echo "--- SAS Controller ---"
+sudo /opt/MegaRAID/storcli/storcli64 /c0 show boardname temperature | grep -E "Board Name|temp"
+
+for d in $(lsblk -npdo KNAME); do
+   printf "\n\n--- %s ---\n" "$d"
+   sudo smartctl -iA "$d" | grep -E "Product|Temperature|Device Model"
+done
+```
 
 ```text
 --- SAS Controller ---
@@ -31,18 +45,6 @@ Drive Trip Temperature:        60 C
 ...
 ```
 
-```shell
-#!/bin/bash
-
-echo "--- SAS Controller ---"
-sudo /opt/MegaRAID/storcli/storcli64 /c0 show boardname temperature | grep -E "Board Name|temp"
-
-for d in $(lsblk -npdo KNAME); do
-   printf "\n\n--- %s ---\n" "$d"
-   sudo smartctl -iA "$d" | grep -E "Product|Temperature|Device Model"
-done
-```
-
 
 ## Enable SMART offline data collection
 
@@ -59,6 +61,29 @@ for d in $(lsblk -npdo KNAME); do sudo smartctl $d -o on; done
 sudo smartd -q showtests
 ```
 
+```text
+Totals [Thu Sep 25 22:25:34 2025 KST - Wed Dec 24 22:25:34 2025 KST]:
+Device: /dev/disk/by-id/wwn-... [SAT], will do   1 test of type L
+Device: /dev/disk/by-id/wwn-... [SAT], will do   3 tests of type S
+Device: /dev/disk/by-id/wwn-... [SAT], will do   0 tests of type C
+Device: /dev/disk/by-id/wwn-... [SAT], will do   0 tests of type O
+Device: /dev/disk/by-id/wwn-... [SAT], will do   1 test of type L
+Device: /dev/disk/by-id/wwn-... [SAT], will do   3 tests of type S
+Device: /dev/disk/by-id/wwn-... [SAT], will do   0 tests of type C
+Device: /dev/disk/by-id/wwn-... [SAT], will do   0 tests of type O
+Device: /dev/disk/by-id/wwn-..., will do   1 test of type L
+Device: /dev/disk/by-id/wwn-..., will do   3 tests of type S
+Device: /dev/disk/by-id/wwn-..., will do   1 test of type L
+Device: /dev/disk/by-id/wwn-..., will do   3 tests of type S
+Device: /dev/disk/by-id/wwn-... [SAT], will do   1 test of type L
+Device: /dev/disk/by-id/wwn-... [SAT], will do   3 tests of type S
+Device: /dev/disk/by-id/wwn-... [SAT], will do   0 tests of type C
+Device: /dev/disk/by-id/wwn-... [SAT], will do   0 tests of type O
+Device: /dev/disk/by-id/ata-... [SAT], will do   1 test of type L
+Device: /dev/disk/by-id/ata-... [SAT], will do   3 tests of type S
+Device: /dev/disk/by-id/ata-... [SAT], will do   0 tests of type C
+Device: /dev/disk/by-id/ata-... [SAT], will do   0 tests of type O
+```
 
 ## Fetch Disk by-id
 
@@ -103,6 +128,77 @@ watch iostat -h
 ```
 
 
+## Benchmark disk speed
+
+`hdparm` will complain about SAS drives but still will work regardless.
+Also displays temp because we're gonna run `smartctl` anyway.
+
+```shell
+for d in $(lsblk -npdo KNAME); do
+        printf "\n\n--- %s ---\n" "$d"
+        sudo smartctl -iA "$d" | grep -E "Product|Temperature|Device Model"
+        sudo hdparm -tT --direct "$d" | grep Timing
+done
+```
+
+```text
+--- /dev/sda ---
+Device Model:     WDC WD40EZRZ-00GXCB0
+194 Temperature_Celsius     0x0022   118   103   000    Old_age   Always       -       32
+ Timing O_DIRECT cached reads:   814 MB in  2.00 seconds = 407.45 MB/sec
+ Timing O_DIRECT disk reads: 522 MB in  3.00 seconds = 173.82 MB/sec
+
+
+--- /dev/sdb ---
+Device Model:     TOSHIBA HDWQ140
+194 Temperature_Celsius     0x0022   100   100   000    Old_age   Always       -       40 (Min/Max 24/52)
+ Timing O_DIRECT cached reads:   812 MB in  2.00 seconds = 405.95 MB/sec
+ Timing O_DIRECT disk reads: 586 MB in  3.00 seconds = 195.26 MB/sec
+
+
+--- /dev/sdc ---
+Product:              ST8000NM001A
+Temperature Warning:  Enabled
+Current Drive Temperature:     41 C
+Drive Trip Temperature:        60 C
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+ Timing O_DIRECT cached reads:   804 MB in  2.00 seconds = 402.38 MB/sec
+ Timing O_DIRECT disk reads: 768 MB in  3.00 seconds = 255.97 MB/sec
+
+
+--- /dev/sdd ---
+Product:              ST8000NM001A
+Temperature Warning:  Enabled
+Current Drive Temperature:     40 C
+Drive Trip Temperature:        60 C
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+ Timing O_DIRECT cached reads:   806 MB in  2.00 seconds = 402.69 MB/sec
+ Timing O_DIRECT disk reads: 768 MB in  3.00 seconds = 255.78 MB/sec
+
+
+--- /dev/sde ---
+Device Model:     TAMMUZ SSD
+194 Temperature_Celsius     0x0022   100   100   050    Old_age   Always       -       31
+ Timing O_DIRECT cached reads:   942 MB in  2.00 seconds = 471.03 MB/sec
+ Timing O_DIRECT disk reads: 1508 MB in  3.00 seconds = 502.30 MB/sec
+
+
+--- /dev/sdf ---
+Device Model:     Samsung SSD 860 EVO 500GB
+190 Airflow_Temperature_Cel 0x0032   072   053   000    Old_age   Always       -       28
+ Timing O_DIRECT cached reads:   872 MB in  2.00 seconds = 435.79 MB/sec
+ Timing O_DIRECT disk reads: 1496 MB in  3.00 seconds = 498.22 MB/sec
+
+
+--- /dev/sdg ---
+Device Model:     TOSHIBA DT01ACA200
+194 Temperature_Celsius     0x0002   181   181   000    Old_age   Always       -       33 (Min/Max 22/46)
+ Timing O_DIRECT cached reads:   740 MB in  2.00 seconds = 370.16 MB/sec
+ Timing O_DIRECT disk reads: 592 MB in  3.01 seconds = 196.92 MB/sec
+```
+
+<br>
+
 ---
 
 # Network
@@ -112,6 +208,8 @@ watch iostat -h
 ```shell
 sudo tcptrack -i INTERFACE_NAME
 ```
+
+<br>
 
 ---
 
