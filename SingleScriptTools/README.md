@@ -561,6 +561,32 @@ or if any of listed entry is missing
 
 ---
 
+### [vn_save_reorder.py](vn_save_reorder.py)
+`WARNING: UNTESTED SCRIPT`
+
+Script to 'compact' order of save files in various visual novels.
+
+Basically generalized version of `favorite_save_file_reorder_▽.py`
+
+e.g. compacting save file range of 1~30 would compacts `(2, 3, 6, 12, 28)` to `(1, 2, 3, 4, 5)`.
+
+Though beware, ALWAYS backup first.
+
+Currently supported formats:
+- FAVORITE: `s001.bin`
+- YUZUSOFT/Madosoft, KiriKiri-engine page based: `data_0001_01.jpg`
+- (DOES NOT WORK) AsaProject's recent works: (e.g. `renrowa51.bmp`, `sukitosuki51.bmp`)
+
+I can't figure out why and how to make it work for ASAProject, as I can't figure out the general
+mechanism at all - image files purely serve as thumbnail and no more.
+
+
+<br>
+<br>
+
+
+---
+
 ### [watchdog_file_events.py](watchdog_file_events.py)
 Watchdog callback register-able custom handler to see what's going on in current directory.
 
