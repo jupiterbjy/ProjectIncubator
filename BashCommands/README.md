@@ -197,6 +197,89 @@ Device Model:     TOSHIBA DT01ACA200
  Timing O_DIRECT disk reads: 592 MB in  3.01 seconds = 196.92 MB/sec
 ```
 
+
+## Disk sleep
+
+As someone who ran WD Blue & Toshiba N300 for 40k hours nonstop idk if this is strictly necessary...
+
+Spindown after 30 min (`-S 241`) & APM level w/o spindown(to not interrupt `-S`) (`-B 128`):
+```shell
+for d in $(lsblk -npdo KNAME); do
+        printf "\n\n--- %s ---\n" "$d"
+        sudo hdparm -S 241 -B 128 "$d"
+done
+```
+
+Unsupported devices will throw IO error:
+```text
+--- /dev/sda ---
+
+/dev/sda:
+ setting Advanced Power Management level to 0x80 (128)
+ HDIO_DRIVE_CMD failed: Input/output error
+ setting standby to 241 (30 minutes)
+ APM_level      = not supported
+
+
+--- /dev/sdb ---
+
+/dev/sdb:
+ setting Advanced Power Management level to 0x80 (128)
+ setting standby to 241 (30 minutes)
+ APM_level      = 128
+
+
+--- /dev/sdc ---
+
+/dev/sdc:
+ setting Advanced Power Management level to 0x80 (128)
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+ HDIO_DRIVE_CMD failed: Input/output error
+ setting standby to 241 (30 minutes)
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+ HDIO_DRIVE_CMD(setidle) failed: Input/output error
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+
+
+--- /dev/sdd ---
+
+/dev/sdd:
+ setting Advanced Power Management level to 0x80 (128)
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+ HDIO_DRIVE_CMD failed: Input/output error
+ setting standby to 241 (30 minutes)
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+ HDIO_DRIVE_CMD(setidle) failed: Input/output error
+SG_IO: bad/missing sense data, sb[]:  72 05 20 00 00 00 00 1c 02 06 00 00 cf 00 00 00 03 02 00 01 80 0e 00 00 00 00 00 00 00 00 00 00
+
+
+--- /dev/sde ---
+
+/dev/sde:
+ setting Advanced Power Management level to 0x80 (128)
+ setting standby to 241 (30 minutes)
+ APM_level      = 128
+
+
+--- /dev/sdf ---
+
+/dev/sdf:
+ setting Advanced Power Management level to 0x80 (128)
+SG_IO: bad/missing sense data, sb[]:  f0 00 05 04 51 40 80 0a 00 00 00 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+ setting standby to 241 (30 minutes)
+ APM_level      = not supported
+
+
+--- /dev/sdg ---
+
+/dev/sdg:
+ setting Advanced Power Management level to 0x80 (128)
+ setting standby to 241 (30 minutes)
+ APM_level      = 128
+```
+
+Using with `sudo powertop --auto-tune` might save you some extra, with pci ASPM on supported devices too. 
+
 <br>
 
 ---
@@ -286,4 +369,47 @@ sudo docker stop portainer
 sudo docker rm portainer
 sudo docker pull portainer/portainer-ce:latest
 sudo docker run -d -p 8000:8000 -p 9443:9443 --pull=always --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
+```
+
+---
+
+# Email
+
+## msmtp + gmail
+
+Recommended to create entirely new gmail for this purpose, as one have to store app password
+in plain text. I'm using this for smartctl reports.
+
+(and FU Tammuz RXK550, this bastard already has bad sector & realloc
+to reserve but not cleared pending sector count, making smartctl sending mail EVERY FREAKIN DAY.) 
+
+```shell
+sudo apt install msmtp msmtp-mta
+sudo chmod 644 /etc/msmtprc
+# ^^^ do this if other account also need to mail in same addr, i.e. reports in nas.
+# otherwise for per-user follow this instead: https://superuser.com/a/351888/1252755  
+```
+
+in `/etc/msmtprc`:
+```text
+defaults
+auth on
+tls  on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+logfile /var/log/msmtp.log
+
+# Gmail configuration
+account gmail
+host    smtp.gmail.com
+port    587
+from    bla@gmail.com
+user    bla
+password some_google_app_password
+
+account default: gmail
+```
+
+test via:
+```shell
+echo "test mail" | mail some_other_email@gmail.com
 ```
