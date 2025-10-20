@@ -76,7 +76,7 @@ SPLASH_MSG = f"""
 Steam Recording Extraction script
 by jupiterbjy's Prehistoric coding skills
 
-Revision 10 (2025-01-13)
+Revision 11 (2025-10-20)
 =========================================
 """.lstrip()
 
@@ -313,7 +313,7 @@ def merge_streams(
 
     # if failed print log
     ANSI.print(
-        f"Failed to merge!\n\n{proc.stderr.decode(errors="replace")}\n(End of output)",
+        f"Failed to merge!\n\n{proc.stderr.decode(errors='replace')}\n(End of output)",
         color="RED",
     )
 
