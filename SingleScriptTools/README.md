@@ -405,6 +405,28 @@ No external dependencies are required, as long as provided default `PROC_LIST_CM
 
 ---
 
+### [project_media_html_index_▽.py](project_media_html_index_▽.py)
+Generates HTML file to act as index for media files (audio, image, video).
+Intended for creating fast lookup index for your local projects.
+
+Assumes media exists in top level of each directory.
+
+Usage:
+
+1. Execute next to project directories to generate for all suitable subdir
+2. Pass project directories as param(or drag drop) instead as whitelist
+
+Either way, it will generate index.html in the same directory as script.
+
+![](readme_res/project_media_html_index.png)
+
+
+<br>
+<br>
+
+
+---
+
 ### [replace_to_uid_▽.py](replace_to_uid_▽.py)
 WARING - Experimental script. Make sure to archive your project.
 
