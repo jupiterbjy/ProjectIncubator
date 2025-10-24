@@ -1,49 +1,51 @@
 """
-Multiplies video playback speed by discarding frames without encoding
+Multiplies video playback speed by discarding frames.
 Requires FFMPEG
 
 :Author: jupiterbjy@gmail.com
 """
 
 import pathlib
-import asyncio
 import argparse
-from typing import List
+import subprocess
 
 
-FPS = 60
-SPEED_MULTIPLIER = float(input("Video speed multiplier: "))
+FPS: int = 60
+FFMPEG_CMD = (
+    'ffmpeg -i "{}" -r {} -filter:v "setpts={}*PTS" -an -c:v libx264 -crf 18 -y "{}"'
+)
 
-FRAME_TIME = round(1 / SPEED_MULTIPLIER, 4)
-FFMPEG_CMD = 'ffmpeg -y -i {} -r 60 -filter:v "setpts={}*PTS" {}'
 
+def main(paths: list[pathlib.Path], multiplier: float):
+    if not multiplier:
+        multiplier = float(input("Video speed multiplier: "))
 
-async def main():
-    file_list: List[pathlib.Path] = args.VIDEO
-    print("Target(s):", file_list)
+    pts_factor = round(multiplier / FPS, 4)
 
-    new_file_list = [
-        file.with_name(file.stem + f"_x{SPEED_MULTIPLIER}" + file.suffix)
-        for file in file_list
-    ]
-
-    for file, new_file in zip(file_list, new_file_list):
-        formatted = FFMPEG_CMD.format(
-            f'"{file.as_posix()}"', FRAME_TIME, f'"{new_file.as_posix()}"'
+    for path in paths:
+        subprocess.run(
+            FFMPEG_CMD.format(
+                path.as_posix(),
+                FPS,
+                pts_factor,
+                path.with_stem(f"{path.stem}_x{multiplier}fd").as_posix(),
+            ),
+            shell=True,
         )
-
-        proc = await asyncio.create_subprocess_shell(
-            formatted, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
-        )
-
-        while line := await proc.stdout.readline():
-            print(line.decode(), end="")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("VIDEO", metavar="VID", type=pathlib.Path, nargs="+")
+    _parser = argparse.ArgumentParser()
 
-    args = parser.parse_args()
+    _parser.add_argument("video", metavar="VID", type=pathlib.Path, nargs="+")
 
-    asyncio.run(main())
+    _parser.add_argument(
+        "-m",
+        "--multiplier",
+        type=float,
+        default=0.0,
+        help="Video playback speed multiplier. If not set(or 0), will prompt for input.",
+    )
+
+    _args = _parser.parse_args()
+    main(_args.video, _args.multiplier)

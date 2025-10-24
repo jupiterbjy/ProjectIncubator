@@ -150,7 +150,7 @@ Currently broken as API is gone, will rewrite again when I need this
 ---
 
 ### [ffmpeg_playback_multiply_▽.py](ffmpeg_playback_multiply_▽.py)
-Multiplies video playback speed by discarding frames without encoding
+Multiplies video playback speed by discarding frames.
 Requires FFMPEG
 
 
