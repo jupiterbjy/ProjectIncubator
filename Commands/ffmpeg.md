@@ -87,12 +87,12 @@ ffmpeg -i %1 -c copy -an "%~n1_na.mp4"
 
 batch(cpu):
 ```shell
-ffmpeg -i %1 -c:v libsvtav1 -crf 25 "%~n1_av1.mp4"
+ffmpeg -i %1 -c:v libsvtav1 -crf 25 -c:a aac -q:a 2 "%~n1_av1.mp4"
 ```
 
 batch(amd amf):
 ```shell
-ffmpeg -i %1 -c:v av1_amf -rc cqp "%~n1_av1.mp4"
+ffmpeg -i %1 -c:v av1_amf -rc cqp -c:a aac -q:a 2 "%~n1_av1.mp4"
 ```
 
 For quick drag drop encoding to save space.
@@ -112,7 +112,9 @@ Following is my test based on my scribbling which is mostly thin black & white:
 | `av1_amf`   | `-cqp -quality balanced` | 99.32 | 4.47     |
 | `av1_amf`   | `-cqp -quality quality`  | 99.25 | 4.24     |
 
-...kinda feel weird to see VMAF drop with higher quality preset
+...kinda feel weird to see VMAF drop with higher quality preset.
+Tho I still need `libsvtav1` since iirc `amd_amf` has hw bug with frame width,
+which in ffmpeg effects resulting vid to be somewhat messed up.
 
 <br>
 
@@ -121,7 +123,11 @@ Following is my test based on my scribbling which is mostly thin black & white:
 
 command:
 ```shell
-ffmpeg -i src -i
+ ffmpeg -i "{in_reference}" -i "{in_encoded}" -filter_complex libvmaf -t 15 -f null -
 ```
+
+<sub>(Since when drag dropped from explorer param doesn't distinguish order so better type manually)</sub>
+
+`-t` flag is there so that I don't have to wait eternity, this is very slow operation (at least for my 5800X)
 
 Used for checking video's variance from original.
