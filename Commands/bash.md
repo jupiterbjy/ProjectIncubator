@@ -292,6 +292,129 @@ Using with `sudo powertop --auto-tune` might save you some extra, with pci ASPM 
 sudo tcptrack -i INTERFACE_NAME
 ```
 
+
+## Routing Table List
+
+All ip commands can be abbreviated to first letter only.
+(e.g. `ip route show table 0` == `ip r s t 0`)
+
+```shell
+# show main table
+ip route
+```
+
+```shell
+# show all table
+ip route show table all
+# or
+ip route show table 0
+```
+
+```text
+default via 192.168.0.1 dev wlo1 proto dhcp src 192.168.0.a metric 600 
+10.b.c.0/24 dev CONF_NAME proto kernel scope link src 10.b.c.d metric 50 
+192.168.0.0/24 dev CONF_NAME scope link
+192.168.0.0/24 dev wlo1 proto kernel scope link src 192.168.0.a metric 600 
+```
+
+
+## Routing Rule Add
+
+For specific subnet to specific dev, implicit scope link:
+
+```shell
+ip route add ZE_SUBNET_GOES_HERE dev DEVICE
+# ip route add 192.168.0.0/24 dev wlan0
+```
+
+Specified gateway
+```shell
+ip route add SUBNET via GATEWAY dev DEVICE
+# ip route add 192.168.0.0/24 via 192.168.0.1 dev wlan0
+```
+
+
+## Routing Rule Delete
+
+Add but Del
+
+```shell
+ip route del REST_OF_STRING_YOU_WROTE_IN_ADD
+# ip route del 192.168.0.0/24 dev wlan0
+```
+
+
+## IP Assign
+
+```shell
+ip addr add ADDRESS dev DEVICE
+# ip route add 192.168.0.123/24 dev wlan0
+```
+
+
+## Wireguard Connect
+
+Assuming you already have valid conf
+
+```shell
+sudo nmcli connection import type wireguard file /path/to/conf/CONF_NAME.conf
+```
+
+Network manager(`nmcli`) will set low metric route (when `AllowedIPs = 0.0.0.0/0`)
+so all traffic will flow thru wireguard unless speficied in other routing rules.
+
+(visible in `ip route show table 0`, lower metric(cost) == higher priority)
+
+
+## Wireguard check
+
+```shell
+sudo wg show
+```
+
+```text
+interface: -
+  public key: -
+  private key: -
+  listening port: -
+  fwmark: -
+
+peer: -
+  preshared key: -
+  endpoint: -
+  allowed ips: 0.0.0.0/0
+  latest handshake: 1 minute, 16 seconds ago
+  transfer: 523.93 MiB received, 16.72 MiB sent
+```
+
+
+## Wireguard Remote LAN Access
+
+If you can't access remote's local net, it could be overlapping subnet,
+which could happen frequently between same vender's routers.
+
+e.g. for `192.168.0.0/24`:
+
+```text
+> ip r
+default via 192.168.0.1 dev wlo1 proto dhcp src 192.168.0.a metric 600
+10.b.c.0/24 dev CONF_NAME proto kernel scope link src 10.b.c.d metric 50
+192.168.0.0/24 dev wlo1 proto kernel scope link src 192.168.0.a metric 600
+```
+
+```shell
+sudo ip route add 192.168.0.0/24 dev CONF_NAME
+# unspecified metric considered 0 by default
+```
+
+```text
+> ip r
+default via 192.168.0.1 dev wlo1 proto dhcp src 192.168.0.a metric 600 
+10.b.c.0/24 dev CONF_NAME proto kernel scope link src 10.b.c.d metric 50 
+192.168.0.0/24 dev CONF_NAME scope link
+192.168.0.0/24 dev wlo1 proto kernel scope link src 192.168.0.a metric 600 
+```
+
 <br>
 
 ---
