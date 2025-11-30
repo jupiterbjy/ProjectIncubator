@@ -24,7 +24,9 @@ from typing import Sequence, Iterable
 
 # --- Config ---
 
-FFMPEG_CMD = 'ffmpeg -i "{}" -c:v libsvtav1 -crf 17 -preset 5 -svtav1-params tune=0 -c:a copy -y "{}"'
+FFMPEG_CMD = """
+ffmpeg -i "{}" -c:v libsvtav1 -crf 25 -preset 4 -svtav1-params tune=0:enable-tf=0:enable-qm=1:qm-min=0 -c:a libopus -b:a 192k -vbr:a on -y "{}"
+""".strip()
 
 # Expecting all lowercase
 SUPPORTED_EXTS = {".mp4", ".mkv", ".avi"}
@@ -111,6 +113,8 @@ def show_summary(conn: sqlite3.Connection) -> None:
 def process_batch(cmd, paths: Sequence[pathlib.Path], out_dir: pathlib.Path) -> None:
     """Processes all files in batch"""
 
+    out_dir.mkdir(exist_ok=True)
+
     # remove existing db if any, since sqlite doesn't have truncate & no need for vacuum
     db_path = out_dir / OUT_SIZE_DB
     db_path.unlink(missing_ok=True)
@@ -161,12 +165,14 @@ def process_batch(cmd, paths: Sequence[pathlib.Path], out_dir: pathlib.Path) -> 
     conn.close()
 
 
+# --- Driver ---
+
 def main(paths: Sequence[pathlib.Path], overwrite: bool):
 
     if not validate_path_type(paths):
         raise ValueError("All paths must be either file or folder")
 
-    cmd = FFMPEG_CMD if overwrite else FFMPEG_CMD.replace("-y", "-n")
+    cmd = FFMPEG_CMD if overwrite else FFMPEG_CMD.replace(" -y ", " -n ")
 
     if paths[0].is_file():
         print("=== Using batch file mode ===")

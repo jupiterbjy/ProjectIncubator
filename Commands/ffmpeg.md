@@ -83,6 +83,10 @@ ffmpeg -i %1 -c copy -an "%~n1_na.mp4"
 
 ## 2 AV1
 
+TODO: retest & rewrite this section
+
+Refer [ffmpeg av1 manual](https://trac.ffmpeg.org/wiki/Encode/AV1)
+
 `_av1` - yeah
 
 batch(cpu):
@@ -95,10 +99,17 @@ batch(amd amf):
 ffmpeg -i %1 -c:v av1_amf -rc cqp -c:a aac -q:a 2 "%~n1_av1.mp4"
 ```
 
-My archive setting:
+batch personal archiving(cpu):
 ```shell
-ffmpeg -i %1 -c:v libsvtav1 -crf 17 -preset 5 -svtav1-params tune=0 -c:a copy "%~n1_av1.mp4"
+ffmpeg -i %1 -c:v libsvtav1 -crf 25 -preset 4 -svtav1-params tune=0:enable-tf=0:enable-qm=1:qm-min=0 -c:a libopus -b:a 192k -vbr:a on "%~n1_av1.mp4"
 ```
+(libsvtav1 has very low keyframe interval of 2~3s, but effect of extending it seems barely dramatic)
+
+bash personal batch-archiving for web streaming, one-liner (cpu):
+```shell
+mkdir av1; for i in *.mp4; do [ -f "$i" ] || break; ffmpeg -i "$i" -c:v libsvtav1 -crf 25 -preset 4 -svtav1-params tune=0:enable-tf=0:enable-qm=1:qm-min=0 -c:a libopus -b:a 192k -vbr:a on -y "av1/$i"; done
+```
+(There's option to make decoding faster if you have trouble decoding)
 
 For quick drag drop encoding to save space.
 Check `ffmpeg -encoders | grep av1` to check fitting encoder for your hw.
@@ -131,24 +142,36 @@ which had tons of static white background since it's drawing timelapse.
 ab-av1 vmaf --reference SRC --distorted ENCODED
 ```
 
-| Encoder     | Extra param                               | VMAF  | Size(MB) |
-|-------------|-------------------------------------------|-------|----------|
-| `libsvtav1` | `-crf 17`                                 | 94.23 | 113      |
-| `libsvtav1` | `-crf 17 -svtav1-params tune=0`           | 94.62 | 116      |
-| `libsvtav1` | `-crf 17 -preset 4 -svtav1-params tune=0` | 95.65 | 117      |
-| `libsvtav1` | `-crf 20 -preset 4 -svtav1-params tune=0` | 95.14 | 95.7     |
-| `libsvtav1` | `-crf 17 -preset 5 -svtav1-params tune=0` | 95.63 | 120      |
-| `libsvtav1` | `-crf 15 -preset 5 -svtav1-params tune=0` | 96.04 | 143      |
-| `libsvtav1` | `-crf 20 -preset 5 -svtav1-params tune=0` | 95.13 | 97       |
-| `av1_amf`   | `-rc cqp`                                 | 95.81 | 219      |
-| `av1_amf`   | `-rc cqp -quality quality`                | 95.90 | 212      |
-| `libsvtav1` | (not ffmpeg) `ab-av1 auto-encode`         | 96.20 | 232      |
+| Encoder     | Extra param                                      | VMAF  | Size(MB) |
+|-------------|--------------------------------------------------|-------|----------|
+| `libsvtav1` | `-crf 17`                                        | 94.23 | 113      |
+| `libsvtav1` | `-crf 17 -svtav1-params tune=0`                  | 94.62 | 116      |
+| `libsvtav1` | `-crf 17 -preset 4 -svtav1-params tune=0`        | 95.65 | 117      |
+| `libsvtav1` | `-crf 20 -preset 4 -svtav1-params tune=0`        | 95.14 | 95.7     |
+| `libsvtav1` | `-crf 17 -preset 5 -svtav1-params tune=0`        | 95.63 | 120      |
+| `libsvtav1` | `-crf 17 -g 120 -preset 5 -svtav1-params tune=0` | 95.62 | 119      |
+| `libsvtav1` | `-crf 15 -preset 5 -svtav1-params tune=0`        | 96.04 | 143      |
+| `libsvtav1` | `-crf 20 -preset 5 -svtav1-params tune=0`        | 95.13 | 97       |
+| `av1_amf`   | `-rc cqp`                                        | 95.81 | 219      |
+| `av1_amf`   | `-rc cqp -quality quality`                       | 95.90 | 212      |
+| `libsvtav1` | (not ffmpeg) `ab-av1 auto-encode`                | 96.20 | 232      |
 
 Since this episode has tons of film grain I should've `flim-grain` option but for vmaf it's off. 
 
-Considering encoding speed (2.5x vs 4x) & size, I'm setting to `-crf 17 -preset 5 -svtav1-params tune=0` for non-drawing-timelapses.
+Also refer [this comment](https://www.reddit.com/r/AV1/comments/18l0k07/comment/kdw9mg3/?utm_source=share&utm_medium=web2x&context=3)
+
 
 <br>
+
+
+## XPSNR Score
+
+command:
+```shell
+ffmpeg -v error -i "{in_reference}" -i "{in_encoded}" -t 30 -filter_complex xpsnr="stats_file=-" -f null -
+```
+
+Alternative method to measure 
 
 
 ## VMAF Score
@@ -162,4 +185,4 @@ command:
 
 `-t` flag is there so that I don't have to wait eternity, this is very slow operation (at least for my 5800X)
 
-Used for checking video's variance from original.
+Used for checking video's variance from original. Not an absolute standard, has own downsides.
