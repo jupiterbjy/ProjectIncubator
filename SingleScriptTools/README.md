@@ -149,6 +149,40 @@ Currently broken as API is gone, will rewrite again when I need this
 
 ---
 
+### [ffmpeg_batch_av1_▽.py](ffmpeg_batch_av1_▽.py)
+Convert batch files to av1 codec for storage saving. Assumes all passed paths
+share common parent directory.
+
+- Usecase 1: Drag-drop videos only, creates `./av1` directory and stores in it.
+- Usecase 2: Drag-drop folders only, creates `../DIR_NAME_av1` directory and stores in it. Non-recursive.
+
+
+Will create new directory named "av1" under the CWD,
+since this script is designed to be for batch processing.
+
+Also outputs `results.sqlite` that contains file size & compression ratio.
+
+Requires FFMPEG
+
+
+<br>
+<br>
+
+
+---
+
+### [ffmpeg_batch_validate_▽.py](ffmpeg_batch_validate_▽.py)
+Batch validates video files using ffmpeg - which just actually is decoding and looking for errors.
+
+Requires FFMPEG
+
+
+<br>
+<br>
+
+
+---
+
 ### [ffmpeg_playback_multiply_▽.py](ffmpeg_playback_multiply_▽.py)
 Multiplies video playback speed by discarding frames.
 Requires FFMPEG
