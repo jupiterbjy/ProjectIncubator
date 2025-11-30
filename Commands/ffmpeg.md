@@ -95,6 +95,11 @@ batch(amd amf):
 ffmpeg -i %1 -c:v av1_amf -rc cqp -c:a aac -q:a 2 "%~n1_av1.mp4"
 ```
 
+My archive setting:
+```shell
+ffmpeg -i %1 -c:v libsvtav1 -crf 17 -preset 5 -svtav1-params tune=0 -c:a copy "%~n1_av1.mp4"
+```
+
 For quick drag drop encoding to save space.
 Check `ffmpeg -encoders | grep av1` to check fitting encoder for your hw.
 
@@ -103,18 +108,45 @@ worked best & simplest for `cqp` mode at default(speed) & balanced quality prese
 
 Following is my test based on my scribbling which is mostly thin black & white:
 
-| Encoder     | Extra param              | VMAF  | Size(MB) |
-|-------------|--------------------------|-------|----------|
-| `libsvtav1` |                          | 97.06 | 2.77     |
-| `libsvtav1` | `-crf 25`                | 97.27 | 4.29     |
-| `av1_amf`   |                          | 99.01 | 18.1     |
-| `av1_amf`   | `-cqp`                   | 99.32 | 4.47     |
-| `av1_amf`   | `-cqp -quality balanced` | 99.32 | 4.47     |
-| `av1_amf`   | `-cqp -quality quality`  | 99.25 | 4.24     |
+| Encoder     | Extra param                 | VMAF  | Size(MB) |
+|-------------|-----------------------------|-------|----------|
+| `libsvtav1` |                             | 97.06 | 2.77     |
+| `libsvtav1` | `-crf 25`                   | 97.27 | 4.29     |
+| `av1_amf`   |                             | 99.01 | 18.1     |
+| `av1_amf`   | `-rc cqp`                   | 99.32 | 4.47     |
+| `av1_amf`   | `-rc cqp -quality balanced` | 99.32 | 4.47     |
+| `av1_amf`   | `-rc cqp -quality quality`  | 99.25 | 4.24     |
 
 ...kinda feel weird to see VMAF drop with higher quality preset.
 Tho I still need `libsvtav1` since iirc `amd_amf` has hw bug with frame width,
 which in ffmpeg effects resulting vid to be somewhat messed up.
+
+EDIT: After search, that might be result of dupe frame dropping related. 
+
+Another random test (pat a mat first episode, 960x720 7min) with bit more proper vmaf,
+where we can clearly see the result more inline with what we expect, compared to above
+which had tons of static white background since it's drawing timelapse.
+
+```shell
+ab-av1 vmaf --reference SRC --distorted ENCODED
+```
+
+| Encoder     | Extra param                               | VMAF  | Size(MB) |
+|-------------|-------------------------------------------|-------|----------|
+| `libsvtav1` | `-crf 17`                                 | 94.23 | 113      |
+| `libsvtav1` | `-crf 17 -svtav1-params tune=0`           | 94.62 | 116      |
+| `libsvtav1` | `-crf 17 -preset 4 -svtav1-params tune=0` | 95.65 | 117      |
+| `libsvtav1` | `-crf 20 -preset 4 -svtav1-params tune=0` | 95.14 | 95.7     |
+| `libsvtav1` | `-crf 17 -preset 5 -svtav1-params tune=0` | 95.63 | 120      |
+| `libsvtav1` | `-crf 15 -preset 5 -svtav1-params tune=0` | 96.04 | 143      |
+| `libsvtav1` | `-crf 20 -preset 5 -svtav1-params tune=0` | 95.13 | 97       |
+| `av1_amf`   | `-rc cqp`                                 | 95.81 | 219      |
+| `av1_amf`   | `-rc cqp -quality quality`                | 95.90 | 212      |
+| `libsvtav1` | (not ffmpeg) `ab-av1 auto-encode`         | 96.20 | 232      |
+
+Since this episode has tons of film grain I should've `flim-grain` option but for vmaf it's off. 
+
+Considering encoding speed (2.5x vs 4x) & size, I'm setting to `-crf 17 -preset 5 -svtav1-params tune=0` for non-drawing-timelapses.
 
 <br>
 
