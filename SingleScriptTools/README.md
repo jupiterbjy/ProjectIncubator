@@ -7,6 +7,13 @@ Bunch of standalone scripts I wrote for use in daily life.
 - `_O` : indicates continuously running tool
 - `_m` : indicates module
 
+### Note
+
+Drag dropping on script requires proper handler.
+
+- For py `< 3.14`: Default installation's pylauncher ships with it. If not, try [this](https://stackoverflow.com/questions/142844)
+- For py `>= 3.14`: Requires `>= 25.1` [msi installer](https://www.python.org/downloads/windows/) of py install manager (refer [this](https://github.com/python/pymanager/issues/217))
+
 ## List
 
 ---

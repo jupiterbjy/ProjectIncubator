@@ -7,14 +7,38 @@ Assuming every script in directory starts with docstring.
 
 import re
 import pathlib
-from typing import Iterator
+from typing import Iterable
+
+
+# --- Config ---
 
 ROOT = pathlib.Path(__file__).parent
 WRITE_TO = ROOT / "README.md"
 
+HEADER = """
+# Singlescript Tools
+Bunch of standalone scripts I wrote for use in daily life.
+
+### Suffixes
+
+- `_▽` : indicates drag & drop tool
+- `_O` : indicates continuously running tool
+- `_m` : indicates module
+
+### Note
+
+Drag dropping on script requires proper handler.
+
+- For py `< 3.14`: Default installation's pylauncher ships with it. If not, try [this](https://stackoverflow.com/questions/142844)
+- For py `>= 3.14`: Requires `>= 25.1` [msi installer](https://www.python.org/downloads/windows/) of py install manager (refer [this](https://github.com/python/pymanager/issues/217))
+
+## List
+""".lstrip()
+
 SKIP_LINE_STARTING_WITH = ":"
 DOCS_REGEX = re.compile(r'^"""([\s\S]*?)"""')
 ENCODING = "utf8"
+
 FORMAT = """
 ---
 
@@ -27,8 +51,10 @@ FORMAT = """
 """
 
 
-def docstring_extract_gen(file_iterator: Iterator[pathlib.Path]):
-    for file in file_iterator:
+# --- Logic ---
+
+def docstring_extract_gen(file_iter: Iterable[pathlib.Path]):
+    for file in file_iter:
         # discard files starting with underscore
         if file.stem[0] == "_":
             continue
@@ -53,11 +79,13 @@ def main():
     )
 
     # cut in first --- & strip all newlines, then add single newline
-    data = WRITE_TO.read_text("utf8").split("---")[0].strip() + "\n"
+    # data = WRITE_TO.read_text("utf8").split("---")[0].strip() + "\n"
+    # now no longer needed since explicit header is in use
 
     # write to file
     with WRITE_TO.open("wt", encoding="utf8") as fp:
-        fp.write(data)
+        fp.write(HEADER)
+        # fp.write(data)
 
         # append docs
         for name, _, docs in docstring_extract_gen(file_list):
