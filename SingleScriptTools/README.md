@@ -38,6 +38,18 @@ Fetch all files with matching extension to script's location/Copied. Recursive.
 
 ---
 
+### [delayed_dl_workload_server_O.py](delayed_dl_workload_server_O.py)
+Async trio server for slow download simulation.
+
+Written in 2022, copied from [gist](https://gist.github.com/jupiterbjy/b0ad9a4dca162195aa0673b69e0af5cd)
+
+
+<br>
+<br>
+
+
+---
+
 ### [dumb_pure_async_api_server_m.py](dumb_pure_async_api_server_m.py)
 Dumb probably unsafe async API server, purely made of included batteries for fun.
 
@@ -460,6 +472,29 @@ Usage:
 Either way, it will generate index.html in the same directory as script.
 
 ![](readme_res/project_media_html_index.png)
+
+
+<br>
+<br>
+
+
+---
+
+### [remote_execution_server_O.py](remote_execution_server_O.py)
+> WARNING: This is VERY UNSAFE and should not be used in general.
+
+Copied from [gist](https://gist.github.com/jupiterbjy/dcf4dd27784c80369b76c65d2077b643)
+
+Prototype written back in (probably) 2021, this was created to test feasibility of running python scripts
+from discord without exposing the bot host, and this is server part of bot's
+[module](https://github.com/jupiterbjy/Meow_py/tree/main/Meowpy/BotComponents/PythonExecution).
+
+This listens for incoming connections and execute received python codes.
+Obviously this is very dangerous. This is to be run on overlayFS with Raspbian.
+
+![](readme_res/remote_execution_server_0.png)
+
+![](readme_res/remote_execution_server_1.png)
 
 
 <br>
