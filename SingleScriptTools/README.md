@@ -312,7 +312,8 @@ Removes GPS tags from image EXIF data
 ---
 
 ### [img_2_pdf_▽.py](img_2_pdf_▽.py)
-Convert multiples images into single pdf
+Convert multiple images into single pdf.
+Refer `pdf_2_img` for inverse.
 
 `pip install pillow`
 
@@ -434,6 +435,18 @@ Just use loguru, I used this until I found it.
 Generates m3u8 file using audio files in current directory. Recursive.
 
 `pip install mutagen`
+
+
+<br>
+<br>
+
+
+---
+
+### [pdf_2_img_▽.py](pdf_2_img_▽.py)
+Split image pdf back to multiple images
+
+`pip install pypdf`
 
 
 <br>

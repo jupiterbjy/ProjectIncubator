@@ -1,5 +1,6 @@
 """
-Convert multiples images into single pdf
+Convert multiple images into single pdf.
+Refer `pdf_2_img` for inverse.
 
 `pip install pillow`
 
@@ -8,14 +9,10 @@ Convert multiples images into single pdf
 
 import pathlib
 import argparse
-import time
 import traceback
 from typing import Sequence, Generator
 
 from PIL import Image
-
-
-TIMEOUT = 10
 
 
 def fetch_image_gen(
@@ -67,10 +64,7 @@ def image_path_to_pdf(paths: Sequence[pathlib.Path]):
         traceback.print_exc()
 
         print(f"{type(err).__name__} while loading images. Check last traceback.")
-        print(f"Will be closed in {TIMEOUT} seconds.")
-        time.sleep(TIMEOUT)
-
-        raise
+        input("press enter to exit")
 
 
 if __name__ == "__main__":
