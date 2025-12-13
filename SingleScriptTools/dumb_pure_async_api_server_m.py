@@ -1,38 +1,69 @@
 """
 Dumb probably unsafe async API server, purely made of included batteries for fun.
 
-Example Usage:
+Example Usage (This test can be run by directly running this module):
 ```python
 import asyncio
 import pathlib
 
 from dumb_async_api_server import *
 
-
 APP = DumbAPIServer()
 ROOT = pathlib.Path(__file__).parent
 
-@APP.get("/hello")
-async def hello(subdir: str, fail="", **kwargs) -> HTTPResponse:
-    await asyncio.sleep(1)
 
-    # if this wasn't the exact dir match, ignore it
-    if subdir:
-        return HTTPResponse(404)
-
-    # for status test
-    if fail == "true":
+@APP.get_deco("/resp_test")
+async def resp_test(code: str, **_kwargs) -> HTTPResponse:
+    try:
+        return HTTPResponse(int(code))
+    except ValueError:
         return HTTPResponse(400)
 
-    return HTTPResponse.text(f"Hello, world!\nparams:{kwargs}")
 
-@APP.get("/")
-async def index(subdir: str) -> HTTPResponse:
+@APP.get_deco("/delay_test")
+async def delay_test(delay: str, **_kwargs) -> HTTPResponse:
+    try:
+        await asyncio.sleep(float(delay))
+    except ValueError:
+        return HTTPResponse(400)
+
+    return HTTPResponse.text("OK")
+
+
+@APP.get_deco("/hello")
+async def hello(subdir: str, **kwargs) -> HTTPResponse:
+    return HTTPResponse.text(f"Hello, world!\nsubdir: {subdir}\nparams:{kwargs}")
+
+
+@APP.get_deco("/hello/nested")
+async def nested(subdir: str, **kwargs) -> HTTPResponse:
+    return HTTPResponse.text(f"(Hello, world!)^2\nsubdir: {subdir}\nparams:{kwargs}")
+
+
+@APP.get_deco("/")
+async def index(subdir: str, **_kwargs) -> HTTPResponse:
+    if not subdir and not (ROOT / "index.html").exists():
+        return HTTPResponse.text("Nothing to index!")
+
     return serve_path(ROOT / subdir)
 
 
 if __name__ == "__main__":
     asyncio.run(APP.serve())
+```
+
+```text
+Registered GET '/resp_test' -> '__test_serve.<locals>.resp_test'
+Registered GET '/delay_test' -> '__test_serve.<locals>.delay_test'
+Registered GET '/hello' -> '__test_serve.<locals>.hello'
+Registered GET '/hello/nested' -> '__test_serve.<locals>.nested'
+Registered GET '/' -> '__test_serve.<locals>.index'
+Starting at http://127.0.0.1:8080 - Available GET:
+http://127.0.0.1:8080/resp_test
+http://127.0.0.1:8080/delay_test
+http://127.0.0.1:8080/hello
+http://127.0.0.1:8080/hello/nested
+http://127.0.0.1:8080/
 ```
 
 :Author: jupiterbjy@gmail.com
@@ -41,9 +72,12 @@ if __name__ == "__main__":
 
 import asyncio
 import pathlib
+import inspect
+import traceback
 from urllib.parse import unquote
 from pprint import pprint
 from collections.abc import Callable, Awaitable
+
 
 __all__ = ["DumbAPIServer", "HTTPError", "HTTPResponse", "serve_path"]
 
@@ -81,6 +115,9 @@ class HTTPResponse:
         """Creates HTTP response instance with octet stream body"""
 
         return cls(200, "application/octet-stream", body)
+
+
+_AsyncHandler = Callable[..., Awaitable[HTTPResponse]]
 
 
 def serve_path(root: pathlib.Path, subdir: str = "") -> HTTPResponse:
@@ -123,6 +160,8 @@ class _HTTPUtils:
         403: " 403 Forbidden\r\n",
         404: " 404 Not Found\r\n",
         405: " 405 Method Not Allowed\r\n",
+        418: " 418 I'm a teapot\r\n",
+        500: " 500 Internal Server Error\r\n",
     }
 
     _RESP_CONTENT_TEMPLATE = (
@@ -222,15 +261,15 @@ async def _read_all(reader: asyncio.StreamReader, chunk_size: int = 1024) -> str
         UTF8 decoded string
     """
 
-    output = ""
+    output = b""
 
     while recv := await reader.read(chunk_size):
-        output += recv.decode("utf8")
+        output += recv
 
         if len(recv) < chunk_size:
             break
 
-    return output
+    return output.decode("utf8")
 
 
 # --- Logics ---
@@ -238,38 +277,40 @@ async def _read_all(reader: asyncio.StreamReader, chunk_size: int = 1024) -> str
 class DumbAPIServer:
     """Dumb probably unsafe async HTTP server"""
 
-    _AsyncHandler = Callable[..., Awaitable[HTTPResponse]]
-
     def __init__(self):
-        self.mapped_dirs: dict[str, dict[str, DumbAPIServer._AsyncHandler]] = {
+        self.mapped_dirs: dict[str, dict[str, _AsyncHandler]] = {
             "GET": {},
             "POST": {},
         }
 
-    def get(self, map_dir: str) -> Callable[[_AsyncHandler], _AsyncHandler]:
+    def get_deco(self, map_dir: str) -> Callable[[_AsyncHandler], _AsyncHandler]:
         """Decorator to map a directory to async function"""
 
         # @functools.wraps
-        def decorator(async_func: DumbAPIServer._AsyncHandler) -> DumbAPIServer._AsyncHandler:
-            if not asyncio.iscoroutinefunction(async_func):
+        def decorator(async_func: _AsyncHandler) -> _AsyncHandler:
+            if not inspect.iscoroutinefunction(async_func):
                 raise TypeError("Decorated function must be an async function")
 
             self.mapped_dirs["GET"][map_dir] = async_func
+            print(f"Registered GET '{map_dir}' -> '{async_func.__qualname__}'")
+
             return async_func
 
         return decorator
 
-    def post(self, map_dir: str) -> Callable[[_AsyncHandler], _AsyncHandler]:
+    def post_deco(self, map_dir: str) -> Callable[[_AsyncHandler], _AsyncHandler]:
         """Decorator to map a directory to async function.
         Function must return (header: str, body: bytes) tuple.
         """
 
         # @functools.wraps
-        def decorator(async_func: DumbAPIServer._AsyncHandler) -> DumbAPIServer._AsyncHandler:
-            if not asyncio.iscoroutinefunction(async_func):
+        def decorator(async_func: _AsyncHandler) -> _AsyncHandler:
+            if not inspect.iscoroutinefunction(async_func):
                 raise TypeError("Decorated function must be an async function")
 
             self.mapped_dirs["POST"][map_dir] = async_func
+            print(f"Registered POST {map_dir} -> {async_func.__name__}")
+
             return async_func
 
         return decorator
@@ -287,40 +328,40 @@ class DumbAPIServer:
 
         http_ver = req_dict["HTTP"]
 
-        # reject user when non-GET are used, we don't support it
+        # reject user when non-GET/POST are used, we don't support it
         if req_dict["Method"] not in self.mapped_dirs:
             return _HTTPUtils.create_resp_header(http_ver, HTTPResponse(405)), b""
 
         # parse path + param
         try:
-            path, kwargs = _HTTPUtils.parse_raw_dir(req_dict["Directory"])
+            str_path, kwargs = _HTTPUtils.parse_raw_dir(req_dict["Directory"])
+            path = pathlib.PurePosixPath(str_path)
 
         except ValueError:
             return _HTTPUtils.create_resp_header(http_ver, HTTPResponse(400)), b""
 
-        # attempt to get handler by iterating parent
-        try:
+        # attempt to get handler by finding match for self & parent dir
+        async_func: _AsyncHandler
+        subdir: str
 
-            for parent_path in pathlib.PurePosixPath(path).parents:
-                p = parent_path.as_posix()
+        for candidate in [path, *path.parents]:
+            p = candidate.as_posix()
 
-                if p in self.mapped_dirs[req_dict["Method"]]:
-                    async_func = self.mapped_dirs[req_dict["Method"]][p]
-                    subdir = pathlib.Path(path).relative_to(parent_path).as_posix()
-                    break
+            if p not in self.mapped_dirs[req_dict["Method"]]:
+                continue
 
-            else:
-                if path == "/":
-                    async_func = self.mapped_dirs[req_dict["Method"]]["/"]
-                    subdir = ""
-                else:
-                    raise KeyError()
+            async_func = self.mapped_dirs[req_dict["Method"]][p]
+            subdir = path.relative_to(candidate).as_posix()
 
-        except KeyError:
+            if subdir == ".":
+                subdir = ""
+            break
+        else:
             return _HTTPUtils.create_resp_header(http_ver, HTTPResponse(404)), b""
 
         # got valid hit, run it
         try:
+            # noinspection PyUnboundLocalVariable
             resp = await async_func(**kwargs, subdir=subdir)
             return _HTTPUtils.create_resp_header(http_ver, resp), resp.content
 
@@ -339,15 +380,21 @@ class DumbAPIServer:
         # TODO: Add keepalive
 
         # Receive
-        print("\nReceiving")
+        print("\nReceiving ---")
 
         parsed = _HTTPUtils.parse_req(await _read_all(r))
         pprint(parsed)
 
-        print("Received")
+        print("--- Received")
 
         # Prep response
-        header, body = await self.create_resp(parsed)
+        # noinspection PyBroadException
+        try:
+            header, body = await self.create_resp(parsed)
+        except Exception as _err:
+            traceback.print_exc()
+            header = _HTTPUtils.create_resp_header(parsed["HTTP"], HTTPResponse(500))
+            body = b""
 
         # Respond
         print("\nResponding ---")
@@ -372,9 +419,61 @@ class DumbAPIServer:
             port: Serving port
         """
 
-        server = await asyncio.start_server(self._tcp_handler, address, port)
+        # print links so it's easier to test
+        url = f"http://{address}:{port}"
 
-        print(f"Started at http://{address}:{port}")
+        print(f"Starting at {url} - Available GET:")
+        for path in self.mapped_dirs["GET"]:
+            print(url + path)
+
+        server = await asyncio.start_server(self._tcp_handler, address, port)
 
         async with server:
             await server.serve_forever()
+
+
+# --- Drivers ---
+
+def __test_serve():
+    print("!! Running test server !!")
+
+    app = DumbAPIServer()
+    root = pathlib.Path(__file__).parent
+
+    @app.get_deco("/resp_test")
+    async def resp_test(code: str, **_kwargs) -> HTTPResponse:
+        try:
+            return HTTPResponse(int(code))
+        except ValueError:
+            return HTTPResponse(400)
+
+    @app.get_deco("/delay_test")
+    async def delay_test(delay: str, **_kwargs) -> HTTPResponse:
+        try:
+            await asyncio.sleep(float(delay))
+        except ValueError:
+            return HTTPResponse(400)
+
+        return HTTPResponse.text("OK")
+
+    @app.get_deco("/hello")
+    async def hello(subdir: str, **kwargs) -> HTTPResponse:
+        return HTTPResponse.text(f"Hello, world!\nsubdir: {subdir}\nparams:{kwargs}")
+
+    @app.get_deco("/hello/nested")
+    async def nested(subdir: str, **kwargs) -> HTTPResponse:
+        return HTTPResponse.text(f"(Hello, world!)^2\nsubdir: {subdir}\nparams:{kwargs}")
+
+    @app.get_deco("/")
+    async def index(subdir: str, **_kwargs) -> HTTPResponse:
+
+        if not subdir and not (root / "index.html").exists():
+            return HTTPResponse.text("Nothing to index!")
+
+        return serve_path(root / subdir)
+
+    asyncio.run(app.serve())
+
+
+if __name__ == "__main__":
+    __test_serve()
