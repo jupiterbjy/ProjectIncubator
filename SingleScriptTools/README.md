@@ -149,6 +149,98 @@ Rewrite of [stackoverflow answer](https://stackoverflow.com/a/70649803) I wrote.
 
 ---
 
+### [dumb_trio_api_server_m.py](dumb_trio_api_server_m.py)
+Dumb probably unsafe async API server, purely made of included batteries BUT for trio for fun.
+
+Run this module directly to start a test server. (test code at bottom of src)
+
+Example Usage:
+```python
+import trio
+import pathlib
+
+from dumb_trio_api_server_m import *
+
+APP = DumbAPIServer()
+ROOT = pathlib.Path(__file__).parent
+BG_TASK_NURSERY: trio.Nursery | None = None
+
+PLACEHOLDER_HTML = ...
+
+@APP.get_deco("/delay_test")
+async def delay_test(subdir: str, delay: str = "0", **_kwargs) -> HTTPResponse:
+    if subdir:
+        return HTTPResponse(404)
+
+    try:
+        await trio.sleep(float(delay))
+    except ValueError:
+        return HTTPResponse(400)
+
+    return HTTPResponse.text(f"{delay}s wait done")
+
+
+@APP.get_deco("/hello/nested")
+async def nested(subdir: str, **kwargs) -> HTTPResponse:
+    return HTTPResponse.text(f"(Hello, world!)^2\nsubdir: {subdir}\nparams:{kwargs}")
+
+
+@APP.get_deco("/")
+async def index(subdir: str, **_kwargs) -> HTTPResponse:
+    if not subdir and not (ROOT / "index.html").exists():
+        return HTTPResponse.html(PLACEHOLDER_HTML)
+
+    return serve_path(ROOT / subdir)
+
+
+async def driver():
+    global BG_TASK_NURSERY
+    BG_TASK_NURSERY = trio.open_nursery()
+
+    async with BG_TASK_NURSERY as nursery:
+        nursery.start_soon(APP.serve)
+
+
+if __name__ == "__main__":
+    trio.run(driver)
+```
+
+```text
+Registered GET '/delay_test' -> 'delay_test'
+Registered GET '/hello/nested' -> 'nested'
+Registered GET '/' -> 'index'
+Starting at http://127.0.0.1:8080 - Available GET:
+http://127.0.0.1:8080/delay_test
+http://127.0.0.1:8080/hello/nested
+http://127.0.0.1:8080/
+
+-> Receiving ---
+{...
+ 'Directory': '/',
+ 'HTTP': 'HTTP/1.1',
+ 'Host': '127.0.0.1:8080',
+ 'Method': 'GET',
+ ...
+ 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) '
+               'Gecko/20100101 Firefox/146.0'}
+--- Received
+
+<- Responding ---
+HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 159
+Connection: close
+
+--- Response sent
+```
+
+
+<br>
+<br>
+
+
+---
+
 ### [effective_work_timer_O.py](effective_work_timer_O.py)
 Simple script to track focused window and measure total **ACTIVE** time
 whenever there's input with configurable margin, windows only.
