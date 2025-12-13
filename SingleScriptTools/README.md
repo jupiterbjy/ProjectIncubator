@@ -60,11 +60,12 @@ Example Usage:
 import asyncio
 import pathlib
 
-from dumb_trio_api_server import *
+from dumb_pure_async_api_server_m import *
 
 APP = DumbAPIServer()
 ROOT = pathlib.Path(__file__).parent
 
+PLACEHOLDER_HTML = ...
 
 @APP.get_deco("/delay_test")
 async def delay_test(subdir: str, delay: str = "0", **_kwargs) -> HTTPResponse:
@@ -87,7 +88,7 @@ async def nested(subdir: str, **kwargs) -> HTTPResponse:
 @APP.get_deco("/")
 async def index(subdir: str, **_kwargs) -> HTTPResponse:
     if not subdir and not (ROOT / "index.html").exists():
-        return HTTPResponse.text("Nothing to index!")
+        return HTTPResponse.html(PLACEHOLDER_HTML)
 
     return serve_path(ROOT / subdir)
 
@@ -104,6 +105,25 @@ Starting at http://127.0.0.1:8080 - Available GET:
 http://127.0.0.1:8080/delay_test
 http://127.0.0.1:8080/hello/nested
 http://127.0.0.1:8080/
+
+-> Receiving ---
+{...
+ 'Directory': '/',
+ 'HTTP': 'HTTP/1.1',
+ 'Host': '127.0.0.1:8080',
+ 'Method': 'GET',
+ ...
+ 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) '
+               'Gecko/20100101 Firefox/146.0'}
+--- Received
+
+<- Responding ---
+HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 159
+Connection: close
+
+--- Response sent
 ```
 
 
