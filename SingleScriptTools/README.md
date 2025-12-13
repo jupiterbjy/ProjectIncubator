@@ -53,38 +53,69 @@ Written in 2022, copied from [gist](https://gist.github.com/jupiterbjy/b0ad9a4dc
 ### [dumb_pure_async_api_server_m.py](dumb_pure_async_api_server_m.py)
 Dumb probably unsafe async API server, purely made of included batteries for fun.
 
-Example Usage:
+Example Usage (This test can be run by directly running this module):
 ```python
 import asyncio
 import pathlib
 
 from dumb_async_api_server import *
 
-
 APP = DumbAPIServer()
 ROOT = pathlib.Path(__file__).parent
 
-@APP.get("/hello")
-async def hello(subdir: str, fail="", **kwargs) -> HTTPResponse:
-    await asyncio.sleep(1)
 
-    # if this wasn't the exact dir match, ignore it
-    if subdir:
-        return HTTPResponse(404)
-
-    # for status test
-    if fail == "true":
+@APP.get_deco("/resp_test")
+async def resp_test(code: str, **_kwargs) -> HTTPResponse:
+    try:
+        return HTTPResponse(int(code))
+    except ValueError:
         return HTTPResponse(400)
 
-    return HTTPResponse.text(f"Hello, world!\nparams:{kwargs}")
 
-@APP.get("/")
-async def index(subdir: str) -> HTTPResponse:
+@APP.get_deco("/delay_test")
+async def delay_test(delay: str, **_kwargs) -> HTTPResponse:
+    try:
+        await asyncio.sleep(float(delay))
+    except ValueError:
+        return HTTPResponse(400)
+
+    return HTTPResponse.text("OK")
+
+
+@APP.get_deco("/hello")
+async def hello(subdir: str, **kwargs) -> HTTPResponse:
+    return HTTPResponse.text(f"Hello, world!\nsubdir: {subdir}\nparams:{kwargs}")
+
+
+@APP.get_deco("/hello/nested")
+async def nested(subdir: str, **kwargs) -> HTTPResponse:
+    return HTTPResponse.text(f"(Hello, world!)^2\nsubdir: {subdir}\nparams:{kwargs}")
+
+
+@APP.get_deco("/")
+async def index(subdir: str, **_kwargs) -> HTTPResponse:
+    if not subdir and not (ROOT / "index.html").exists():
+        return HTTPResponse.text("Nothing to index!")
+
     return serve_path(ROOT / subdir)
 
 
 if __name__ == "__main__":
     asyncio.run(APP.serve())
+```
+
+```text
+Registered GET '/resp_test' -> '__test_serve.<locals>.resp_test'
+Registered GET '/delay_test' -> '__test_serve.<locals>.delay_test'
+Registered GET '/hello' -> '__test_serve.<locals>.hello'
+Registered GET '/hello/nested' -> '__test_serve.<locals>.nested'
+Registered GET '/' -> '__test_serve.<locals>.index'
+Starting at http://127.0.0.1:8080 - Available GET:
+http://127.0.0.1:8080/resp_test
+http://127.0.0.1:8080/delay_test
+http://127.0.0.1:8080/hello
+http://127.0.0.1:8080/hello/nested
+http://127.0.0.1:8080/
 ```
 
 
