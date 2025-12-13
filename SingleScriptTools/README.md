@@ -53,38 +53,30 @@ Written in 2022, copied from [gist](https://gist.github.com/jupiterbjy/b0ad9a4dc
 ### [dumb_pure_async_api_server_m.py](dumb_pure_async_api_server_m.py)
 Dumb probably unsafe async API server, purely made of included batteries for fun.
 
-Example Usage (This test can be run by directly running this module):
+Run this module directly to start a test server. (test code at bottom of src)
+
+Example Usage:
 ```python
 import asyncio
 import pathlib
 
-from dumb_async_api_server import *
+from dumb_trio_api_server import *
 
 APP = DumbAPIServer()
 ROOT = pathlib.Path(__file__).parent
 
 
-@APP.get_deco("/resp_test")
-async def resp_test(code: str, **_kwargs) -> HTTPResponse:
-    try:
-        return HTTPResponse(int(code))
-    except ValueError:
-        return HTTPResponse(400)
-
-
 @APP.get_deco("/delay_test")
-async def delay_test(delay: str, **_kwargs) -> HTTPResponse:
+async def delay_test(subdir: str, delay: str = "0", **_kwargs) -> HTTPResponse:
+    if subdir:
+        return HTTPResponse(404)
+
     try:
         await asyncio.sleep(float(delay))
     except ValueError:
         return HTTPResponse(400)
 
-    return HTTPResponse.text("OK")
-
-
-@APP.get_deco("/hello")
-async def hello(subdir: str, **kwargs) -> HTTPResponse:
-    return HTTPResponse.text(f"Hello, world!\nsubdir: {subdir}\nparams:{kwargs}")
+    return HTTPResponse.text(f"{delay}s wait done")
 
 
 @APP.get_deco("/hello/nested")
@@ -105,15 +97,11 @@ if __name__ == "__main__":
 ```
 
 ```text
-Registered GET '/resp_test' -> '__test_serve.<locals>.resp_test'
-Registered GET '/delay_test' -> '__test_serve.<locals>.delay_test'
-Registered GET '/hello' -> '__test_serve.<locals>.hello'
-Registered GET '/hello/nested' -> '__test_serve.<locals>.nested'
-Registered GET '/' -> '__test_serve.<locals>.index'
+Registered GET '/delay_test' -> 'delay_test'
+Registered GET '/hello/nested' -> 'nested'
+Registered GET '/' -> 'index'
 Starting at http://127.0.0.1:8080 - Available GET:
-http://127.0.0.1:8080/resp_test
 http://127.0.0.1:8080/delay_test
-http://127.0.0.1:8080/hello
 http://127.0.0.1:8080/hello/nested
 http://127.0.0.1:8080/
 ```
