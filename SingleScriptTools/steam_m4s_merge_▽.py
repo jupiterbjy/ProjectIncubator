@@ -2,11 +2,25 @@
 Merges m4s files of steam's recording clips into mp4. Zero dependency.
 
 This script exists because as of 2024-10-14 steam beta is broken and can't export video properly.
-As of 11-17 STILL NOT WORKING so we'll need this script a bit longer...
+<sub>(As of 11-17 STILL NOT WORKING so we'll need this script a bit longer...)</sub>
 
-Refer -h for usage.
+Requires ffmpeg in PATH - Install it using package manager of your like, e.g.:
 
-Requires ffmpeg in PATH.
+```shell
+# windows - scoop
+scoop install ffmpeg
+
+# debian
+apt install ffmpeg
+
+# ... or download manually and add to PATH!
+```
+
+Refer `-h` for usage.
+
+| ![](readme_res/steam_m4s_merge.jpg) |
+|-------------------------------------|
+| Test run with few clips             |
 
 :Author: jupiterbjy@gmail.com
 """
@@ -76,7 +90,7 @@ SPLASH_MSG = f"""
 Steam Recording Extraction script
 by jupiterbjy's Prehistoric coding skills
 
-Revision 11 (2025-10-20)
+Revision 12 (2025-12-23)
 =========================================
 """.lstrip()
 
@@ -223,6 +237,23 @@ def concat_file(parts: Sequence[pathlib.Path], output_path: pathlib.Path) -> Non
     with output_path.open("wb") as fp:
         for part in parts:
             fp.write(part.read_bytes())
+
+
+def validate_ffmpeg() -> bool:
+    """Validates ffmpeg is installed and working."""
+
+    print("Testing ffmpeg installation")
+
+    try:
+        proc = subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+        ANSI.print(proc.stdout.decode().splitlines()[0], color="YELLOW")
+        return True
+
+    except subprocess.CalledProcessError:
+        return False
+
+    except FileNotFoundError:
+        return False
 
 
 # --- Logic ---
@@ -398,8 +429,6 @@ def main(
 
 if __name__ == "__main__":
 
-    ANSI.print(SPLASH_MSG, color="YELLOW")
-
     _parser = argparse.ArgumentParser(
         description="Merges m4s files of steam's recording clips into mp4.",
         add_help=True,
@@ -436,7 +465,11 @@ if __name__ == "__main__":
 
     _args = _parser.parse_args()
 
+    ANSI.print(SPLASH_MSG, color="YELLOW")
+
     try:
+        assert validate_ffmpeg(), "ffmpeg is not installed or not working - check your installation!"
+
         main(
             list(_recursive_recording_fetch_batched_gen(_args.clip_paths)),
             _args.output_dir,
