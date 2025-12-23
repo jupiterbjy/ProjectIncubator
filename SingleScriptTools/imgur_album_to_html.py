@@ -318,7 +318,7 @@ async def main_task(
 
 if __name__ == "__main__":
     # parse args
-    parser = argparse.ArgumentParser("Imgur album to PDF downloader")
+    parser = argparse.ArgumentParser("Imgur album to HTML downloader")
 
     parser.add_argument(
         "-c",
