@@ -6,6 +6,7 @@ Tracked time is written to a sqlite3 database created next to this script.
 
 No external dependencies are required, as long as provided default `PROC_LIST_CMD` works for you.
 
+![](readme_res/process_runtime_tracker.jpg)
 
 :Author: jupiterbjy@gmail.com
 """

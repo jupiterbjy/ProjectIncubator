@@ -5,7 +5,7 @@ Merges multiple images into one big tiled image with desired height & width rati
 
 `pip install pillow, pillow-avif-plugin`
 
-![Example](readme_res/parallel_merge.png)
+![Example](readme_res/parallel_merge.jpg)
 
 :Author: jupiterbjy@gmail.com
 """

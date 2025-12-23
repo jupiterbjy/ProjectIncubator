@@ -421,7 +421,7 @@ Merges multiple images into one big tiled image with desired height & width rati
 
 `pip install pillow, pillow-avif-plugin`
 
-![Example](readme_res/parallel_merge.png)
+![Example](readme_res/parallel_merge.jpg)
 
 
 <br>
@@ -594,6 +594,7 @@ Tracked time is written to a sqlite3 database created next to this script.
 
 No external dependencies are required, as long as provided default `PROC_LIST_CMD` works for you.
 
+![](/readme_res/process_runtime_tracker.jpg)
 
 
 <br>
@@ -720,11 +721,25 @@ Simply makes images perfect square by extending from shorter dimension.
 Merges m4s files of steam's recording clips into mp4. Zero dependency.
 
 This script exists because as of 2024-10-14 steam beta is broken and can't export video properly.
-As of 11-17 STILL NOT WORKING so we'll need this script a bit longer...
+<sub>(As of 11-17 STILL NOT WORKING so we'll need this script a bit longer...)</sub>
 
-Refer -h for usage.
+Requires ffmpeg in PATH - Install it using package manager of your like, e.g.:
 
-Requires ffmpeg in PATH.
+```shell
+# windows - scoop
+scoop install ffmpeg
+
+# debian
+apt install ffmpeg
+
+# ... or download manually and add to PATH!
+```
+
+Refer `-h` for usage.
+
+| ![](readme_res/steam_m4s_merge.jpg) |
+|-------------------------------------|
+| Test run with few clips             |
 
 
 <br>
