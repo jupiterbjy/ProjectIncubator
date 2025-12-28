@@ -152,7 +152,7 @@ Rewrite of [stackoverflow answer](https://stackoverflow.com/a/70649803) I wrote.
 ### [dumb_trio_api_server_m.py](dumb_trio_api_server_m.py)
 Dumb probably unsafe async API server, purely made of included batteries BUT for trio for fun.
 
-Run this module directly to start a test server. (test code at bottom of src)
+Run this module directly to start a test server. (run module directly to run this test yourself)
 
 Example Usage:
 ```python
@@ -165,33 +165,40 @@ APP = DumbAPIServer()
 ROOT = pathlib.Path(__file__).parent
 BG_TASK_NURSERY: trio.Nursery | None = None
 
+DIR_LISTING = True
 PLACEHOLDER_HTML = ...
 
 @APP.get_deco("/delay_test")
 async def delay_test(subdir: str, delay: str = "0", **_kwargs) -> HTTPResponse:
+
     if subdir:
-        return HTTPResponse(404)
+        return HTTPResponse.redirect(f"/delay_test?delay=2")
 
     try:
-        await trio.sleep(float(delay))
-    except ValueError:
-        return HTTPResponse(400)
+        val = float(delay)
+        assert val > 0
+        await trio.sleep(val)
+    except ValueError, AssertionError:
+        return HTTPResponse.redirect(f"/delay_test?delay=2")
 
     return HTTPResponse.text(f"{delay}s wait done")
-
 
 @APP.get_deco("/hello/nested")
 async def nested(subdir: str, **kwargs) -> HTTPResponse:
     return HTTPResponse.text(f"(Hello, world!)^2\nsubdir: {subdir}\nparams:{kwargs}")
 
-
 @APP.get_deco("/")
 async def index(subdir: str, **_kwargs) -> HTTPResponse:
-    if not subdir and not (ROOT / "index.html").exists():
-        return HTTPResponse.html(PLACEHOLDER_HTML)
+    if subdir:
+        return serve_path(root, subdir, serve_listing=DIR_LISTING)
 
-    return serve_path(ROOT / subdir)
+    if (root / "index.html").exists():
+        return serve_path(root, serve_listing=DIR_LISTING)
 
+    if DIR_LISTING:
+        return serve_path(root, serve_listing=True)
+
+    return HTTPResponse.html(placeholder_html)
 
 async def driver():
     global BG_TASK_NURSERY

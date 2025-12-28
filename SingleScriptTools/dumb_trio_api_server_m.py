@@ -1,12 +1,13 @@
 """
 Dumb probably unsafe async API server, purely made of included batteries BUT for trio for fun.
 
-Run this module directly to start a test server. (test code at bottom of src)
+Run this module directly to start a test server. (run module directly to run this test yourself)
 
 Example Usage:
 ```python
-import trio
 import pathlib
+
+import trio
 
 from dumb_trio_api_server_m import *
 
@@ -14,33 +15,40 @@ APP = DumbAPIServer()
 ROOT = pathlib.Path(__file__).parent
 BG_TASK_NURSERY: trio.Nursery | None = None
 
+DIR_LISTING = True
 PLACEHOLDER_HTML = ...
 
 @APP.get_deco("/delay_test")
 async def delay_test(subdir: str, delay: str = "0", **_kwargs) -> HTTPResponse:
+
     if subdir:
-        return HTTPResponse(404)
+        return HTTPResponse.redirect(f"/delay_test?delay=2")
 
     try:
-        await trio.sleep(float(delay))
-    except ValueError:
-        return HTTPResponse(400)
+        val = float(delay)
+        assert val > 0
+        await trio.sleep(val)
+    except ValueError, AssertionError:
+        return HTTPResponse.redirect(f"/delay_test?delay=2")
 
     return HTTPResponse.text(f"{delay}s wait done")
-
 
 @APP.get_deco("/hello/nested")
 async def nested(subdir: str, **kwargs) -> HTTPResponse:
     return HTTPResponse.text(f"(Hello, world!)^2\nsubdir: {subdir}\nparams:{kwargs}")
 
-
 @APP.get_deco("/")
 async def index(subdir: str, **_kwargs) -> HTTPResponse:
-    if not subdir and not (ROOT / "index.html").exists():
-        return HTTPResponse.html(PLACEHOLDER_HTML)
+    if subdir:
+        return serve_path(root, subdir, serve_listing=DIR_LISTING)
 
-    return serve_path(ROOT / subdir)
+    if (root / "index.html").exists():
+        return serve_path(root, serve_listing=DIR_LISTING)
 
+    if DIR_LISTING:
+        return serve_path(root, serve_listing=True)
+
+    return HTTPResponse.html(placeholder_html)
 
 async def driver():
     global BG_TASK_NURSERY
@@ -86,15 +94,14 @@ Connection: close
 :Author: jupiterbjy@gmail.com
 """
 
-
-import trio
 import pathlib
 import inspect
 import traceback
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 from pprint import pprint
 from collections.abc import Callable, Awaitable
 
+import trio
 
 __all__ = ["DumbAPIServer", "HTTPError", "HTTPResponse", "serve_path"]
 
@@ -110,10 +117,13 @@ class HTTPError(Exception):
 class HTTPResponse:
     """Helper class to create response. Create either directly or via named constructors."""
 
-    def __init__(self, status: int, content_type: str = "", content: bytes = b""):
+    def __init__(self, status: int, content_type="", content=b"", headers: dict[str, str] = None):
         self.status = status
         self.content_type = content_type
         self.content = content
+        self.headers: dict[str, str] = {}
+        if headers:
+            self.headers.update(headers)
 
     @classmethod
     def text(cls, body: str) -> "HTTPResponse":
@@ -133,57 +143,55 @@ class HTTPResponse:
 
         return cls(200, "application/octet-stream", body)
 
+    @classmethod
+    def redirect(cls, url: str) -> "HTTPResponse":
+        return cls(301, headers={"Location": url})
+
 
 _AsyncHandler = Callable[..., Awaitable[HTTPResponse]]
 
 
-def serve_path(root: pathlib.Path, subdir: str = "") -> HTTPResponse:
-    """Creates a response for Serving files for GET request."""
+def sanitize_path(root: pathlib.Path, rel_path: str) -> pathlib.Path | None:
+    """Sanitizes `subdir` relative to root.
 
-    p = root / pathlib.PurePosixPath(subdir)
+    Args:
+        root: Root directory currently being served
+        rel_path: Subdirectory relative to root
 
-    # try normalizing dir
+    Returns:
+        Sanitized path or None if invalid
+    """
+
+    p = root / pathlib.PurePosixPath(rel_path)
+
+    # try normalizing dir, aka resolving `/../../bla` things
     try:
         p = p.resolve(strict=True)
-    except (FileNotFoundError, RuntimeError):
-        return HTTPResponse(404)
+    except (FileNotFoundError, RuntimeError, OSError):
+        return None
 
-    # prevent escape
+    # prevent escape by checking if root exists in parent list
     if root != p and root not in p.parents:
-        return HTTPResponse(404)
+        return None
 
-    # serve files
-    if p.is_dir():
-        index_html = p / "index.html"
-        if index_html.exists():
-            return HTTPResponse.html(index_html.read_text("utf8"))
-
-        return HTTPResponse(404)
-
-    if p.suffix.lower() == ".html":
-        return HTTPResponse.html(p.read_text("utf8"))
-
-    return HTTPResponse.octet_stream(p.read_bytes())
+    return p
 
 
-class _HTTPUtils:
-    """HTTP Header creation helper class"""
-
-    _SUFFIX = "Connection: close\r\n"
+class HTTPUtils:
+    """Request helper class"""
 
     _RESP_HEADER = {
-        200: " 200 OK\r\n",
-        400: " 400 Bad Request\r\n",
-        403: " 403 Forbidden\r\n",
-        404: " 404 Not Found\r\n",
-        405: " 405 Method Not Allowed\r\n",
-        418: " 418 I'm a teapot\r\n",
-        500: " 500 Internal Server Error\r\n",
+        200: " 200 OK",
+        301: " 301 Moved Permanently",
+        400: " 400 Bad Request",
+        403: " 403 Forbidden",
+        404: " 404 Not Found",
+        405: " 405 Method Not Allowed",
+        418: " 418 I'm a teapot",
+        500: " 500 Internal Server Error",
     }
 
-    _RESP_CONTENT_TEMPLATE = (
-        "Content-Type: {content_type}\r\nContent-Length: {content_len}\r\n"
-    )
+    _HEADER_TEMPLATE = "{http_ver} {status}\r\n{headers}"
 
     @classmethod
     def create_resp_header(
@@ -199,18 +207,21 @@ class _HTTPUtils:
             HTTP response header string
         """
 
-        if not response.content_type:
-            return "".join((http_ver, cls._RESP_HEADER[response.status], cls._SUFFIX))
+        headers: dict[str, str] = response.headers.copy()
 
-        return "".join(
-            (
-                http_ver,
-                cls._RESP_HEADER[response.status],
-                cls._RESP_CONTENT_TEMPLATE.format(
-                    content_type=response.content_type, content_len=len(response.content)
-                ),
-                cls._SUFFIX,
-            )
+        if response.content_type:
+            headers["Content-Type"] = response.content_type
+            headers["Content-Length"] = str(len(response.content))
+
+        # found that it's not standard on HTTP2,
+        # not sure will anyone ever use this for HTTP2 though
+        if http_ver.startswith("HTTP/1"):
+            headers["Connection"] = "close"
+
+        return cls._HEADER_TEMPLATE.format(
+            http_ver=http_ver,
+            status=cls._RESP_HEADER[response.status],
+            headers="\r\n".join(f"{k}: {v}" for k, v in headers.items()) + "\r\n",
         )
 
     @staticmethod
@@ -289,6 +300,88 @@ async def _read_all(reader: trio.SocketStream, chunk_size: int = 1024) -> str:
     return output.decode("utf8")
 
 
+def generate_dir_listing_html(root: pathlib.Path, sanitized_abs_sub_path: pathlib.Path) -> str:
+    """Generates directory listing HTML for given directory.
+
+    Args:
+        root: Root directory currently being served
+        sanitized_abs_sub_path: Absolute Subdirectory path that was sanitized
+
+    Returns:
+        HTML string
+    """
+
+    # prep link for stepping back. Will trigger for root but better for safeguarding
+    try:
+        parent_str = sanitized_abs_sub_path.parent.relative_to(root).as_posix()
+        if parent_str == ".":
+            parent_str = ""
+
+    except ValueError:
+        parent_str = ""
+
+    relative = quote(
+        "/"
+        if sanitized_abs_sub_path == root
+        else f"/{sanitized_abs_sub_path.relative_to(root).as_posix()}/"
+    )
+
+    lines: list[str] = [
+        f'<meta charset="UTF-8">\n'
+        f'<h1>Directory Listing for {relative}</h1>\n'
+        f'<a href="/{quote(parent_str)}">Go Up</a><br>'
+    ]
+
+    # sort stuff by name for each, so we can put dir first then file
+    listing = [*sanitized_abs_sub_path.iterdir()]
+    dirs = sorted([p for p in listing if p.is_dir()], key=lambda p: p.name)
+    files = sorted([p for p in listing if p.is_file()], key=lambda p: p.name)
+
+    for sub_p in dirs + files:
+
+        # make sure it's escaped
+        path_name = quote(sub_p.name)
+
+        # if dir or html, then set href to it
+        if sub_p.is_dir():
+            lines.append(f'D <a href="{relative}{path_name}">{sub_p.name}</a>')
+
+        elif sub_p.suffix.lower() == ".html":
+            lines.append(f'H <a href="{relative}{path_name}">{sub_p.name}</a>')
+
+        else:
+            lines.append(f'F <a href="{relative}{path_name}" download="{path_name}">{sub_p.name}</a>')
+
+    return "<br>\n".join(lines)
+
+
+def serve_path(root: pathlib.Path, subdir="", serve_listing=False) -> HTTPResponse:
+    """Creates a response for Serving files for GET request."""
+
+    sub_p = sanitize_path(root, subdir)
+
+    if not sub_p:
+        return HTTPResponse(404)
+
+    # serve files
+    if sub_p.is_dir():
+        index_html = sub_p / "index.html"
+
+        if index_html.exists():
+            return HTTPResponse.html(index_html.read_text("utf8"))
+
+        if not serve_listing:
+            return HTTPResponse(404)
+
+        # serve dir
+        return HTTPResponse.html(generate_dir_listing_html(root, sub_p))
+
+    if sub_p.suffix.lower() == ".html":
+        return HTTPResponse.html(sub_p.read_text("utf8"))
+
+    return HTTPResponse.octet_stream(sub_p.read_bytes())
+
+
 # --- Logics ---
 
 class DumbAPIServer:
@@ -347,15 +440,15 @@ class DumbAPIServer:
 
         # reject user when non-GET/POST are used, we don't support it
         if req_dict["Method"] not in self.mapped_dirs:
-            return _HTTPUtils.create_resp_header(http_ver, HTTPResponse(405)), b""
+            return HTTPUtils.create_resp_header(http_ver, HTTPResponse(405)), b""
 
         # parse path + param
         try:
-            str_path, kwargs = _HTTPUtils.parse_raw_dir(req_dict["Directory"])
+            str_path, kwargs = HTTPUtils.parse_raw_dir(req_dict["Directory"])
             path = pathlib.PurePosixPath(str_path)
 
         except ValueError:
-            return _HTTPUtils.create_resp_header(http_ver, HTTPResponse(400)), b""
+            return HTTPUtils.create_resp_header(http_ver, HTTPResponse(400)), b""
 
         # attempt to get handler by finding match for self & parent dir
         async_func: _AsyncHandler
@@ -374,17 +467,17 @@ class DumbAPIServer:
                 subdir = ""
             break
         else:
-            return _HTTPUtils.create_resp_header(http_ver, HTTPResponse(404)), b""
+            return HTTPUtils.create_resp_header(http_ver, HTTPResponse(404)), b""
 
         # got valid hit, run it
         try:
             # noinspection PyUnboundLocalVariable
             resp = await async_func(**kwargs, subdir=subdir)
-            return _HTTPUtils.create_resp_header(http_ver, resp), resp.content
+            return HTTPUtils.create_resp_header(http_ver, resp), resp.content
 
         except Exception as err:
             print(f"Exception in {async_func.__name__}: {err}")
-            return _HTTPUtils.create_resp_header(http_ver, HTTPResponse(500)), b""
+            return HTTPUtils.create_resp_header(http_ver, HTTPResponse(500)), b""
 
     async def _tcp_handler(self, stream: trio.SocketStream):
         """Handles incoming TCP connection. Yeah, that's it
@@ -398,7 +491,7 @@ class DumbAPIServer:
         # Receive
         print("\nReceiving ---")
 
-        parsed = _HTTPUtils.parse_req(await _read_all(stream))
+        parsed = HTTPUtils.parse_req(await _read_all(stream))
         pprint(parsed)
 
         print("--- Received")
@@ -409,7 +502,7 @@ class DumbAPIServer:
             header, body = await self.create_resp(parsed)
         except Exception as _err:
             traceback.print_exc()
-            header = _HTTPUtils.create_resp_header(parsed["HTTP"], HTTPResponse(500))
+            header = HTTPUtils.create_resp_header(parsed["HTTP"], HTTPResponse(500))
             body = b""
 
         # Respond
@@ -445,6 +538,7 @@ def __test_serve():
 
     app = DumbAPIServer()
     root = pathlib.Path(__file__).parent
+    dir_listing = True
 
     placeholder_html = """
     <!DOCTYPE html>
@@ -471,13 +565,16 @@ def __test_serve():
 
     @app.get_deco("/delay_test")
     async def delay_test(subdir: str, delay: str = "0", **_kwargs) -> HTTPResponse:
+
         if subdir:
-            return HTTPResponse(404)
+            return HTTPResponse.redirect(f"/delay_test?delay=2")
 
         try:
-            await trio.sleep(float(delay))
-        except ValueError:
-            return HTTPResponse(400)
+            val = float(delay)
+            assert val > 0
+            await trio.sleep(val)
+        except ValueError, AssertionError:
+            return HTTPResponse.redirect(f"/delay_test?delay=2")
 
         return HTTPResponse.text(f"{delay}s wait done")
 
@@ -492,10 +589,16 @@ def __test_serve():
     @app.get_deco("/")
     async def index(subdir: str, **_kwargs) -> HTTPResponse:
 
-        if not subdir and not (root / "index.html").exists():
-            return HTTPResponse.html(placeholder_html)
+        if subdir:
+            return serve_path(root, subdir, serve_listing=dir_listing)
 
-        return serve_path(root / subdir)
+        if (root / "index.html").exists():
+            return serve_path(root, serve_listing=dir_listing)
+
+        if dir_listing:
+            return serve_path(root, serve_listing=True)
+
+        return HTTPResponse.html(placeholder_html)
 
     # wtf pycharm?
     # noinspection PyTypeChecker
