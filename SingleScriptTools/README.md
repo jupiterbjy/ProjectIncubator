@@ -594,7 +594,7 @@ Tracked time is written to a sqlite3 database created next to this script.
 
 No external dependencies are required, as long as provided default `PROC_LIST_CMD` works for you.
 
-![](/readme_res/process_runtime_tracker.jpg)
+![](readme_res/process_runtime_tracker.jpg)
 
 
 <br>
@@ -844,10 +844,33 @@ mechanism at all - image files purely serve as thumbnail and no more.
 
 ---
 
-### [watchdog_file_events.py](watchdog_file_events.py)
+### [watchdog_file_events_m.py](watchdog_file_events_m.py)
 Watchdog callback register-able custom handler to see what's going on in current directory.
 
 `pip install watchdog`
+
+```python
+import pathlib
+
+from watchdog_file_events_m import start_watchdog, FileSystemEvent, FileCreatedEvent
+
+def _cb(event: FileSystemEvent):
+    print(f"Callback triggered for {event.__class__.__name__} at {event.src_path}")
+
+with start_watchdog(str(pathlib.Path(__file__).parent.absolute()), True) as handler:
+
+    handler.register(FileCreatedEvent, _cb)
+    # handler.register_on_file_creation(_cb)
+    handler.register_on_file_deletion(_cb)
+    handler.register_on_file_modification(_cb)
+    handler.register_on_file_move(_cb)
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        return
+```
 
 ![](readme_res/watchdog_file_events.png)
 
