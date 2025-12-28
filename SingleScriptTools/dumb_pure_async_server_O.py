@@ -365,7 +365,7 @@ async def tcp_handler(
     print("--- Response sent")
 
 
-async def serve_files(root: pathlib.Path, address: str = "127.0.0.1", port: int = 8000):
+async def serve_files(root: pathlib.Path, address: str = "localhost", port: int = 8000):
 
     server = await asyncio.start_server(partial(tcp_handler, root=root), address, port)
 
