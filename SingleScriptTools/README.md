@@ -259,6 +259,27 @@ Connection: close
 
 ---
 
+### [dumb_trio_server_O.py](dumb_trio_server_O.py)
+Dumb probably unsafe async HTTP server, purely made of included batteries & trio async lib for fun.
+
+This is separate from asyncio ver purely because I personally only prefer trio to asyncio,
+but asyncio do allow writing something pure without 3rd party libraries - which is kinda fun in itself.
+
+Provides minimal-escape-protected file listing interface by default, can also serve static files such as HTML.
+
+Rewrite of [stackoverflow answer](https://stackoverflow.com/a/70649803) I wrote.
+
+For slightly better structure, refer `dumb_trio_api_server_m.py`.
+
+![](readme_res/dumb_async_server.png)
+
+
+<br>
+<br>
+
+
+---
+
 ### [effective_work_timer_O.py](effective_work_timer_O.py)
 Simple script to track focused window and measure total **ACTIVE** time
 whenever there's input with configurable margin, windows only.
