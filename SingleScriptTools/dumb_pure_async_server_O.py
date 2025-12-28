@@ -14,14 +14,16 @@ For slightly better structure, refer `dumb_pure_async_api_server_m.py`.
 
 import asyncio
 import pathlib
+from argparse import ArgumentParser
 from pprint import pprint
-from urllib.parse import unquote, quote
+from urllib.parse import quote
 from functools import partial
 
 # ROOT = pathlib.Path(__file__).parent
 
 
 # --- Utilities ---
+
 
 def sanitize_path(root: pathlib.Path, rel_path: str) -> pathlib.Path | None:
     """Sanitizes `subdir` relative to root.
@@ -79,22 +81,99 @@ class HTTPUtils:
             (
                 http_ver,
                 cls._RESP_HEADER[status],
-                "Content-Type: {}\r\nContent-Length: {}\r\n".format(
-                    content_type, content_len
-                ) if content_len else "",
-                "Connection: close\r\n\r\n" if http_ver.startswith("HTTP/1") else "\r\n\r\n",
+                (
+                    "Content-Type: {}\r\nContent-Length: {}\r\n".format(
+                        content_type, content_len
+                    )
+                    if content_type
+                    else ""
+                ),
+                (
+                    "Connection: close\r\n\r\n"
+                    if http_ver.startswith("HTTP/1")
+                    else "\r\n\r\n"
+                ),
             )
         )
 
     @classmethod
-    def create_html_resp(cls, http_ver, content: bytes) -> tuple[str, bytes]:
-        """Syntax sugar for creating HTML response header and pairing with body"""
-        return cls.create_resp_header(http_ver, 200, "text/html", len(content)), content
+    def create_data_resp(
+        cls, http_ver, content_type: str, content: bytes
+    ) -> tuple[str, bytes]:
+        """Syntax sugar for creating header/body pair"""
+        return (
+            cls.create_resp_header(http_ver, 200, content_type, len(content)),
+            content,
+        )
 
     @classmethod
-    def create_bytes_resp(cls, http_ver, content: bytes) -> tuple[str, bytes]:
-        """Syntax sugar for creating octet stream response header and pairing with body"""
-        return cls.create_resp_header(http_ver, 200, "application/octet-stream", len(content)), content
+    def create_html_resp(cls, http_ver, content: str) -> tuple[str, bytes]:
+        return cls.create_data_resp(http_ver, "text/html", content.encode("utf8"))
+
+    @classmethod
+    def create_file_resp(cls, http_ver, path: pathlib.Path) -> tuple[str, bytes]:
+        """Attempts to automatically determine type based on file extension and return header/body pair."""
+        match path.suffix.lower():
+            case ".txt" | ".md":
+                return cls.create_data_resp(
+                    http_ver, "text/plain", path.read_text("utf8").encode("utf8")
+                )
+
+            case ".html":
+                return cls.create_data_resp(
+                    http_ver, "text/html", path.read_text("utf8").encode("utf8")
+                )
+
+            case ".css":
+                return cls.create_data_resp(
+                    http_ver, "text/css", path.read_text("utf8").encode("utf8")
+                )
+
+            case ".js":
+                return cls.create_data_resp(
+                    http_ver, "text/javascript", path.read_text("utf8").encode("utf8")
+                )
+
+            case ".png":
+                return cls.create_data_resp(http_ver, "image/png", path.read_bytes())
+
+            case ".jpg" | ".jpeg":
+                return cls.create_data_resp(http_ver, "image/jpeg", path.read_bytes())
+
+            case ".gif":
+                return cls.create_data_resp(http_ver, "image/gif", path.read_bytes())
+
+            case ".svg":
+                return cls.create_data_resp(
+                    http_ver, "image/svg+xml", path.read_bytes()
+                )
+
+            case ".webp":
+                return cls.create_data_resp(http_ver, "image/webp", path.read_bytes())
+
+            case ".mp4":
+                return cls.create_data_resp(http_ver, "video/mp4", path.read_bytes())
+
+            case ".webm":
+                return cls.create_data_resp(http_ver, "video/webm", path.read_bytes())
+
+            case ".ogg":
+                return cls.create_data_resp(http_ver, "video/ogg", path.read_bytes())
+
+            case ".pdf":
+                return cls.create_data_resp(
+                    http_ver, "application/pdf", path.read_bytes()
+                )
+
+            case ".json":
+                return cls.create_data_resp(
+                    http_ver, "application/json", path.read_bytes()
+                )
+
+            case _:
+                return cls.create_data_resp(
+                    http_ver, "application/octet-stream", path.read_bytes()
+                )
 
     @staticmethod
     def parse_req(raw_req: str) -> dict[str, str]:
@@ -147,7 +226,10 @@ async def read_all(reader: asyncio.StreamReader, chunk_size: int = 1024) -> str:
 
 # --- Logics ---
 
-def _generate_dir_listing_html(root: pathlib.Path, sanitized_abs_sub_path: pathlib.Path) -> str:
+
+def _generate_dir_listing_html(
+    root: pathlib.Path, sanitized_abs_sub_path: pathlib.Path
+) -> str:
     """Generates directory listing HTML for given directory.
 
     Args:
@@ -175,7 +257,7 @@ def _generate_dir_listing_html(root: pathlib.Path, sanitized_abs_sub_path: pathl
 
     lines: list[str] = [
         f'<meta charset="UTF-8">\n'
-        f'<h1>Directory Listing for {relative}</h1>\n'
+        f"<h1>Directory Listing for {relative}</h1>\n"
         f'<a href="/{quote(parent_str)}">Go Up</a><br>'
     ]
 
@@ -197,7 +279,9 @@ def _generate_dir_listing_html(root: pathlib.Path, sanitized_abs_sub_path: pathl
             lines.append(f'H <a href="{relative}{path_name}">{sub_p.name}</a>')
 
         else:
-            lines.append(f'F <a href="{relative}{path_name}" download="{path_name}">{sub_p.name}</a>')
+            lines.append(
+                f'F <a href="{relative}{path_name}" download="{path_name}">{sub_p.name}</a>'
+            )
 
     return "<br>\n".join(lines)
 
@@ -230,20 +314,22 @@ def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, byt
         idx_p = dir_ / "index.html"
 
         if idx_p.exists():
-            return HTTPUtils.create_html_resp(http_ver, idx_p.read_text("utf8").encode("utf8"))
+            return HTTPUtils.create_html_resp(http_ver, idx_p.read_text("utf8"))
 
         # otherwise serve directory
-        return HTTPUtils.create_html_resp(http_ver, _generate_dir_listing_html(root, dir_).encode("utf8"))
+        return HTTPUtils.create_html_resp(
+            http_ver, _generate_dir_listing_html(root, dir_)
+        )
 
-    # is this html file?
-    if dir_.suffix.lower() == ".html":
-        return HTTPUtils.create_html_resp(http_ver, dir_.read_text().encode("utf8"))
-
-    # otherwise just send as octet stream
-    return HTTPUtils.create_bytes_resp(http_ver, dir_.read_bytes())
+    # otherwise serve file
+    return HTTPUtils.create_file_resp(http_ver, dir_)
 
 
-async def tcp_handler(r: asyncio.StreamReader, w: asyncio.StreamWriter, root: pathlib.Path = pathlib.Path(".")):
+async def tcp_handler(
+    r: asyncio.StreamReader,
+    w: asyncio.StreamWriter,
+    root: pathlib.Path = pathlib.Path("."),
+):
     """Handles incoming TCP connection. Yeah that's it
 
     Args:
@@ -286,4 +372,24 @@ async def serve_files(root: pathlib.Path, address: str = "127.0.0.1", port: int 
 
 
 if __name__ == "__main__":
-    asyncio.run(serve_files(pathlib.Path(__file__).parent))
+    _parser = ArgumentParser()
+
+    _parser.add_argument(
+        "-r",
+        "--root",
+        type=pathlib.Path,
+        default=pathlib.Path(__file__).parent,
+        help="Root directory to serve",
+    )
+
+    _parser.add_argument(
+        "-a",
+        "--address",
+        type=str,
+        default="127.0.0.1",
+        help="Address to bind to",
+    )
+
+    _parser.add_argument("-p", "--port", type=int, default=8000, help="Port to bind to")
+
+    asyncio.run(serve_files(**_parser.parse_args().__dict__))
