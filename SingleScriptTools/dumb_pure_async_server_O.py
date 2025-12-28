@@ -55,10 +55,10 @@ class HTTPUtils:
     """HTTP Header creation helper class"""
 
     _RESP_HEADER = {
-        200: " 200 OK\r\n",
-        403: " 403 Forbidden\r\n",
-        404: " 404 Not Found\r\n",
-        405: " 405 Method Not Allowed\r\n",
+        200: " 200 OK",
+        403: " 403 Forbidden",
+        404: " 404 Not Found",
+        405: " 405 Method Not Allowed",
     }
 
     @classmethod
@@ -77,22 +77,26 @@ class HTTPUtils:
             HTTP response header string
         """
 
-        return "".join(
+        headers: dict[str, str] = {
+            "Cross-Origin-Resource-Policy": "cross-origin",
+            # ^^^ required for youtube embeds
+            # "Access-Control-Allow-Origin": "*",
+            # "Referrer-Policy": "strict-origin-when-cross-origin",
+            # "Cache-Control": "no-cache",
+        }
+
+        if http_ver.startswith("HTTP/1"):
+            headers["Connection"] = "close"
+
+        if content_type:
+            headers["Content-Type"] = content_type
+            headers["Content-Length"] = str(content_len)
+
+        return "\r\n".join(
             (
                 http_ver,
                 cls._RESP_HEADER[status],
-                (
-                    "Content-Type: {}\r\nContent-Length: {}\r\n".format(
-                        content_type, content_len
-                    )
-                    if content_type
-                    else ""
-                ),
-                (
-                    "Connection: close\r\n\r\n"
-                    if http_ver.startswith("HTTP/1")
-                    else "\r\n\r\n"
-                ),
+                *(f"{k}: {v}" for k, v in headers.items()),
             )
         )
 
@@ -353,7 +357,7 @@ async def tcp_handler(
     print("\nResponding ---")
 
     print(header)
-    w.write(header.encode("utf8") + body)
+    w.write(f"{header}\r\n\r\n".encode("utf8") + body)
 
     await w.drain()
     w.close()
@@ -386,7 +390,7 @@ if __name__ == "__main__":
         "-a",
         "--address",
         type=str,
-        default="127.0.0.1",
+        default="localhost",
         help="Address to bind to",
     )
 
