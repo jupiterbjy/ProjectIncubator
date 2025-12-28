@@ -15,8 +15,9 @@ import pathlib
 from pprint import pprint
 from typing import Iterator
 from urllib.parse import unquote, quote
+from functools import partial
 
-ROOT = pathlib.Path(__file__).parent
+# ROOT = pathlib.Path(__file__).parent
 
 
 # --- Utilities ---
@@ -120,7 +121,7 @@ async def read_all(reader: asyncio.StreamReader, chunk_size: int = 1024) -> str:
 # --- Logics ---
 
 
-def _dir_html_link_gen(abs_dir: pathlib.Path) -> Iterator[str]:
+def _dir_html_link_gen(abs_dir: pathlib.Path, root: pathlib.Path) -> Iterator[str]:
     """Yields anchor(`<a>`) elements for use as directory listing.
     HTML files will not use `download` attribute and will be served as static files.
 
@@ -135,8 +136,8 @@ def _dir_html_link_gen(abs_dir: pathlib.Path) -> Iterator[str]:
         # calc url path
         relative = quote(
             "/"
-            if abs_dir == ROOT
-            else f"/{str(abs_dir.relative_to(ROOT)).removeprefix("./")}/"
+            if abs_dir == root
+            else f"/{str(abs_dir.relative_to(root)).removeprefix("./")}/"
         )
         path_name = quote(sub_path.name)
 
@@ -148,7 +149,7 @@ def _dir_html_link_gen(abs_dir: pathlib.Path) -> Iterator[str]:
             yield f'<a href="{relative}{path_name}" download="{path_name}">{path_name}</a>'
 
 
-def _create_resp(req_dict: dict[str, str]) -> tuple[str, bytes]:
+def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, bytes]:
     """Create response for given request.
     To make logging more readable, returns response as `(header, body)` pair.
 
@@ -166,7 +167,7 @@ def _create_resp(req_dict: dict[str, str]) -> tuple[str, bytes]:
         return HTTPUtils.create_resp_header(http_ver, 405), b""
 
     # try normalizing the path
-    dir_ = ROOT.joinpath(unquote(req_dict["Directory"]).removeprefix("/"))
+    dir_ = root.joinpath(unquote(req_dict["Directory"]).removeprefix("/"))
 
     try:
         dir_ = dir_.resolve(strict=True)
@@ -176,7 +177,7 @@ def _create_resp(req_dict: dict[str, str]) -> tuple[str, bytes]:
         return HTTPUtils.create_resp_header(http_ver, 404), b""
 
     # check if it's subdir, if not kick the crap out of it
-    if ROOT != dir_ and ROOT not in dir_.parents:
+    if root != dir_ and root not in dir_.parents:
         return HTTPUtils.create_resp_header(http_ver, 403), b""
 
     # TODO: check for permission error
@@ -195,7 +196,7 @@ def _create_resp(req_dict: dict[str, str]) -> tuple[str, bytes]:
 
         # otherwise serve directory
         try:
-            parent_str = str(dir_.parent.relative_to(ROOT))
+            parent_str = str(dir_.parent.relative_to(root))
             if parent_str == ".":
                 parent_str = ""
 
@@ -203,7 +204,7 @@ def _create_resp(req_dict: dict[str, str]) -> tuple[str, bytes]:
             parent_str = ""
 
         parent_dir = f'<a href="/{quote(parent_str)}">Go Up</a><br>'
-        attach = (parent_dir + "<br>".join(_dir_html_link_gen(dir_))).encode("utf8")
+        attach = (parent_dir + "<br>".join(_dir_html_link_gen(dir_, root))).encode("utf8")
         return (
             HTTPUtils.create_resp_header(http_ver, 200, "text/html", len(attach)),
             attach,
@@ -227,12 +228,13 @@ def _create_resp(req_dict: dict[str, str]) -> tuple[str, bytes]:
     )
 
 
-async def tcp_handler(r: asyncio.StreamReader, w: asyncio.StreamWriter):
+async def tcp_handler(r: asyncio.StreamReader, w: asyncio.StreamWriter, root: pathlib.Path = pathlib.Path(".")):
     """Handles incoming TCP connection. Yeah that's it
 
     Args:
         r: StreamReader from asyncio.start_server()
         w: StreamWriter from asyncio.start_server()
+        root: Root directory to serve
     """
 
     # Receive
@@ -244,7 +246,7 @@ async def tcp_handler(r: asyncio.StreamReader, w: asyncio.StreamWriter):
     print("Received")
 
     # Prep response
-    header, body = _create_resp(parsed)
+    header, body = _create_resp(parsed, root)
 
     # Respond
     print("\nResponding ---")
@@ -261,8 +263,9 @@ async def tcp_handler(r: asyncio.StreamReader, w: asyncio.StreamWriter):
     print("Response sent")
 
 
-async def serve_files(address: str = "127.0.0.1", port: int = 8080):
-    server = await asyncio.start_server(tcp_handler, address, port)
+async def serve_files(root: pathlib.Path, address: str = "127.0.0.1", port: int = 8000):
+
+    server = await asyncio.start_server(partial(tcp_handler, root=root), address, port)
 
     print(f"Started at http://{address}:{port}")
 
@@ -271,4 +274,4 @@ async def serve_files(address: str = "127.0.0.1", port: int = 8080):
 
 
 if __name__ == "__main__":
-    asyncio.run(serve_files())
+    asyncio.run(serve_files(pathlib.Path(__file__).parent))
