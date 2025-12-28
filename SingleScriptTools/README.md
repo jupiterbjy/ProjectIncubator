@@ -860,10 +860,13 @@ def _cb(event: FileSystemEvent):
 with start_watchdog(str(pathlib.Path(__file__).parent.absolute()), True) as handler:
 
     handler.register(FileCreatedEvent, _cb)
+
     # handler.register_on_file_creation(_cb)
     handler.register_on_file_deletion(_cb)
     handler.register_on_file_modification(_cb)
     handler.register_on_file_move(_cb)
+
+    # handler.register_global(_cb)
 
     try:
         while True:

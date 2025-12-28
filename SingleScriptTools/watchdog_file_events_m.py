@@ -14,10 +14,13 @@ def _cb(event: FileSystemEvent):
 with start_watchdog(str(pathlib.Path(__file__).parent.absolute()), True) as handler:
 
     handler.register(FileCreatedEvent, _cb)
+
     # handler.register_on_file_creation(_cb)
     handler.register_on_file_deletion(_cb)
     handler.register_on_file_modification(_cb)
     handler.register_on_file_move(_cb)
+
+    # handler.register_global(_cb)
 
     try:
         while True:
@@ -61,7 +64,7 @@ class CustomHandler(FileSystemEventHandler):
 
         # callback entries for each event
         self._table: defaultdict[str, List[Callable]] = defaultdict(list)
-        self._default_callbacks: List[Callable] = [self._default_event_cb]
+        self._global_cb: List[Callable] = []
 
     @staticmethod
     def _default_event_cb(event: FileSystemEvent):
@@ -70,6 +73,10 @@ class CustomHandler(FileSystemEventHandler):
         print(
             f"# Discarding unregistered {event.__class__.__name__} at {event.src_path}"
         )
+
+    def register_global(self, callback: Callable):
+        """Registers a callback to be called on ANY event."""
+        self._global_cb.append(callback)
 
     def register(self, event: type[FileSystemEvent], callback: Callable):
         """Registers new callback to event.
@@ -88,7 +95,10 @@ class CustomHandler(FileSystemEventHandler):
 
         For e.g. on_created / on_deleted / on_modified / on_moved."""
 
-        for cb in self._table.get(event.__class__.__name__, self._default_callbacks):
+        for cb in self._table.get(
+            event.__class__.__name__,
+            self._global_cb if self._global_cb else [self._default_event_cb]
+        ):
             cb(event)
 
     def register_on_file_creation(self, callback: Callable[[FileCreatedEvent], None]):
@@ -151,10 +161,13 @@ def _test():
     with start_watchdog(str(pathlib.Path(__file__).parent.absolute()), True) as handler:
 
         handler.register(FileCreatedEvent, _cb)
+
         # handler.register_on_file_creation(_cb)
         handler.register_on_file_deletion(_cb)
         handler.register_on_file_modification(_cb)
         handler.register_on_file_move(_cb)
+
+        # handler.register_global(_cb)
 
         try:
             while True:
