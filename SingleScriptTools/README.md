@@ -148,6 +148,8 @@ Provides minimal-escape-protected file listing interface by default, can also se
 
 Rewrite of [stackoverflow answer](https://stackoverflow.com/a/70649803) I wrote.
 
+For slightly better structure, refer `dumb_pure_async_api_server_m.py`.
+
 ![](readme_res/dumb_async_server.png)
 
 

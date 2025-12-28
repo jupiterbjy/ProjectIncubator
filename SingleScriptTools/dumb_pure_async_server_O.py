@@ -5,6 +5,8 @@ Provides minimal-escape-protected file listing interface by default, can also se
 
 Rewrite of [stackoverflow answer](https://stackoverflow.com/a/70649803) I wrote.
 
+For slightly better structure, refer `dumb_pure_async_api_server_m.py`.
+
 ![](readme_res/dumb_async_server.png)
 
 :Author: jupiterbjy@gmail.com
@@ -13,7 +15,6 @@ Rewrite of [stackoverflow answer](https://stackoverflow.com/a/70649803) I wrote.
 import asyncio
 import pathlib
 from pprint import pprint
-from typing import Iterator
 from urllib.parse import unquote, quote
 from functools import partial
 
@@ -22,11 +23,34 @@ from functools import partial
 
 # --- Utilities ---
 
+def sanitize_path(root: pathlib.Path, rel_path: str) -> pathlib.Path | None:
+    """Sanitizes `subdir` relative to root.
+
+    Args:
+        root: Root directory currently being served
+        rel_path: Subdirectory relative to root
+
+    Returns:
+        Sanitized path or None if invalid
+    """
+
+    p = root / pathlib.PurePosixPath(rel_path)
+
+    # try normalizing dir, aka resolving `/../../bla` things
+    try:
+        p = p.resolve(strict=True)
+    except (FileNotFoundError, RuntimeError, OSError):
+        return None
+
+    # prevent escape by checking if root exists in parent list
+    if root != p and root not in p.parents:
+        return None
+
+    return p
+
 
 class HTTPUtils:
     """HTTP Header creation helper class"""
-
-    _SUFFIX = "Connection: close\r\n\r\n"
 
     _RESP_HEADER = {
         200: " 200 OK\r\n",
@@ -34,10 +58,6 @@ class HTTPUtils:
         404: " 404 Not Found\r\n",
         405: " 405 Method Not Allowed\r\n",
     }
-
-    _RESP_CONTENT_TEMPLATE = (
-        "Content-Type: {content_type}\r\nContent-Length: {content_len}\r\n"
-    )
 
     @classmethod
     def create_resp_header(
@@ -55,19 +75,26 @@ class HTTPUtils:
             HTTP response header string
         """
 
-        if not content_type:
-            return "".join((http_ver, cls._RESP_HEADER[status], cls._SUFFIX))
-
         return "".join(
             (
                 http_ver,
                 cls._RESP_HEADER[status],
-                cls._RESP_CONTENT_TEMPLATE.format(
-                    content_type=content_type, content_len=content_len
-                ),
-                cls._SUFFIX,
+                "Content-Type: {}\r\nContent-Length: {}\r\n".format(
+                    content_type, content_len
+                ) if content_len else "",
+                "Connection: close\r\n\r\n" if http_ver.startswith("HTTP/1") else "\r\n\r\n",
             )
         )
+
+    @classmethod
+    def create_html_resp(cls, http_ver, content: bytes) -> tuple[str, bytes]:
+        """Syntax sugar for creating HTML response header and pairing with body"""
+        return cls.create_resp_header(http_ver, 200, "text/html", len(content)), content
+
+    @classmethod
+    def create_bytes_resp(cls, http_ver, content: bytes) -> tuple[str, bytes]:
+        """Syntax sugar for creating octet stream response header and pairing with body"""
+        return cls.create_resp_header(http_ver, 200, "application/octet-stream", len(content)), content
 
     @staticmethod
     def parse_req(raw_req: str) -> dict[str, str]:
@@ -120,33 +147,59 @@ async def read_all(reader: asyncio.StreamReader, chunk_size: int = 1024) -> str:
 
 # --- Logics ---
 
-
-def _dir_html_link_gen(abs_dir: pathlib.Path, root: pathlib.Path) -> Iterator[str]:
-    """Yields anchor(`<a>`) elements for use as directory listing.
-    HTML files will not use `download` attribute and will be served as static files.
+def _generate_dir_listing_html(root: pathlib.Path, sanitized_abs_sub_path: pathlib.Path) -> str:
+    """Generates directory listing HTML for given directory.
 
     Args:
-        abs_dir: absolute path to dir to be listed
+        root: Root directory currently being served
+        sanitized_abs_sub_path: Absolute Subdirectory path that was sanitized
 
-    Yields:
-        html anchor element string
+    Returns:
+        HTML string
     """
 
-    for sub_path in abs_dir.iterdir():
-        # calc url path
-        relative = quote(
-            "/"
-            if abs_dir == root
-            else f"/{str(abs_dir.relative_to(root)).removeprefix("./")}/"
-        )
-        path_name = quote(sub_path.name)
+    # prep link for stepping back. Will trigger for root but better for safeguarding
+    try:
+        parent_str = sanitized_abs_sub_path.parent.relative_to(root).as_posix()
+        if parent_str == ".":
+            parent_str = ""
 
-        # if dir or html file then set href to it
-        if sub_path.is_dir() or sub_path.suffix.lower() == ".html":
-            yield f'<a href="{relative}{path_name}">{path_name}</a>'
+    except ValueError:
+        parent_str = ""
+
+    relative = quote(
+        "/"
+        if sanitized_abs_sub_path == root
+        else f"/{sanitized_abs_sub_path.relative_to(root).as_posix()}/"
+    )
+
+    lines: list[str] = [
+        f'<meta charset="UTF-8">\n'
+        f'<h1>Directory Listing for {relative}</h1>\n'
+        f'<a href="/{quote(parent_str)}">Go Up</a><br>'
+    ]
+
+    # sort stuff by name for each, so we can put dir first then file
+    listing = [*sanitized_abs_sub_path.iterdir()]
+    dirs = sorted([p for p in listing if p.is_dir()], key=lambda p: p.name)
+    files = sorted([p for p in listing if p.is_file()], key=lambda p: p.name)
+
+    for sub_p in dirs + files:
+
+        # make sure it's escaped
+        path_name = quote(sub_p.name)
+
+        # if dir or html, then set href to it
+        if sub_p.is_dir():
+            lines.append(f'D <a href="{relative}{path_name}">{sub_p.name}</a>')
+
+        elif sub_p.suffix.lower() == ".html":
+            lines.append(f'H <a href="{relative}{path_name}">{sub_p.name}</a>')
+
         else:
-            # else set as download
-            yield f'<a href="{relative}{path_name}" download="{path_name}">{path_name}</a>'
+            lines.append(f'F <a href="{relative}{path_name}" download="{path_name}">{sub_p.name}</a>')
+
+    return "<br>\n".join(lines)
 
 
 def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, bytes]:
@@ -155,6 +208,7 @@ def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, byt
 
     Args:
         req_dict: Parsed request dict
+        root: Currently served root directory
 
     Returns:
         (Header str, Body bytes) tuple
@@ -166,66 +220,27 @@ def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, byt
     if req_dict["Method"] != "GET":
         return HTTPUtils.create_resp_header(http_ver, 405), b""
 
-    # try normalizing the path
-    dir_ = root.joinpath(unquote(req_dict["Directory"]).removeprefix("/"))
-
-    try:
-        dir_ = dir_.resolve(strict=True)
-
-    except FileNotFoundError:
-        # unreachable path (or you have circular symlink for some reason)
+    dir_ = sanitize_path(root, req_dict["Directory"].removeprefix("/"))
+    if not dir_:
         return HTTPUtils.create_resp_header(http_ver, 404), b""
-
-    # check if it's subdir, if not kick the crap out of it
-    if root != dir_ and root not in dir_.parents:
-        return HTTPUtils.create_resp_header(http_ver, 403), b""
-
-    # TODO: check for permission error
 
     if dir_.is_dir():
 
         # if index.html exists direct to it
-        index_path = dir_ / "index.html"
+        idx_p = dir_ / "index.html"
 
-        if index_path.exists():
-            attach = index_path.read_text().encode("utf8")
-            return (
-                HTTPUtils.create_resp_header(http_ver, 200, "text/html", len(attach)),
-                attach,
-            )
+        if idx_p.exists():
+            return HTTPUtils.create_html_resp(http_ver, idx_p.read_text("utf8").encode("utf8"))
 
         # otherwise serve directory
-        try:
-            parent_str = str(dir_.parent.relative_to(root))
-            if parent_str == ".":
-                parent_str = ""
-
-        except ValueError:
-            parent_str = ""
-
-        parent_dir = f'<a href="/{quote(parent_str)}">Go Up</a><br>'
-        attach = (parent_dir + "<br>".join(_dir_html_link_gen(dir_, root))).encode("utf8")
-        return (
-            HTTPUtils.create_resp_header(http_ver, 200, "text/html", len(attach)),
-            attach,
-        )
+        return HTTPUtils.create_html_resp(http_ver, _generate_dir_listing_html(root, dir_).encode("utf8"))
 
     # is this html file?
     if dir_.suffix.lower() == ".html":
-        attach = dir_.read_text().encode("utf8")
-        return (
-            HTTPUtils.create_resp_header(http_ver, 200, "text/html", len(attach)),
-            attach,
-        )
+        return HTTPUtils.create_html_resp(http_ver, dir_.read_text().encode("utf8"))
 
     # otherwise just send as octet stream
-    attach = dir_.read_bytes()
-    return (
-        HTTPUtils.create_resp_header(
-            http_ver, 200, "application/octet-stream", len(attach)
-        ),
-        attach,
-    )
+    return HTTPUtils.create_bytes_resp(http_ver, dir_.read_bytes())
 
 
 async def tcp_handler(r: asyncio.StreamReader, w: asyncio.StreamWriter, root: pathlib.Path = pathlib.Path(".")):
@@ -252,15 +267,12 @@ async def tcp_handler(r: asyncio.StreamReader, w: asyncio.StreamWriter, root: pa
     print("\nResponding ---")
 
     print(header)
-    w.write(header.encode("utf8"))
-
-    print("--- Body length:", len(body))
-    w.write(body)
+    w.write(header.encode("utf8") + body)
 
     await w.drain()
     w.close()
 
-    print("Response sent")
+    print("--- Response sent")
 
 
 async def serve_files(root: pathlib.Path, address: str = "127.0.0.1", port: int = 8000):
