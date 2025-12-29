@@ -333,6 +333,44 @@ def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, byt
     return HTTPUtils.create_file_resp(http_ver, dir_)
 
 
+async def tcp_handler_verbose(
+    stream: trio.SocketStream,
+    root: pathlib.Path = pathlib.Path("."),
+):
+    """Handles incoming TCP connection. Yeah that's it
+
+    Args:
+        stream: `SocketStream` from `trio.serve_tcp()`
+        root: Root directory to serve
+    """
+
+    try:
+        # Receive
+        print("\n\nReceiving")
+
+        parsed = HTTPUtils.parse_req(await read_all(stream))
+        pprint(parsed)
+
+        print("Received")
+
+        # Prep response
+        header, body = _create_resp(parsed, root)
+
+        # Respond
+        print("\nResponding ---")
+
+        print(header)
+        await stream.send_all(f"{header}\r\n\r\n".encode("utf8") + body)
+
+        print("--- Response sent")
+
+        # uncomment prints above and use this for compact printing
+        print(f"Request {header.split(" ")[1]}: {parsed['Directory']}")
+
+    except Exception as _err:
+        print(f"Server Error: {_err}")
+
+
 async def tcp_handler(
     stream: trio.SocketStream,
     root: pathlib.Path = pathlib.Path("."),
@@ -344,30 +382,32 @@ async def tcp_handler(
         root: Root directory to serve
     """
 
-    # Receive
-    print("\n\nReceiving")
+    try:
+        parsed = HTTPUtils.parse_req(await read_all(stream))
+        header, body = _create_resp(parsed, root)
+        await stream.send_all(f"{header}\r\n\r\n".encode("utf8") + body)
 
-    parsed = HTTPUtils.parse_req(await read_all(stream))
-    pprint(parsed)
+        print(f"Request {header.split(" ")[1]}: {parsed['Directory']}")
 
-    print("Received")
-
-    # Prep response
-    header, body = _create_resp(parsed, root)
-
-    # Respond
-    print("\nResponding ---")
-
-    print(header)
-    await stream.send_all(f"{header}\r\n\r\n".encode("utf8") + body)
-
-    print("--- Response sent")
+    except Exception as _err:
+        print(f"Server Error: {_err}")
 
 
-async def serve_files(root: pathlib.Path, address: str = "localhost", port: int = 8000):
+async def serve_files(
+    root: pathlib.Path,
+    address: str = "localhost",
+    port: int = 8000,
+    verbose: bool = False,
+):
+    print(
+        f"Server Starting at http://{address}:{port}",
+        f"-Root: {root}",
+        f"-Verbose: {verbose}",
+        sep="\n",
+    )
 
-    print(f"Starting at http://{address}:{port}")
-    await trio.serve_tcp(partial(tcp_handler, root=root), port, host=address)
+    handler = tcp_handler_verbose if verbose else tcp_handler
+    await trio.serve_tcp(partial(handler, root=root), port, host=address)
 
 
 if __name__ == "__main__":
@@ -387,6 +427,13 @@ if __name__ == "__main__":
         type=str,
         default="localhost",
         help="Address to bind to",
+    )
+
+    _parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Prints A LOT",
     )
 
     _parser.add_argument("-p", "--port", type=int, default=8000, help="Port to bind to")
