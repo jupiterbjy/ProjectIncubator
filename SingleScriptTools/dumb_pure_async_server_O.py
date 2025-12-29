@@ -329,6 +329,46 @@ def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, byt
     return HTTPUtils.create_file_resp(http_ver, dir_)
 
 
+async def tcp_handler_verbose(
+    r: asyncio.StreamReader,
+    w: asyncio.StreamWriter,
+    root: pathlib.Path = pathlib.Path("."),
+):
+    """Handles incoming TCP connection. Yeah that's it
+
+    Args:
+        r: StreamReader from asyncio.start_server()
+        w: StreamWriter from asyncio.start_server()
+        root: Root directory to serve
+    """
+
+    try:
+        # Receive
+        print("\n\nReceiving")
+
+        parsed = HTTPUtils.parse_req(await read_all(r))
+        pprint(parsed)
+
+        print("Received")
+
+        # Prep response
+        header, body = _create_resp(parsed, root)
+
+        # Respond
+        print("\nResponding ---")
+
+        print(header)
+        w.write(f"{header}\r\n\r\n".encode("utf8") + body)
+
+        await w.drain()
+        w.close()
+
+        print("--- Response sent")
+
+    except Exception as _err:
+        print(f"Server Error: {_err}")
+
+
 async def tcp_handler(
     r: asyncio.StreamReader,
     w: asyncio.StreamWriter,
@@ -342,34 +382,35 @@ async def tcp_handler(
         root: Root directory to serve
     """
 
-    # Receive
-    print("\n\nReceiving")
+    try:
+        parsed = HTTPUtils.parse_req(await read_all(r))
+        header, body = _create_resp(parsed, root)
+        w.write(f"{header}\r\n\r\n".encode("utf8") + body)
 
-    parsed = HTTPUtils.parse_req(await read_all(r))
-    pprint(parsed)
+        await w.drain()
+        w.close()
 
-    print("Received")
+        print(f"Request {header.split(" ")[1]}: {parsed['Directory']}")
 
-    # Prep response
-    header, body = _create_resp(parsed, root)
-
-    # Respond
-    print("\nResponding ---")
-
-    print(header)
-    w.write(f"{header}\r\n\r\n".encode("utf8") + body)
-
-    await w.drain()
-    w.close()
-
-    print("--- Response sent")
+    except Exception as _err:
+        print(f"Server Error: {_err}")
 
 
-async def serve_files(root: pathlib.Path, address: str = "localhost", port: int = 8000):
+async def serve_files(
+    root: pathlib.Path,
+    address: str = "localhost",
+    port: int = 8000,
+    verbose: bool = False,
+):
+    print(
+        f"Server Starting at http://{address}:{port}",
+        f"-Root: {root}",
+        f"-Verbose: {verbose}",
+        sep="\n",
+    )
 
-    server = await asyncio.start_server(partial(tcp_handler, root=root), address, port)
-
-    print(f"Started at http://{address}:{port}")
+    handler = tcp_handler_verbose if verbose else tcp_handler
+    server = await asyncio.start_server(partial(handler, root=root), address, port)
 
     async with server:
         await server.serve_forever()
@@ -392,6 +433,13 @@ if __name__ == "__main__":
         type=str,
         default="localhost",
         help="Address to bind to",
+    )
+
+    _parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Prints A LOT",
     )
 
     _parser.add_argument("-p", "--port", type=int, default=8000, help="Port to bind to")
