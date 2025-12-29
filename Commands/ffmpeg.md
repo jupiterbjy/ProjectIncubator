@@ -80,6 +80,23 @@ ffmpeg -i %1 -c copy -an "%~n1_na.mp4"
 
 <br>
 
+## sRGB to Rec.709
+
+Not sure if this is working properly, since regardless of this youtube still makes my video darker.
+Funny that VLC player correctly identifies it as Rec.709 but I'm not sure if it's inferring it as sRGB or not.
+
+TODO: check this later
+
+```shell
+ffmpeg -colorspace bt709 -color_trc iec61966-2-1 -i %1 -color_primaries 1 "%~n1_av1_rec709.mp4"
+```
+
+```shell
+ffmpeg -colorspace bt709 -color_trc iec61966-2-1 -i %1 -c:v libsvtav1 -crf 25 -preset 4 -svtav1-params tune=0:enable-tf=0:enable-qm=1:qm-min=0 -color_primaries 1 -c:a libopus -b:a 192k -vbr:a on "%~n1_av1_rec709.mp4"
+```
+
+<br>
+
 
 ## 2 AV1
 
