@@ -548,6 +548,21 @@ on failure.
 
 ---
 
+### [img_height_lim_▽.py](img_height_lim_▽.py)
+Simply resizes images to certain height, so it looks better when ordered in markdown or anything.
+Only intended for non-animated, non-indexed color images (png & jpg mostly)
+
+!! This WILL overwrite original files. !!
+
+`pip install pillow`
+
+
+<br>
+<br>
+
+
+---
+
 ### [img_remove_alpha_▽.py](img_remove_alpha_▽.py)
 Remove alpha channel from image with desired color.
 
