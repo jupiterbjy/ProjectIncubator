@@ -949,3 +949,17 @@ Script to capture webcam images periodically.
 <br>
 <br>
 
+
+---
+
+### [webp_split_▽.py](webp_split_▽.py)
+Just a Imagemagick wrapper to batch split webp into frames.
+
+Made because I messed up few frames in ScreenToGif but it couldn't read webp it generated.
+
+Requires Imagemagick in PATH.
+
+
+<br>
+<br>
+
