@@ -44,17 +44,30 @@ from watchdog.observers import Observer
 from watchdog.events import (
     FileSystemEventHandler,
     FileSystemEvent,
-
     FileCreatedEvent,
     FileDeletedEvent,
     FileMovedEvent,
     FileModifiedEvent,
-
     DirCreatedEvent,
     DirDeletedEvent,
     DirMovedEvent,
     DirModifiedEvent,
 )
+
+
+__all__ = [
+    "FileSystemEvent",
+    "FileCreatedEvent",
+    "FileDeletedEvent",
+    "FileMovedEvent",
+    "FileModifiedEvent",
+    "DirCreatedEvent",
+    "DirDeletedEvent",
+    "DirMovedEvent",
+    "DirModifiedEvent",
+    "CustomHandler",
+    "start_watchdog",
+]
 
 
 class CustomHandler(FileSystemEventHandler):
@@ -97,7 +110,7 @@ class CustomHandler(FileSystemEventHandler):
 
         for cb in self._table.get(
             event.__class__.__name__,
-            self._global_cb if self._global_cb else [self._default_event_cb]
+            self._global_cb if self._global_cb else [self._default_event_cb],
         ):
             cb(event)
 
@@ -109,7 +122,9 @@ class CustomHandler(FileSystemEventHandler):
         """Syntax sugar for register"""
         self.register(FileDeletedEvent, callback)
 
-    def register_on_file_modification(self, callback: Callable[[FileModifiedEvent], None]):
+    def register_on_file_modification(
+        self, callback: Callable[[FileModifiedEvent], None]
+    ):
         """Syntax sugar for register"""
         self.register(FileModifiedEvent, callback)
 
@@ -117,15 +132,21 @@ class CustomHandler(FileSystemEventHandler):
         """Syntax sugar for register"""
         self.register(FileMovedEvent, callback)
 
-    def register_on_directory_creation(self, callback: Callable[[DirCreatedEvent], None]):
+    def register_on_directory_creation(
+        self, callback: Callable[[DirCreatedEvent], None]
+    ):
         """Syntax sugar for register"""
         self.register(DirCreatedEvent, callback)
 
-    def register_on_directory_deletion(self, callback: Callable[[DirDeletedEvent], None]):
+    def register_on_directory_deletion(
+        self, callback: Callable[[DirDeletedEvent], None]
+    ):
         """Syntax sugar for register"""
         self.register(DirDeletedEvent, callback)
 
-    def register_on_directory_modification(self, callback: Callable[[DirModifiedEvent], None]):
+    def register_on_directory_modification(
+        self, callback: Callable[[DirModifiedEvent], None]
+    ):
         """Syntax sugar for register"""
         self.register(DirModifiedEvent, callback)
 
