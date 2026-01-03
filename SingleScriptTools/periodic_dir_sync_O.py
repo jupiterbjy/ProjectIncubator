@@ -3,14 +3,17 @@ Syncs two independent directories periodically, with file extension whitelist.
 
 Used to sync dependant resources real time while writing my own static webpage builder for github.io page.
 
+Definitely very inefficient but quick to write than using watchdog and watching over
+
 ![](readme_res/periodic_dir_sync.jpg)
 
 :Auther: jupiterbjy@gmail.com
 """
 
-from argparse import ArgumentParser
 import pathlib
 import time
+from argparse import ArgumentParser
+from collections.abc import Sequence
 
 
 # --- Utilities ---
@@ -25,13 +28,16 @@ def print_changes(change_tuple: tuple[int, int, int, int]):
 # --- Logics ---
 
 
-def sync_dir(
-    src_root: pathlib.Path, dest_root: pathlib.Path, src_excl: set[str] = None
+def multi_src_sync_dir(
+    src_roots: Sequence[pathlib.Path],
+    dest_root: pathlib.Path,
+    src_excl: set[str] = None,
 ) -> tuple[int, int, int, int]:
     """Syncs all files from src to dest excluding file extensions in excluded_exts.
+    Does not care about overlapping file name in multiple src roots.
 
     Args:
-        src_root: Source's root dir
+        src_roots: Sequence of Source root dirs
         dest_root: Destination's root dir
         src_excl: Excluded files from source's root dir
 
@@ -43,9 +49,15 @@ def sync_dir(
     src_excl = src_excl or set()
 
     all_dest_paths = set(p.relative_to(dest_root) for p in dest_root.rglob("*"))
-    all_src_paths = set(
-        p.relative_to(src_root) for p in src_root.rglob("*") if p.suffix not in src_excl
-    )
+    all_src_paths = set()
+
+    # merge src paths into one
+    for src_root in src_roots:
+        all_src_paths.update(
+            p.relative_to(src_root)
+            for p in src_root.rglob("*")
+            if p.suffix not in src_excl
+        )
 
     dangling_dest_paths = {p for p in (all_dest_paths - all_src_paths)}
 
@@ -75,34 +87,41 @@ def sync_dir(
     f_creates = 0
     d_creates = 0
 
-    for root, dir_names, file_names in src_root.walk():
+    for src_root in src_roots:
+        for root, dir_names, file_names in src_root.walk():
 
-        for fn in file_names:
+            for fn in file_names:
 
-            src_path = root / fn
+                src_path = root / fn
 
-            if src_path.suffix in src_excl:
-                continue
+                if src_path.suffix in src_excl:
+                    continue
 
-            dest_path = dest_root / src_path.relative_to(src_root)
+                dest_path = dest_root / src_path.relative_to(src_root)
 
-            dest_mtime = dest_path.stat().st_mtime if dest_path.exists() else 0
+                dest_mtime = dest_path.stat().st_mtime if dest_path.exists() else 0
 
-            if src_path.stat().st_mtime > dest_mtime:
-                src_path.copy(dest_path, preserve_metadata=True)
-                # don't need this param in windows but still
+                if src_path.stat().st_mtime > dest_mtime:
+                    src_path.copy(dest_path, preserve_metadata=True)
+                    # don't need this param in windows but still
 
-                f_creates += 1
+                    f_creates += 1
 
-        for dn in dir_names:
-            src_path = root / dn
-            dest_path = dest_root / src_path.relative_to(src_root)
+            for dn in dir_names:
+                src_path = root / dn
+                dest_path = dest_root / src_path.relative_to(src_root)
 
-            if not dest_path.exists():
-                dest_path.mkdir(exist_ok=True)
-                d_creates += 1
+                if not dest_path.exists():
+                    dest_path.mkdir(exist_ok=True)
+                    d_creates += 1
 
     return f_creates, f_deletes, d_creates, d_deletes
+
+
+def sync_dir(
+    src_root: pathlib.Path, dest_root: pathlib.Path
+) -> tuple[int, int, int, int]:
+    return multi_src_sync_dir([src_root], dest_root)
 
 
 # --- Drivers ---
