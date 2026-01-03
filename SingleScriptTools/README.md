@@ -640,6 +640,20 @@ Split image pdf back to multiple images
 
 ---
 
+### [periodic_dir_sync_O.py](periodic_dir_sync_O.py)
+Syncs two independent directories periodically, with file extension whitelist.
+
+Used to sync dependant resources real time while writing my own static webpage builder for github.io page.
+
+![](readme_res/periodic_dir_sync.jpg)
+
+
+<br>
+<br>
+
+
+---
+
 ### [process_runtime_tracker_O.py](process_runtime_tracker_O.py)
 Simple (& terrible) script to track process runtime by pooling processes every 10 seconds.
 
