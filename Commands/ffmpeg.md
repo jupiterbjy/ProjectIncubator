@@ -80,6 +80,7 @@ ffmpeg -i %1 -c copy -an "%~n1_na.mp4"
 
 <br>
 
+
 ## sRGB to Rec.709
 
 Not sure if this is working properly, since regardless of this youtube still makes my video darker.
@@ -94,6 +95,27 @@ ffmpeg -colorspace bt709 -color_trc iec61966-2-1 -i %1 -color_primaries 1 "%~n1_
 ```shell
 ffmpeg -colorspace bt709 -color_trc iec61966-2-1 -i %1 -c:v libsvtav1 -crf 25 -preset 4 -svtav1-params tune=0:enable-tf=0:enable-qm=1:qm-min=0 -color_primaries 1 -c:a libopus -b:a 192k -vbr:a on "%~n1_av1_rec709.mp4"
 ```
+
+<br>
+
+
+## Adding full color flag
+
+Used for rare cases where video is in full color range but isn't marked as such. (e.g. steam recording).
+
+```shell
+ffmpeg -i %1 -c copy -bsf:v h264_metadata=video_full_range_flag=1 "%~n1_flagged.mp4"
+```
+
+And thanks to VLC never fixing bug on windows regarding full range color - for those either move to mpv or
+re-encode flagged video to limited color range. (Refer [this](https://code.videolan.org/videolan/vlc/-/issues/28741))
+
+```text
+[vf#0:0 @ ...] Reconfiguring filter graph because video parameters changed to yuvj420p(pc, bt709), 1920x1080
+[swscaler @ ...] deprecated pixel format used, make sure you did set range correctly
+```
+
+ffmpeg tend to set `yuvj420p` for fullcolor(pc) for whatever reason and then complain about it being deprecated but ignore it.
 
 <br>
 
