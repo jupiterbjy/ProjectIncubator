@@ -107,7 +107,12 @@ Used for rare cases where video is in full color range but isn't marked as such.
 ffmpeg -i %1 -c copy -bsf:v h264_metadata=video_full_range_flag=1 "%~n1_flagged.mp4"
 ```
 
-And thanks to VLC never fixing bug on windows regarding full range color - for those either move to mpv or
+For my usecase when encoding unflagged full range(pc) to limited range(tv):
+```shell
+ffmpeg -i %1 -vf scale=in_range=pc:out_range=tv -c:v libsvtav1 -crf 25 -preset 4 -svtav1-params tune=0:enable-tf=0:enable-qm=1:qm-min=0 -c:a libopus -b:a 192k -vbr:a on 
+```
+
+And due to long-time VLC bug on windows regarding full range color - for those either move to mpv or
 re-encode flagged video to limited color range. (Refer [this](https://code.videolan.org/videolan/vlc/-/issues/28741))
 
 ```text
@@ -116,6 +121,8 @@ re-encode flagged video to limited color range. (Refer [this](https://code.video
 ```
 
 ffmpeg tend to set `yuvj420p` for fullcolor(pc) for whatever reason and then complain about it being deprecated but ignore it.
+
+Still full range AV1 HW decoding on AMD + MPV is messed up too but slightly better at H264 full range at least.
 
 <br>
 
