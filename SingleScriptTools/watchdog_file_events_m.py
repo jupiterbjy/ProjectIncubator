@@ -37,8 +37,9 @@ with start_watchdog(str(pathlib.Path(__file__).parent.absolute()), True) as hand
 import time
 import pathlib
 from contextlib import contextmanager
-from typing import Callable, List, Iterator
+from typing import Callable, List
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 
 from watchdog.observers import Observer
 from watchdog.events import (
@@ -54,6 +55,8 @@ from watchdog.events import (
     DirModifiedEvent,
 )
 
+# from watchdog.utils.dirsnapshot import DirectorySnapshot, DirectorySnapshotDiff
+
 
 __all__ = [
     "FileSystemEvent",
@@ -68,6 +71,16 @@ __all__ = [
     "CustomHandler",
     "start_watchdog",
 ]
+
+
+# _SYNC_PRINT_TEMPLATE = r"""
+# Syncing:
+# D+ {dirs_created:5} / D- {dirs_deleted:5} / Dmod {dirs_modified:5} / Dmov {dirs_moved:5}
+# F+ {files_created:5} / F- {files_deleted:5} / Fmod {files_modified:5} / Fmov {files_moved:5}
+# """.strip()
+
+
+# --- Logics ---
 
 
 class CustomHandler(FileSystemEventHandler):
@@ -155,20 +168,59 @@ class CustomHandler(FileSystemEventHandler):
         self.register(DirMovedEvent, callback)
 
 
+# def sync_directories(
+#     src: pathlib.Path, dest: pathlib.Path, exclude_exts: set[str] = None
+# ):
+#     """Syncs src directory to dst directory recursively and slightly intelligently.
+#
+#     Args:
+#         src: source path.
+#         dest: destination path.
+#         exclude_exts: excluded file extensions from source path. Dest's remains will always be cleaned
+#     """
+#
+#     src_snap = DirectorySnapshot(src.as_posix())
+#     dest_snap = DirectorySnapshot(dest.as_posix())
+#
+#     diff = DirectorySnapshotDiff(src_snap, dest_snap)
+#
+#     print(_SYNC_PRINT_TEMPLATE.format_map(diff.__dict__))
+#
+#     # del
+#     for deleted in diff.files_deleted:
+#
+#         pathlib.Path(deleted).unlink()
+#
+#     for deleted in diff.dirs_deleted:
+#         pathlib.Path(deleted).rmdir()
+#
+#     # create
+#     for created in diff.files_created:
+#         pathlib.Path(created)
+
+
+# --- Drivers ---
+
+
 @contextmanager
-def start_watchdog(path: str, recursive: bool) -> Iterator[CustomHandler]:
+def start_watchdog(
+    watch_paths: Iterable[str], recursive: bool
+) -> Iterator[CustomHandler]:
     """Wraps the start & stop of watchdog observer and yields the handler."""
 
     observer = Observer()
     handler = CustomHandler()
-    observer.schedule(handler, path, recursive=recursive)
+
+    for path in watch_paths:
+        observer.schedule(handler, path, recursive=recursive)
+
     observer.start()
 
-    print(f"Watchdog started for: {path}")
+    print(f"Watchdog started for: {watch_paths}")
 
     yield handler
 
-    print(f"Watchdog stopping for: {path}")
+    print(f"Watchdog stopping for: {watch_paths}")
 
     observer.stop()
     observer.join()
