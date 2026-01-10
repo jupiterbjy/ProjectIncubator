@@ -3,7 +3,7 @@ Syncs two independent directories periodically, with file extension whitelist.
 
 Used to sync dependant resources real time while writing my own static webpage builder for github.io page.
 
-Definitely very inefficient but quick to write than using watchdog and watching over
+Intended to be used in combination with watchdog for more efficient sync.
 
 ![](readme_res/periodic_dir_sync.jpg)
 
@@ -99,12 +99,19 @@ def multi_src_sync_dir(
 
                 dest_path = dest_root / src_path.relative_to(src_root)
 
-                dest_mtime = dest_path.stat().st_mtime if dest_path.exists() else 0
-
-                if src_path.stat().st_mtime > dest_mtime:
+                if not dest_path.exists():
                     src_path.copy(dest_path, preserve_metadata=True)
-                    # don't need this param in windows but still
+                    f_creates += 1
+                    continue
 
+                src_stat = src_path.stat()
+                dest_stat = dest_path.stat()
+
+                if (
+                    src_stat.st_mtime != dest_stat.st_mtime
+                    or src_stat.st_size != dest_stat.st_size
+                ):
+                    src_path.copy(dest_path, preserve_metadata=True)
                     f_creates += 1
 
             for dn in dir_names:
@@ -118,18 +125,12 @@ def multi_src_sync_dir(
     return f_creates, f_deletes, d_creates, d_deletes
 
 
-def sync_dir(
-    src_root: pathlib.Path, dest_root: pathlib.Path
-) -> tuple[int, int, int, int]:
-    return multi_src_sync_dir([src_root], dest_root)
-
-
 # --- Drivers ---
 
 
 def periodic_sync(src_root: pathlib.Path, dest_root: pathlib.Path, interval: float):
     while True:
-        changes = sync_dir(src_root, dest_root)
+        changes = multi_src_sync_dir([src_root], dest_root)
 
         if sum(changes) > 0:
             print(f"{time.time():.1f}: ", end="")

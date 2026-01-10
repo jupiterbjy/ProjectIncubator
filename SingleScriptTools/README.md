@@ -645,7 +645,7 @@ Syncs two independent directories periodically, with file extension whitelist.
 
 Used to sync dependant resources real time while writing my own static webpage builder for github.io page.
 
-Definitely very inefficient but quick to write than using watchdog and watching over
+Intended to be used in combination with watchdog for more efficient sync.
 
 ![](readme_res/periodic_dir_sync.jpg)
 
