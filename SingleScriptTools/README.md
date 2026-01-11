@@ -917,8 +917,8 @@ Note: _
 Used: If my heart had wings (Konosora ENG)
 
 Strategy KonosoraENG selected.
-Save start idx: >? 1
-Save end idx: >? 63
+Save start idx: 1
+Save end idx: 63
 
 Save038.Konosora EnglishSave-WillPlus -> Save001.Konosora EnglishSave-WillPlus
 Save038.png -> Save001.png
