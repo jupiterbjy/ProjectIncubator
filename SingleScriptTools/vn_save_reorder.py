@@ -67,7 +67,6 @@ import re
 import itertools
 import pathlib
 import argparse
-from collections.abc import Sequence
 
 """
 # old: 1~240 Save / 241~252 AS / 901~906 system
@@ -133,7 +132,7 @@ class RenameStrategyBase:
     """
 
     @classmethod
-    def condition(cls, files: list[pathlib.Path]) -> bool:
+    def condition(cls, root: pathlib.Path) -> bool:
         """Returns True if strategy can be applied.
         Files will be entire folder content of save directory, hence implement
         various filtering as required. (e.g. extensions, etc.)
@@ -142,7 +141,7 @@ class RenameStrategyBase:
         raise NotImplementedError
 
     @classmethod
-    def rename(cls, files: list[pathlib.Path]) -> None:
+    def rename(cls, root: pathlib.Path) -> None:
         """Renames save files. Passed files are sorted.
         One must receive user input to determine start-end index.
         This is due to some VNs using the paged naming system."""
@@ -188,17 +187,12 @@ class RenameStrategyBase:
         return (start_page, start_idx), (end_page, end_idx)
 
     @staticmethod
-    def _condition_generic(
-        files: Sequence[pathlib.Path], ext: str, pattern: re.Pattern
-    ) -> bool:
+    def _condition_generic(root: pathlib.Path, pattern: re.Pattern) -> bool:
         """Apply generic filter for files with given extension and regex pattern.
         Will return True on the first valid file, otherwise False.
         """
 
-        for file in files:
-            if file.suffix != ext:
-                continue
-
+        for file in root.iterdir():
             if pattern.match(file.name):
                 return True
 
@@ -206,7 +200,7 @@ class RenameStrategyBase:
 
     @staticmethod
     def _filter_generic(
-        files: Sequence[pathlib.Path], ext: str, pattern: re.Pattern
+        root: pathlib.Path, pattern: re.Pattern
     ) -> dict[int, pathlib.Path]:
         """Apply generic filter for files with given extension and regex pattern.
         Pattern's first capture group must capture index.
@@ -215,13 +209,10 @@ class RenameStrategyBase:
             {save_idx: file_path}
         """
 
-        # apply ext filter
-        _temp = [file for file in files if file.suffix == ext]
-
         # apply pattern filtering & idx extraction
         valid_files: dict[int, pathlib.Path] = {}
 
-        for file in files:
+        for file in root.iterdir():
             matched = pattern.match(file.name)
             if matched:
                 valid_files[int(matched[1])] = file
@@ -230,9 +221,7 @@ class RenameStrategyBase:
 
     @staticmethod
     def _filter_paged(
-        files: Sequence[pathlib.Path],
-        ext: str,
-        pattern: re.Pattern,
+        root: pathlib.Path, pattern: re.Pattern
     ) -> dict[tuple[int, int], pathlib.Path]:
         """Apply generic filter for files with given extension and regex pattern.
         Pattern's first capture group must capture page, second must capture index in page.
@@ -244,10 +233,7 @@ class RenameStrategyBase:
         # apply pattern filtering & idx extraction
         valid_files: dict[tuple[int, int], pathlib.Path] = {}
 
-        for file in files:
-            if file.suffix != ext:
-                continue
-
+        for file in root.iterdir():
             matched = pattern.match(file.name)
             if matched:
                 valid_files[(int(matched[1]), int(matched[2]))] = file
@@ -298,7 +284,7 @@ class FavoriteStrategy(RenameStrategyBase):
     _pattern = re.compile(r"^s(\d{3}).bin$")
 
     @classmethod
-    def condition(cls, files: list[pathlib.Path]) -> bool:
+    def condition(cls, root: pathlib.Path) -> bool:
         """Returns True if strategy can be applied.
         files will be entire folder content of save directory, hence implement
         various filtering as required. (e.g. extensions, etc.)
@@ -306,14 +292,14 @@ class FavoriteStrategy(RenameStrategyBase):
         Will only test maximum designated number of files.
         """
 
-        return cls._condition_generic(files, ".bin", cls._pattern)
+        return cls._condition_generic(root, cls._pattern)
 
     @classmethod
-    def rename(cls, files: list[pathlib.Path]) -> None:
+    def rename(cls, root: pathlib.Path) -> None:
         """Renames save files. Passed files are automatically sorted."""
 
         # filter
-        valid_files = cls._filter_generic(files, ".bin", cls._pattern)
+        valid_files = cls._filter_generic(root, cls._pattern)
 
         start_idx, end_idx = cls._get_range_non_paged()
 
@@ -345,24 +331,24 @@ class KiriKiriPagedStrategy(RenameStrategyBase):
     _pattern = re.compile(r"^data_\d{4}_\d{2}.jpg$")
 
     @classmethod
-    def condition(cls, files: list[pathlib.Path]) -> bool:
+    def condition(cls, root: pathlib.Path) -> bool:
         """Returns True if strategy can be applied.
         files will be entire folder content of save directory, hence implement
         various filtering as required. (e.g. extensions, etc.)
         """
 
-        return cls._condition_generic(files, ".jpg", cls._pattern)
+        return cls._condition_generic(root, cls._pattern)
 
     @classmethod
-    def rename(cls, files: list[pathlib.Path]) -> None:
+    def rename(cls, root: pathlib.Path) -> None:
         """Renames save files. Passed files are automatically sorted."""
+
+        start_page_idx, end_page_idx = cls._get_range_paged()
 
         page_size = 12
 
         # filter
-        valid_files = cls._filter_paged(files, ".jpg", cls._pattern)
-
-        start_page_idx, end_page_idx = cls._get_range_paged()
+        valid_files = cls._filter_paged(root, cls._pattern)
 
         start_idx = start_page_idx[0] * page_size + start_page_idx[1]
         end_idx = end_page_idx[0] * page_size + end_page_idx[1]
@@ -408,9 +394,9 @@ class AsaNewStrategy(RenameStrategyBase):
     }
 
     @classmethod
-    def condition(cls, files: list[pathlib.Path]) -> bool:
+    def condition(cls, root: pathlib.Path) -> bool:
 
-        for file in files:
+        for file in root.iterdir():
             if file.suffix != ".bmp":
                 continue
 
@@ -421,12 +407,12 @@ class AsaNewStrategy(RenameStrategyBase):
         return False
 
     @classmethod
-    def rename(cls, files: list[pathlib.Path]) -> None:
+    def rename(cls, root: pathlib.Path) -> None:
 
         offset = 50
 
         # first filtering path
-        ext_filtered = [file for file in files if file.suffix == ".bmp"]
+        ext_filtered = [file for file in root.iterdir() if file.suffix == ".bmp"]
 
         # determine prefix.
         # prefix will exist, since it passed condition check
@@ -478,19 +464,15 @@ class KonosoraENG(RenameStrategyBase):
     _pattern_thumb = re.compile(r"^Save(\d{3}).png$")
 
     @classmethod
-    def condition(cls, files: list[pathlib.Path]) -> bool:
-        return cls._condition_generic(
-            files, ".Konosora EnglishSave-WillPlus", cls._pattern
-        )
+    def condition(cls, root: pathlib.Path) -> bool:
+        return cls._condition_generic(root, cls._pattern)
 
     @classmethod
-    def rename(cls, files: list[pathlib.Path]) -> None:
+    def rename(cls, root: pathlib.Path) -> None:
 
         # filter
-        valid_files = cls._filter_generic(
-            files, ".Konosora EnglishSave-WillPlus", cls._pattern
-        )
-        valid_thumbs = cls._filter_generic(files, ".png", cls._pattern_thumb)
+        valid_files = cls._filter_generic(root, cls._pattern)
+        valid_thumbs = cls._filter_generic(root, cls._pattern_thumb)
 
         start_idx, end_idx = cls._get_range_non_paged()
 
@@ -529,12 +511,17 @@ class KonosoraENG(RenameStrategyBase):
 
 def rename_save(save_path: pathlib.Path):
 
-    for strat in MAPPING:
-        files = list(save_path.iterdir())
+    print(f"Using '{save_path}'\n")
 
-        if strat.condition(files):
+    for strat in MAPPING:
+        if strat.condition(save_path):
             print(f"\nStrategy {strat.__name__} selected.")
-            strat.rename(files)
+
+            while True:
+                strat.rename(save_path)
+
+                if input("\nContinue renaming? (Y/n): ") or "Y" in "nN":
+                    break
             return
     else:
         print(f"No strategy found for {save_path}")
@@ -542,15 +529,23 @@ def rename_save(save_path: pathlib.Path):
 
 if __name__ == "__main__":
 
+    _parser = argparse.ArgumentParser()
+    _parser.add_argument(
+        "save_path",
+        type=pathlib.Path,
+        nargs="?",
+        default=pathlib.Path(__file__).parent,
+        help="Path to save directory. If omitted, script's root directory will be used.",
+    )
+
+    _args = _parser.parse_args()
+
     print("Supported strategies:\n")
     for _strat in MAPPING:
         print(f"# {_strat.__name__}:\n{_strat.__doc__.lstrip()}", end="\n")
 
-    _parser = argparse.ArgumentParser()
-    _parser.add_argument("save_path", type=pathlib.Path)
-
     try:
-        rename_save(_parser.parse_args().save_path)
+        rename_save(_args.save_path)
 
     except Exception as err:
         import traceback
@@ -558,5 +553,3 @@ if __name__ == "__main__":
         traceback.print_exc()
         input("\nPress enter to exit:")
         raise
-
-    input("\nPress enter to exit:")
