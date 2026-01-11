@@ -889,20 +889,63 @@ or if any of listed entry is missing
 ---
 
 ### [vn_save_reorder.py](vn_save_reorder.py)
-`WARNING: UNTESTED SCRIPT`
+`WARNING: NOT SUFFICIENTLY TESTED, BACKUP FIRST`
 
 Script to 'compact' order of save files in various visual novels.
 
-Basically generalized version of `favorite_save_file_reorder_▽.py`
+Basically generalized version of `favorite_save_file_reorder_▽.py` that attempts to autodetect method,
+based on save file naming.
 
 e.g. compacting save file range of 1~30 would compacts `(2, 3, 6, 12, 28)` to `(1, 2, 3, 4, 5)`.
+
+```text
+# FavoriteStrategy:
+Desc: FAVORITE's VN save file rename strategy
+Type: 03 pad / 1-start
+e.g.: s001.bin (s{idx:03}.bin)
+Note: Do not temper with s800(for iroseka) & s901~s906 files.
+Used: Irotoridori no Sekai, Sakura Moyu, Hoshizora no Memoria
+
+# KiriKiriPagedStrategy:
+...
+
+# KonosoraENG:
+Desc: PULLTOP's Konosora ENG save file rename strategy
+Type: 03 padding / 1-start / separate thumbnail
+e.g.: 'Save001.Konosora EnglishSave-WillPlus', Save001.png
+Note: _
+Used: If my heart had wings (Konosora ENG)
+
+Strategy KonosoraENG selected.
+Save start idx: >? 1
+Save end idx: >? 63
+
+Save038.Konosora EnglishSave-WillPlus -> Save001.Konosora EnglishSave-WillPlus
+Save038.png -> Save001.png
+...
+Save061.Konosora EnglishSave-WillPlus -> Save023.Konosora EnglishSave-WillPlus
+Save061.png -> Save023.png
+Save062.Konosora EnglishSave-WillPlus -> Save024.Konosora EnglishSave-WillPlus
+Save062.png -> Save024.png
+Proceed? (y/N): y
+
+...
+```
 
 Though beware, ALWAYS backup first.
 
 Currently supported formats:
-- FAVORITE: `s001.bin`
-- YUZUSOFT/Madosoft, KiriKiri-engine page based: `data_0001_01.jpg`
-- (DOES NOT WORK) AsaProject's recent works: (e.g. `renrowa51.bmp`, `sukitosuki51.bmp`)
+- FAVORITE
+  - All: `s001.bin`
+
+- YUZUSOFT/Madosoft, KiriKiri-engine page based:
+  - All: `data_0001_01.jpg`
+
+- PULLTOP:
+  - If my heart had wings(Konosora) ENG: `Save001.png` & `Save001.Konosora EnglishSave-WillPlus`
+
+- ~~AsaProject's recent works: (e.g. `renrowa51.bmp`, `sukitosuki51.bmp`)~~
+  - For god's sake what kind of system are they even using...
 
 I can't figure out why and how to make it work for ASAProject, as I can't figure out the general
 mechanism at all - image files purely serve as thumbnail and no more.

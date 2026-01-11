@@ -1,18 +1,61 @@
 """
-`WARNING: UNTESTED SCRIPT`
+`WARNING: NOT SUFFICIENTLY TESTED, BACKUP FIRST`
 
 Script to 'compact' order of save files in various visual novels.
 
-Basically generalized version of `favorite_save_file_reorder_▽.py`
+Basically generalized version of `favorite_save_file_reorder_▽.py` that attempts to autodetect method,
+based on save file naming.
 
 e.g. compacting save file range of 1~30 would compacts `(2, 3, 6, 12, 28)` to `(1, 2, 3, 4, 5)`.
+
+```text
+# FavoriteStrategy:
+Desc: FAVORITE's VN save file rename strategy
+Type: 03 pad / 1-start
+e.g.: s001.bin (s{idx:03}.bin)
+Note: Do not temper with s800(for iroseka) & s901~s906 files.
+Used: Irotoridori no Sekai, Sakura Moyu, Hoshizora no Memoria
+
+# KiriKiriPagedStrategy:
+...
+
+# KonosoraENG:
+Desc: PULLTOP's Konosora ENG save file rename strategy
+Type: 03 padding / 1-start / separate thumbnail
+e.g.: 'Save001.Konosora EnglishSave-WillPlus', Save001.png
+Note: _
+Used: If my heart had wings (Konosora ENG)
+
+Strategy KonosoraENG selected.
+Save start idx: >? 1
+Save end idx: >? 63
+
+Save038.Konosora EnglishSave-WillPlus -> Save001.Konosora EnglishSave-WillPlus
+Save038.png -> Save001.png
+...
+Save061.Konosora EnglishSave-WillPlus -> Save023.Konosora EnglishSave-WillPlus
+Save061.png -> Save023.png
+Save062.Konosora EnglishSave-WillPlus -> Save024.Konosora EnglishSave-WillPlus
+Save062.png -> Save024.png
+Proceed? (y/N): y
+
+...
+```
 
 Though beware, ALWAYS backup first.
 
 Currently supported formats:
-- FAVORITE: `s001.bin`
-- YUZUSOFT/Madosoft, KiriKiri-engine page based: `data_0001_01.jpg`
-- (DOES NOT WORK) AsaProject's recent works: (e.g. `renrowa51.bmp`, `sukitosuki51.bmp`)
+- FAVORITE
+  - All: `s001.bin`
+
+- YUZUSOFT/Madosoft, KiriKiri-engine page based:
+  - All: `data_0001_01.jpg`
+
+- PULLTOP:
+  - If my heart had wings(Konosora) ENG: `Save001.png` & `Save001.Konosora EnglishSave-WillPlus`
+
+- ~~AsaProject's recent works: (e.g. `renrowa51.bmp`, `sukitosuki51.bmp`)~~
+  - For god's sake what kind of system are they even using...
 
 I can't figure out why and how to make it work for ASAProject, as I can't figure out the general
 mechanism at all - image files purely serve as thumbnail and no more.
@@ -72,6 +115,11 @@ saga/kinkoi: Kinkoi001.dat (Kinkoi{idx:03}.dat)
 _STRAT: ASAPROJECT_NEW / no padding / 51-start
 asa/renairoyal: renrowa51.bmp (renrowa{idx}.bmp)
 asa/koikari: sukitosuki51.bmp (sukitosuki{idx}.bmp)
+
+# wtf is this suffix...
+_STRAT: PULLTOP_KONOSORA_ENG / 03 pad / 1-start
+pulltop/konosora_english: "Save001.Konosora EnglishSave-WillPlus"
+pulltop/konosora_english: Save001.png
 """
 
 
@@ -208,7 +256,7 @@ class RenameStrategyBase:
 
     @staticmethod
     def _rename_on_confirmation(
-        old_new_path_pairs: list[tuple[pathlib.Path, pathlib.Path]]
+        old_new_path_pairs: list[tuple[pathlib.Path, pathlib.Path]],
     ) -> None:
         """Get user confirmation for renaming & perform renaming."""
 
@@ -222,6 +270,8 @@ class RenameStrategyBase:
                 old.rename(new)
 
             print("Renamed successfully.")
+            return
+
         print("Rename canceled.")
 
 
@@ -342,7 +392,7 @@ class KiriKiriPagedStrategy(RenameStrategyBase):
         cls._rename_on_confirmation(old_new_path_pairs)
 
 
-@_register_strat
+# @_register_strat
 class AsaNewStrategy(RenameStrategyBase):
     """
     Desc: KiriKiri-engine based, ASAProject's save file rename strategy
@@ -407,6 +457,67 @@ class AsaNewStrategy(RenameStrategyBase):
                 (
                     valid_files[idx],
                     valid_files[idx].with_stem(f"{detected_prefix}{next(counter)}"),
+                )
+            )
+
+        cls._rename_on_confirmation(old_new_path_pairs)
+
+
+# noinspection SpellCheckingInspection
+@_register_strat
+class KonosoraENG(RenameStrategyBase):
+    """
+    Desc: PULLTOP's Konosora ENG save file rename strategy
+    Type: 03 padding / 1-start / separate thumbnail
+    e.g.: 'Save001.Konosora EnglishSave-WillPlus', Save001.png
+    Note: _
+    Used: If my heart had wings (Konosora ENG)
+    """
+
+    _pattern = re.compile(r"^Save(\d{3}).Konosora EnglishSave-WillPlus$")
+    _pattern_thumb = re.compile(r"^Save(\d{3}).png$")
+
+    @classmethod
+    def condition(cls, files: list[pathlib.Path]) -> bool:
+        return cls._condition_generic(
+            files, ".Konosora EnglishSave-WillPlus", cls._pattern
+        )
+
+    @classmethod
+    def rename(cls, files: list[pathlib.Path]) -> None:
+
+        # filter
+        valid_files = cls._filter_generic(
+            files, ".Konosora EnglishSave-WillPlus", cls._pattern
+        )
+        valid_thumbs = cls._filter_generic(files, ".png", cls._pattern_thumb)
+
+        start_idx, end_idx = cls._get_range_non_paged()
+
+        # populate pairs in order
+        counter = itertools.count(start_idx)
+        old_new_path_pairs: list[tuple[pathlib.Path, pathlib.Path]] = []
+
+        for idx in range(start_idx, end_idx + 1):
+            if idx not in valid_files:
+                continue
+
+            assert (
+                idx in valid_thumbs
+            ), f"Thumbnail '{valid_thumbs[idx].name}' not found."
+
+            next_idx = next(counter)
+
+            old_new_path_pairs.append(
+                (
+                    valid_files[idx],
+                    valid_files[idx].with_stem(f"Save{next_idx:03}"),
+                )
+            )
+            old_new_path_pairs.append(
+                (
+                    valid_thumbs[idx],
+                    valid_thumbs[idx].with_stem(f"Save{next_idx:03}"),
                 )
             )
 
