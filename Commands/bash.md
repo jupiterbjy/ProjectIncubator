@@ -294,6 +294,32 @@ When checking the current dir's mount info:
 /      /dev/sdb2 ext4   rw,noatime,errors=remount-ro
 ```
 
+
+## progress
+
+Neat command that works universally for currently running supported commands.  
+Beware that this does not display full progress, rather currently processed file.
+
+Check: https://github.com/Xfennec/progress
+
+```shell
+progress -qmc COMMAND
+```
+
+```text
+# watching mv progress single shot
+$ progress -qc mv
+[1060781] mv /media/wdb2000/server_data_old.gz
+        41.3% (63.8 GiB / 154.4 GiB)
+```
+
+```text
+# watching in loop (you can use watch instead)
+$ progress -qmc mv
+[1060781] mv /media/wdb2000/server_data_old.gz
+        47.3% (73.0 GiB / 154.4 GiB) 76.7 MiB/s remaining 0:18:06
+```
+
 <br>
 
 ---
