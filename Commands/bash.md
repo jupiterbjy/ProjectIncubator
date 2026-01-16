@@ -280,6 +280,20 @@ SG_IO: bad/missing sense data, sb[]:  f0 00 05 04 51 40 80 0a 00 00 00 00 21 04 
 
 Using with `sudo powertop --auto-tune` might save you some extra, with pci ASPM on supported devices too. 
 
+
+## Mount info display
+
+```shell
+findmnt -T PATH
+```
+
+When checking the current dir's mount info:
+
+```text
+...$ findmnt -T .
+/      /dev/sdb2 ext4   rw,noatime,errors=remount-ro
+```
+
 <br>
 
 ---
