@@ -358,6 +358,25 @@ default via 192.168.0.1 dev wlo1 proto dhcp src 192.168.0.a metric 600
 ```
 
 
+## Routing Table Test
+
+Example with google
+```shell
+# w/ url - omit head if dig returns only 1 ip or keep it as failsafe
+ip route get $(dig +short google.com | head -n 1)
+ip r g $(dig +short google.com | head -n 1)
+
+# w/ ip
+ip r g 142.251.118.113
+```
+
+Example output routed thru my wireguard rule:
+```text
+142.251.118.113 dev NBook3-T5008SE table 51853 src 10.a.b.c uid ... 
+    cache 
+```
+
+
 ## Routing Rule Add
 
 For specific subnet to specific dev, implicit scope link:
@@ -404,7 +423,6 @@ Network manager(`nmcli`) will set low metric route (when `AllowedIPs = 0.0.0.0/0
 so all traffic will flow thru wireguard unless speficied in other routing rules.
 
 (visible in `ip route show table 0`, lower metric(cost) == higher priority)
-
 
 ## Wireguard check
 
