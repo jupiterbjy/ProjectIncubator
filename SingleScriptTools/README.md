@@ -548,6 +548,60 @@ on failure.
 
 ---
 
+### [img_height_lim_recursive_▽.py](img_height_lim_recursive_▽.py)
+Simply resizes images to identical height. Intended for static, non-indexed color images (png & jpg mostly).
+
+This will create new directory with configured suffix, for all passed directories recursively.
+
+Also, if files already exist in destination, `st_mtime` will be used to decide whether to overwrite or not,
+so that you don't have to re-process every file.
+
+Script will by default try to maintain `st_mtime` so you can order by modification time.
+(more like I need it, since I mix parsec & apollo for streaming)
+
+This is designed to be used in networked drive with high IO latency (which is what I have)
+so this uses multiple threads.
+
+Would've preferred using `trio.Path` for async file operation, but it still delegates to thread internally.
+So result would be similar regardless.
+
+`pip install pillow`
+
+```text
+Target height in pixels: 800
+
+# Delete pass for F:\_Backups\NyaruTab
+NyaruTab\DCIM\Game media\Artemis - deletes 433
+
+# Write pass for F:\_Backups\NyaruTab
+NyaruTab\DCIM\9나인 소라 배드엔딩 - writes 0 / skipped 3055
+NyaruTab\DCIM\9나인 노아 배드엔딩 - writes 0 / skipped 2658
+NyaruTab\DCIM\벚꽃, 싹트다 쿠로 - writes 0 / skipped 6945
+NyaruTab\DCIM\벚꽃, 싹트다 하루 - writes 0 / skipped 4720
+NyaruTab\DCIM\와가하이 아샤 - writes 0 / skipped 2577
+NyaruTab\DCIM\와가하이 토아 - writes 0 / skipped 1763
+NyaruTab\DCIM\코노소라 공통 - writes 0 / skipped 3477
+NyaruTab\DCIM\코노소라 코토리 - writes 0 / skipped 1944
+NyaruTab\DCIM\형형색색의 세계 공통 - writes 0 / skipped 3015
+NyaruTab\DCIM\형형색색의 세계 신쿠 - writes 0 / skipped 3156
+NyaruTab\DCIM\호시메모 공통 - writes 0 / skipped 4224
+NyaruTab\DCIM\호시메모 코모모 - writes 0 / skipped 2044
+...
+NyaruTab\DCIM\Game media\Artemis - writes 709 / skipped 0
+
+Total - deletes 433 / writes 997 / skipped 213583
+Press enter to exit:
+```
+
+<sub>~~I might have too many screenshots~~</sub>
+
+
+<br>
+<br>
+
+
+---
+
 ### [img_height_lim_▽.py](img_height_lim_▽.py)
 Simply resizes images to certain height, so it looks better when ordered in markdown or anything.
 Only intended for non-animated, non-indexed color images (png & jpg mostly)
