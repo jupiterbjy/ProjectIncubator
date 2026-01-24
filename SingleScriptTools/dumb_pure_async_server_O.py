@@ -408,7 +408,12 @@ async def serve_files(
     server = await asyncio.start_server(partial(handler, root=root), address, port)
 
     async with server:
-        await server.serve_forever()
+        try:
+            await server.serve_forever()
+        except asyncio.CancelledError:
+            pass
+
+    print("Server Stopped")
 
 
 if __name__ == "__main__":

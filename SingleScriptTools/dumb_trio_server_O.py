@@ -402,7 +402,11 @@ async def serve_files(
     )
 
     handler = tcp_handler_verbose if verbose else tcp_handler
-    await trio.serve_tcp(partial(handler, root=root), port, host=address)
+
+    try:
+        await trio.serve_tcp(partial(handler, root=root), port, host=address)
+    except* KeyboardInterrupt:
+        print("Server Stopped")
 
 
 if __name__ == "__main__":
