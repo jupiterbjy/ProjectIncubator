@@ -394,6 +394,9 @@ async def serve_files(
     port: int = 8000,
     verbose: bool = False,
 ):
+    # make sure root is absolute
+    root = root.resolve()
+
     print(
         f"Server Starting at http://{address}:{port}",
         f"-Root: {root}",
