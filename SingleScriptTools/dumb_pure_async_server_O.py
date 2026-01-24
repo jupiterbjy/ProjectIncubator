@@ -274,7 +274,7 @@ def _generate_dir_listing_html(
 
         # if dir or html, then set href to it
         if sub_p.is_dir():
-            lines.append(f'D <a href="{relative}{path_name}">{sub_p.name}</a>')
+            lines.append(f'D <a href="{relative}{path_name}/">{sub_p.name}</a>')
 
         elif sub_p.suffix.lower() == ".html":
             lines.append(f'H <a href="{relative}{path_name}">{sub_p.name}</a>')

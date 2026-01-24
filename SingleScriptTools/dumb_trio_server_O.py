@@ -244,11 +244,15 @@ def _generate_dir_listing_html(
     # prep link for stepping back. Will trigger for root but better for safeguarding
     try:
         parent_str = sanitized_abs_sub_path.parent.relative_to(root).as_posix()
+
+        # make sure it's absolute & ends with slash, otherwise relative resource access breaks
         if parent_str == ".":
-            parent_str = ""
+            parent_str = "/"
+        else:
+            parent_str = f"/{parent_str}/"
 
     except ValueError:
-        parent_str = ""
+        parent_str = "/"
 
     relative = quote(
         "/"
@@ -259,7 +263,7 @@ def _generate_dir_listing_html(
     lines: list[str] = [
         f'<meta charset="UTF-8">\n'
         f"<h1>Directory Listing for {relative}</h1>\n"
-        f'<a href="/{quote(parent_str)}">Go Up</a><br>'
+        f'<a href="{parent_str}">Go Up</a><br>'
     ]
 
     # sort stuff by name for each, so we can put dir first then file
@@ -274,7 +278,7 @@ def _generate_dir_listing_html(
 
         # if dir or html, then set href to it
         if sub_p.is_dir():
-            lines.append(f'D <a href="{relative}{path_name}">{sub_p.name}</a>')
+            lines.append(f'D <a href="{relative}{path_name}/">{sub_p.name}</a>')
 
         elif sub_p.suffix.lower() == ".html":
             lines.append(f'H <a href="{relative}{path_name}">{sub_p.name}</a>')
