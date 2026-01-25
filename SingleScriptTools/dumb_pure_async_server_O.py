@@ -29,7 +29,7 @@ def sanitize_path(root: pathlib.Path, rel_path: str) -> pathlib.Path | None:
     """Sanitizes `subdir` relative to root.
 
     Args:
-        root: Root directory currently being served
+        root: Resolved root directory currently being served
         rel_path: Subdirectory relative to root
 
     Returns:
@@ -230,7 +230,7 @@ def _generate_dir_listing_html(
     """Generates directory listing HTML for given directory.
 
     Args:
-        root: Root directory currently being served
+        root: Resolved root directory currently being served
         sanitized_abs_sub_path: Absolute Subdirectory path that was sanitized
 
     Returns:
@@ -336,7 +336,7 @@ async def tcp_handler_verbose(
     Args:
         r: StreamReader from asyncio.start_server()
         w: StreamWriter from asyncio.start_server()
-        root: Root directory to serve
+        root: Resolved root directory currently being served
     """
 
     try:
@@ -376,7 +376,7 @@ async def tcp_handler(
     Args:
         r: StreamReader from asyncio.start_server()
         w: StreamWriter from asyncio.start_server()
-        root: Root directory to serve
+        root: Resolved root directory currently being served
     """
 
     try:
@@ -399,6 +399,15 @@ async def serve_files(
     port: int = 8000,
     verbose: bool = False,
 ):
+    """Start serving files from given root directory.
+
+    Args:
+        root: Root directory to serve
+        address: yup
+        port: yup
+        verbose: Switches to verbose handler
+    """
+
     # make sure root is absolute
     root = root.resolve()
 

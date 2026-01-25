@@ -33,7 +33,7 @@ def sanitize_path(root: pathlib.Path, rel_path: str) -> pathlib.Path | None:
     """Sanitizes `subdir` relative to root.
 
     Args:
-        root: Root directory currently being served
+        root: Resolved root directory currently being served
         rel_path: Subdirectory relative to root
 
     Returns:
@@ -234,7 +234,7 @@ def _generate_dir_listing_html(
     """Generates directory listing HTML for given directory.
 
     Args:
-        root: Root directory currently being served
+        root: Resolved root directory currently being served
         sanitized_abs_sub_path: Absolute Subdirectory path that was sanitized
 
     Returns:
@@ -297,7 +297,7 @@ def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, byt
 
     Args:
         req_dict: Parsed request dict
-        root: Currently served root directory
+        root: Resolved root directory currently being served
 
     Returns:
         (Header str, Body bytes) tuple
@@ -332,13 +332,13 @@ def _create_resp(req_dict: dict[str, str], root: pathlib.Path) -> tuple[str, byt
 
 async def tcp_handler_verbose(
     stream: trio.SocketStream,
-    root: pathlib.Path = pathlib.Path("."),
+    root: pathlib.Path,
 ):
     """Handles incoming TCP connection. Yeah that's it
 
     Args:
         stream: `SocketStream` from `trio.serve_tcp()`
-        root: Root directory to serve
+        root: Resolved root directory currently being served
     """
 
     try:
@@ -370,13 +370,13 @@ async def tcp_handler_verbose(
 
 async def tcp_handler(
     stream: trio.SocketStream,
-    root: pathlib.Path = pathlib.Path("."),
+    root: pathlib.Path,
 ):
     """Handles incoming TCP connection. Yeah that's it
 
     Args:
         stream: `SocketStream` from `trio.serve_tcp()`
-        root: Root directory to serve
+        root: Resolved root directory currently being served
     """
 
     try:
