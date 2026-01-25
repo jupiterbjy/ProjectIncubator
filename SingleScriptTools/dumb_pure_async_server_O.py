@@ -36,6 +36,8 @@ def sanitize_path(root: pathlib.Path, rel_path: str) -> pathlib.Path | None:
         Sanitized path or None if invalid
     """
 
+    rel_path = rel_path.split("?", 1)[0]
+
     p = root / pathlib.PurePosixPath(rel_path)
 
     # try normalizing dir, aka resolving `/../../bla` things
