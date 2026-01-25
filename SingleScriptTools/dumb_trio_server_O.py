@@ -395,7 +395,18 @@ async def serve_files(
     address: str = "localhost",
     port: int = 8000,
     verbose: bool = False,
+    task_status=trio.TASK_STATUS_IGNORED,
 ):
+    """Start serving files from given root directory.
+
+    Args:
+        root: Root directory to serve
+        address: yup
+        port: yup
+        verbose: Switches to verbose handler
+        task_status: Support for `trio.Nursery.start()`. Will return cancel scope of this task.
+    """
+
     # make sure root is absolute
     root = root.resolve()
 
@@ -408,10 +419,23 @@ async def serve_files(
 
     handler = tcp_handler_verbose if verbose else tcp_handler
 
+    # wrapping it inside cancel scope so we can cancel it better for external use
+    # and also as nursery since unlike asyncio trio start & serve forever in one method.
+    # https://stackoverflow.com/a/60675826/10909029
     try:
-        await trio.serve_tcp(partial(handler, root=root), port, host=address)
+        async with trio.open_nursery() as nursery:
+            # kinda pointless but gotta keep this name so I know when I need it, heh!
+            _listeners: list[trio.SocketListener] = await nursery.start(
+                partial(trio.serve_tcp, partial(handler, root=root), port, host=address)
+            )
+
+            # let others know server did start & give means to cancel this task specifically
+            task_status.started(nursery.cancel_scope)
+
     except* KeyboardInterrupt:
-        print("Server Stopped")
+        pass
+
+    print("Server Stopped")
 
 
 if __name__ == "__main__":
