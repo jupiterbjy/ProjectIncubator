@@ -27,16 +27,21 @@ batch:
 ```commandline
 FULL_PATH_TO_RCLONE\rclone.exe mount sftp: F: --volname sftp ^
 --network-mode --links --transfers 16 ^
---config FILL_PATH_TO_CONF\rclone.conf ^
+--config FULL_PATH_TO_CONFIG\rclone.conf ^
 -o FileSecurity="D:P(A;;FA;;;WD)" ^
 --log-file %TEMP%\rclone.log --log-level INFO --no-console ^
---cache-dir %TEMP%\rclone --vfs-cache-mode writes ^
---vfs-cache-min-free-space 4G
+--cache-dir %TEMP%\rclone --vfs-cache-mode full ^
+--vfs-read-chunk-size 32M ^
+--vfs-read-ahead 64M ^
+--vfs-fast-fingerprint ^
+--vfs-cache-min-free-space 4G ^
+--buffer-size 0 ^
+--dir-cache-time 5s
 
 REM NOTE TO SELF:
 
 REM install service via:
-REM nssm install "_rclone" SCRIPT_FULL_PATH
+REM nssm install "_rclone" C:\Shortcuts\mount_sftp.bat
 REM nssm start
 
 REM also disable windows explorer history in explorer settings in win11
@@ -46,7 +51,7 @@ REM otherwise mere file move & renaming takes 5-10 sec
 | notable param                | details                                                                                                                                                                                 |
 |------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-o FileSecurity`            | Allow FILE EDIT on mounted drive. Otherwise can upload/delete but not editing. Refer [this](https://rclone.org/commands/rclone_mount/#windows-filesystem-permissions) for finer control |
-| `--vfs-cache-mode writes`    | Write cache which is almost always required. Don't use `full`, it just adds notable overhead for large archive file opening in sftp                                                     |
+| `--vfs-cache-mode full`      | Write cache is almost always required, read cache is optional                                                                                                                           |
 | `--cache-dir`                | Optional, I set it since I use ramdisk                                                                                                                                                  |
 | `--vfs-cache-min-free-space` | Optional, makes sure there's enough room in drive where `cache-dir` is in                                                                                                               |
 | `--network-mode`             | Optional, marks mount as network drive on explorer                                                                                                                                      |
