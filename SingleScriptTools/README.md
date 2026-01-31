@@ -660,6 +660,16 @@ Album list: ['abcdefg']
 
 ---
 
+### [llama_cpp_update.py](llama_cpp_update.py)
+Dumb script to fetch newest llama-cpp prebuilt binaries
+
+
+<br>
+<br>
+
+
+---
+
 ### [logging_config_m.py](logging_config_m.py)
 Just use loguru, I used this until I found it.
 
