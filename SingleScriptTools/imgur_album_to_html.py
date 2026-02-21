@@ -12,7 +12,7 @@ Example output:
 Album list: ['abcdefg']
 ---
 [abcdefg] Downloading 413 images
-[4uwdbyL] Downloaded
+[4uwdbyL] Downloaded - type image/png
 ...
 [qvuPRUh] File already exists, skipping
 [abcdefg] Generating HTML for standalone HTML share
@@ -28,17 +28,18 @@ Album list: ['abcdefg']
 import asyncio
 import json
 import urllib.parse
-from typing import TypedDict, Sequence, Union
 import argparse
 import pathlib
+from typing import TypedDict, Sequence, Union
 
 import httpx
 
 
 # --- Config ---
 
-ROOT = pathlib.Path(__file__).parent / "imgur_album_downloads"
-ROOT.mkdir(exist_ok=True)
+SUBDIR_NAME = "imgur_album_downloads"
+
+ROOT = pathlib.Path(__file__).parent
 
 
 _HTML_TEMPLATE = """
@@ -58,7 +59,7 @@ _HTML_TEMPLATE = """
 _HTML_IMG_TEMPLATE = """
 <hr>
 <br>
-<img src="{link}" alt="{id}" height=500px>
+<img src="{link}" alt="{type}" height=500px>
 <br>
 {description}
 <br>
@@ -77,6 +78,11 @@ _HTML_VIDEO_TEMPLATE = """
 <br>
 <br>
 """
+
+_HTML_TEMPLATE_MAPPING: dict[str, str] = {
+    "video": _HTML_VIDEO_TEMPLATE,
+    "image": _HTML_IMG_TEMPLATE,
+}
 
 
 # --- Utilities ---
@@ -121,6 +127,14 @@ class ImgurAlbum(TypedDict):
     images: Sequence[ImgurImage]
 
 
+def _format_desc(desc: Union[None, str]) -> str:
+    """Syntax sugar for replacing newline in description with html br tag.
+    Empty string is returned for None.
+    """
+
+    return desc.replace("\n", "<br>") if desc else ""
+
+
 def _generate_html(album: ImgurAlbum) -> str:
     """Generate HTML for quick lookup.
 
@@ -132,31 +146,21 @@ def _generate_html(album: ImgurAlbum) -> str:
     """
 
     parts = []
+
     for image in album["images"]:
-        if image["type"].startswith("video"):
-            parts.append(
-                _HTML_VIDEO_TEMPLATE.format(
-                    link=image["link"],
-                    type=image["type"],
-                    description=(
-                        image["description"].replace("\n", "<br>")
-                        if image["description"]
-                        else ""
-                    ),
-                )
+        # img is already saved, safe to mangle with
+        image["description"] = _format_desc(image["description"])
+
+        general_type = image["type"].split("/")[0]
+
+        try:
+            parts.append(_HTML_TEMPLATE_MAPPING[general_type].format_map(image))
+
+        except KeyError:
+            print(
+                f"[{album['id']}] [{image['id']}] Skipping unsupported type {image['type']}"
             )
-        else:
-            parts.append(
-                _HTML_IMG_TEMPLATE.format(
-                    link=image["link"],
-                    id=image["id"],
-                    description=(
-                        image["description"].replace("\n", "<br>")
-                        if image["description"]
-                        else ""
-                    ),
-                )
-            )
+            continue
 
     return _HTML_TEMPLATE.format(
         title=f"{album['title']}({album['id']})", body="".join(parts)
@@ -232,7 +236,7 @@ class ImgurClient:
 
         path.write_bytes(resp.content)
 
-        print(f"[{image['id']}] Downloaded")
+        print(f"[{image['id']}] Downloaded - type {image['type']}")
 
     async def download_album(self, album: ImgurAlbum, root_path: pathlib.Path):
         """
@@ -300,10 +304,15 @@ async def main_task(
     Main task to wrap asynchronous contexts.
     """
 
+    print("Using path", output)
+
+    output.mkdir(exist_ok=True)
+
     client = ImgurClient(client_id, max_threads)
 
     # convert provided URL to id if not already is.
-    album_ids = [url.split("/")[-1] for url in urls]
+    # now imgur adds post's name in url too, so check for hyphen too
+    album_ids = [url.split("/")[-1].split("-")[-1] for url in urls]
 
     print("Album list:", album_ids, end="\n---\n")
 
@@ -342,7 +351,7 @@ if __name__ == "__main__":
         "--output",
         type=pathlib.Path,
         default=ROOT,
-        help="PDF Output directory",
+        help=f"Imgur HTML Output directory (subdirectory '{SUBDIR_NAME}' will be created). Defaults to Script's root.",
     )
 
     parser.add_argument(
@@ -354,6 +363,7 @@ if __name__ == "__main__":
     )
 
     _args = parser.parse_args()
+    _args.output = _args.output / SUBDIR_NAME
 
     asyncio.run(
         main_task(_args.client_id, _args.urls, _args.output.resolve(), _args.threads)

@@ -643,7 +643,7 @@ Example output:
 Album list: ['abcdefg']
 ---
 [abcdefg] Downloading 413 images
-[4uwdbyL] Downloaded
+[4uwdbyL] Downloaded - type image/png
 ...
 [qvuPRUh] File already exists, skipping
 [abcdefg] Generating HTML for standalone HTML share
