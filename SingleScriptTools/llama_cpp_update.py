@@ -7,10 +7,12 @@ Dumb script to fetch newest llama-cpp prebuilt binaries
 import urllib.request
 import json
 import zipfile
+import tarfile
 import pathlib
 import tempfile
 import shutil
 import argparse
+from typing import Callable
 
 
 # --- Config ---
@@ -83,6 +85,20 @@ llama-b7898-bin-win-vulkan-x64.zip
 llama-b7898-xcframework.zip
 """
 
+# --- Utils ---
+
+# kinda wasteful for just two but it's more fun to look at
+EXT_UNPACKER_MAP: dict[str, Callable[[pathlib.Path, pathlib.Path]]] = {
+    ".gz": lambda src_path, dest_path: tarfile.TarFile(src_path).extractall(dest_path),
+    ".zip": lambda src_path, dest_path: zipfile.ZipFile(src_path).extractall(dest_path),
+}
+
+
+def unpack_archive(archive_path: pathlib.Path, dest_path: pathlib.Path):
+    """Some wrapper for zipfile & tarfile. yeah that's it"""
+
+    EXT_UNPACKER_MAP[archive_path.suffix](archive_path, dest_path)
+
 
 # --- Logics ---
 
@@ -108,7 +124,9 @@ def workload(
     if tail not in FILE_DEST_MAP:
         return
 
-    dl_path = temp_dir / (FILE_DEST_MAP[tail] + ".zip")
+    dl_path: pathlib.Path = temp_dir / tail
+    extension = dl_path.suffix
+
     dest_path = root / FILE_DEST_MAP[tail]
 
     if dest_path.exists():
@@ -128,8 +146,9 @@ def workload(
         print(f"Downloaded  {tail} - {size} B")
 
     print(f"Extracting  {tail}")
-    zipfile.ZipFile(dl_path).extractall(dest_path)
+    unpack_archive(dl_path, dest_path)
 
+    print(f"Deleting    {tail}")
     dl_path.unlink()
 
 
