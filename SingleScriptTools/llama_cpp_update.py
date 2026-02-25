@@ -87,17 +87,18 @@ llama-b7898-xcframework.zip
 
 # --- Utils ---
 
-# kinda wasteful for just two but it's more fun to look at
-EXT_UNPACKER_MAP: dict[str, Callable[[pathlib.Path, pathlib.Path]]] = {
-    ".gz": lambda src_path, dest_path: tarfile.TarFile(src_path).extractall(dest_path),
-    ".zip": lambda src_path, dest_path: zipfile.ZipFile(src_path).extractall(dest_path),
-}
-
-
 def unpack_archive(archive_path: pathlib.Path, dest_path: pathlib.Path):
     """Some wrapper for zipfile & tarfile. yeah that's it"""
 
-    EXT_UNPACKER_MAP[archive_path.suffix](archive_path, dest_path)
+    match archive_path.suffix:
+        # assumming it's .tar.gz
+        case ".gz":
+            with tarfile.open(archive_path, "r:gz") as archive:
+                archive.extractall(dest_path)
+        
+        case ".zip":
+            with zipfile.ZipFile(archive_path) as archive:
+                archive.extractall(dest_path)
 
 
 # --- Logics ---
@@ -152,12 +153,12 @@ def workload(
     dl_path.unlink()
 
 
-def fetch_latest_releases(dest: pathlib.Path):
+def fetch_latest_releases(dest: pathlib.Path, force_redownload: bool):
 
     parsed = json.loads(urllib.request.urlopen(URL).read())
     version = int(parsed["tag_name"].removeprefix("b"))
 
-    if get_local_version(dest) >= version:
+    if not force_redownload and get_local_version(dest) >= version:
         print(f"Already up to date. (b{version})")
         return
 
@@ -183,7 +184,14 @@ if __name__ == "__main__":
         default=ROOT,
         help="Destination directory to extract binaries to",
     )
+    _parser.add_argument(
+        "-f",
+        "--force-redownload",
+        action="store_true",
+        help="Redownload regardless of existing version check",
+    )
+
 
     _args = _parser.parse_args()
 
-    fetch_latest_releases(_args.destination)
+    fetch_latest_releases(_args.destination, _args.force_redownload)
