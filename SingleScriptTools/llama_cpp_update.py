@@ -85,7 +85,28 @@ llama-b7898-bin-win-vulkan-x64.zip
 llama-b7898-xcframework.zip
 """
 
+
 # --- Utils ---
+
+def unnest_dir(dir_path: pathlib.Path):
+    """Unnest content of given path, basically moving them to parent's"""
+
+    parent = dir_path.parent
+
+    try:
+        for sub_path in dir_path.iterdir():
+            sub_path.move_into(parent)
+    
+    except AttributeError:
+        # seems like pathlib.move_into was added in 3.14, yet I use debian
+
+        parent_str_path = parent.as_posix()
+
+        for sub_path in dir_path.iterdir():
+            shutil.move(sub_path.as_posix(), parent_str_path)
+    
+    dir_path.rmdir()
+
 
 def unpack_archive(archive_path: pathlib.Path, dest_path: pathlib.Path):
     """Some wrapper for zipfile & tarfile. yeah that's it"""
@@ -95,6 +116,16 @@ def unpack_archive(archive_path: pathlib.Path, dest_path: pathlib.Path):
         case ".gz":
             with tarfile.open(archive_path, "r:gz") as archive:
                 archive.extractall(dest_path)
+            
+            # linux archive has extra nested path in `llama-b8147` format,
+            # so unnest it
+            nested_dir: pathlib.Path = next(dest_path.iterdir())
+            
+            assert nested_dir.is_dir() and nested_dir.stem.startswith("llama-b"), (
+                f"Expected nested directory of `llama-bxxxx` format, got `{nested_dir}`"
+            )
+
+            unnest_dir(nested_dir)
         
         case ".zip":
             with zipfile.ZipFile(archive_path) as archive:
