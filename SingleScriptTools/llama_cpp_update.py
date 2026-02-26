@@ -12,7 +12,7 @@ import pathlib
 import tempfile
 import shutil
 import argparse
-from typing import Callable
+import platform
 
 
 # --- Config ---
@@ -26,19 +26,25 @@ URL = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
 
 # Download file's tail & destination dir name
 FILE_DEST_MAP: dict[str, str] = {
-    # "macos-arm64.tar.gz": "cpu",
-    # "macos-x64.tar.gz": "cpu",
-    # "ubuntu-vulkan-x64.tar.gz": "vulkan",
-    # "ubuntu-x64.tar.gz": "cpu",
-    # "win-cpu-arm64.zip": "cpu",
-    "win-cpu-x64.zip": "cpu",
-    # "win-cuda-12.4-x64.zip": "cuda12",
-    # "win-cuda-13.1-x64.zip": "cuda13",
-    "win-hip-radeon-x64.zip": "hip",
-    # "win-opencl-adreno-arm64.zip": "opencl-adreno",
-    # "win-sycl-x64.zip": "sycl",
-    "win-vulkan-x64.zip": "vulkan",
-}
+    "Darwin": {
+        "macos-arm64.tar.gz": "cpu",
+        "macos-x64.tar.gz": "cpu",
+    },
+    "Windows": {
+        # "win-cpu-arm64.zip": "cpu",
+        "win-cpu-x64.zip": "cpu",
+        # "win-cuda-12.4-x64.zip": "cuda12",
+        # "win-cuda-13.1-x64.zip": "cuda13",
+        # "win-hip-radeon-x64.zip": "hip",
+        # "win-opencl-adreno-arm64.zip": "opencl-adreno",
+        # "win-sycl-x64.zip": "sycl",
+        "win-vulkan-x64.zip": "vulkan",
+    },
+    "Linux": {
+        "ubuntu-vulkan-x64.tar.gz": "vulkan",
+        "ubuntu-x64.tar.gz": "cpu",
+    }
+}[platform.system()]
 
 # Memo
 r"""
