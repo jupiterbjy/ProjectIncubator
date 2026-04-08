@@ -38,6 +38,34 @@ Fetch all files with matching extension to script's location/Copied. Recursive.
 
 ---
 
+### [count_codex_tokens.py](count_codex_tokens.py)
+Script to count codex token usage & display per year/month for current user.
+
+I don't use codex nor use llm for code generation,
+but this is something I wanted to calculate for fun in workplace.
+
+example output:
+```
+Reading sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
+...
+Reading archived_sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
+
+Yearly Sum:
+2026-02: 10705490 tokens (32256 reasoning)
+2026-03: 55742045 tokens (86936 reasoning)
+2026-04: 23057875 tokens (42265 reasoning)
+2026 total: 89505410 tokens (161457 reasoning)
+
+All-time total: 89505410 tokens (161457 reasoning)
+```
+
+
+<br>
+<br>
+
+
+---
+
 ### [delayed_dl_workload_server_O.py](delayed_dl_workload_server_O.py)
 Async trio server for slow download simulation.
 
@@ -915,6 +943,23 @@ Dumb script that looks for twitch points button element on chat and clicks it
 
 ### [unicodify_▽.py](unicodify_▽.py)
 A very primitive script to unicode-fy passed text files, such as mass csv files, etc
+
+
+<br>
+<br>
+
+
+---
+
+### [update_dir_mtime.py](update_dir_mtime.py)
+Script for updating directory's modified time (`mtime`) to match it's content.
+
+Three types of strategy is supported. (oldest, median, newest).
+
+By default, median mode will be used, which choose median mtime of all subdir/files.
+
+Useful when you want to sort by modified date of it's content,
+e.g. when you make builds for each commits and makes modifications to it.
 
 
 <br>
