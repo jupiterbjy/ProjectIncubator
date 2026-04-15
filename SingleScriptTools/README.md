@@ -959,7 +959,19 @@ Three types of strategy is supported. (oldest, median, newest).
 By default, median mode will be used, which choose median mtime of all subdir/files.
 
 Useful when you want to sort by modified date of it's content,
-e.g. when you make builds for each commits and makes modifications to it.
+e.g. when you make builds for each commits but still make some modifications to it's config fire.
+
+```text=
+some_fw-commit_hash0 - [file_or_dir_count f/d]
+└─ 2026-04-15 01:06:40.590192 -> 2026-04-12 01:06:37.782191
+
+some_fw-commit_hash1 - [28 f/d]
+└─ 2026-04-07 08:01:50.267985 -> 2026-04-01 08:01:47.463026
+
+some_fw-commit_hash2 - [28 f/d]
+└─ 2026-03-31 01:41:14.000000 == 2026-03-31 01:41:14.000000
+...
+```
 
 
 <br>
