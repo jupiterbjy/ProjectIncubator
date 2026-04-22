@@ -412,7 +412,24 @@ Requires FFMPEG
 ---
 
 ### [file_line_char_count.py](file_line_char_count.py)
-Counts number of lines and characters in predetermined file types.
+Counts number of lines and characters in predetermined file types & encodings.
+
+```text
+Checking files under /home/...
+Whitelisted encodings: utf-8 utf-8-sig cp949 big5
+.bat     | lines:      67 | characters:     2658 | files: 3
+.cpp     | lines:      89 | characters:     3578 | files: 1
+.hpp     | lines:   72734 | characters:  2215146 | files: 486
+.h       | lines: 1294296 | characters: 48226107 | files: 4314
+.sh      | lines:    9215 | characters:   367937 | files: 48
+.md      | lines:    1829 | characters:    96983 | files: 15
+.c       | lines: 1450257 | characters: 65720511 | files: 1901
+.txt     | lines:   22743 | characters:  1507211 | files: 260
+.mk      | lines:   65149 | characters:  3020539 | files: 285
+.py      | lines:   19463 | characters:   734760 | files: 113
+Total 2935842 lines, 121895430 characters from 7426 files
+Press enter to exit: 
+```
 
 
 <br>
