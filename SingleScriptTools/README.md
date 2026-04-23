@@ -51,12 +51,12 @@ Reading sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
 Reading archived_sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
 
 Yearly Sum:
-2026-02: 10705490 tokens (32256 reasoning)
-2026-03: 55742045 tokens (86936 reasoning)
-2026-04: 23057875 tokens (42265 reasoning)
-2026 total: 89505410 tokens (161457 reasoning)
+2026-02: 10,705,490 tokens (32,256 reasoning)
+2026-03: 55,742,045 tokens (86,936 reasoning)
+2026-04: 23,057,875 tokens (42,265 reasoning)
+2026 total: 89,505,410 tokens (161,457 reasoning)
 
-All-time total: 89505410 tokens (161457 reasoning)
+All-time total: 89,505,410 tokens (161,457 reasoning)
 ```
 
 
@@ -69,7 +69,18 @@ All-time total: 89505410 tokens (161457 reasoning)
 ### [delayed_dl_workload_server_O.py](delayed_dl_workload_server_O.py)
 Async trio server for slow download simulation.
 
-Written in 2022, copied from [gist](https://gist.github.com/jupiterbjy/b0ad9a4dca162195aa0673b69e0af5cd)
+```text
+http://<URL>/<SIZE_IN_BYTES>?interval=<INTERVAL_MS>&chunk=<CHUNK_SIZE_IN_BYTES>
+```
+
+e.g.:
+```text
+http://localhost:8000/2000000?interval=1&chunk=32768
+```
+
+Parameters are optional.
+
+Based on 2022 [gist](https://gist.github.com/jupiterbjy/b0ad9a4dca162195aa0673b69e0af5cd)
 
 
 <br>
