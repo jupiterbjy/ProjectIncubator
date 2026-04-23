@@ -60,13 +60,13 @@ def main(target_root: pathlib.Path, mode: str, **_kwargs):
         "old": 0,
     }[mode]
     
-    for p, p_mtime in dir_list_gen(ROOT):
+    for p, p_mtime in dir_list_gen(target_root):
         
         mtimes: list[float] = [
             sub_p.stat().st_mtime for sub_p in p.glob("**/*")
         ]
         
-        print(f"{p.relative_to(ROOT).as_posix()} - [{len(mtimes)} f/d]")
+        print(f"{p.relative_to(target_root).as_posix()} - [{len(mtimes)} f/d]")
         
         if not mtimes:
             print(f"└─ Nothing to update, skipping\n")

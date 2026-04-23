@@ -11,12 +11,12 @@ Reading sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
 Reading archived_sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
 
 Yearly Sum:
-2026-02: 10705490 tokens (32256 reasoning)
-2026-03: 55742045 tokens (86936 reasoning)
-2026-04: 23057875 tokens (42265 reasoning)
-2026 total: 89505410 tokens (161457 reasoning)
+2026-02: 10,705,490 tokens (32,256 reasoning)
+2026-03: 55,742,045 tokens (86,936 reasoning)
+2026-04: 23,057,875 tokens (42,265 reasoning)
+2026 total: 89,505,410 tokens (161,457 reasoning)
 
-All-time total: 89505410 tokens (161457 reasoning)
+All-time total: 89,505,410 tokens (161,457 reasoning)
 ```
 
 :author: jupiterbjy@gmail.com
@@ -141,13 +141,13 @@ def main():
         for month in sorted(monthly):
             yearly_total += monthly[month]
             yearly_r_total += r_monthly[month]
-            print(f"{year}-{month:02}: {monthly[month]} tokens ({r_monthly[month]} reasoning)")
+            print(f"{year}-{month:02}: {monthly[month]:,} tokens ({r_monthly[month]:,} reasoning)")
         
         total += yearly_total
         r_total += yearly_r_total
-        print(f"{year} total: {yearly_total} tokens ({yearly_r_total} reasoning)\n")
+        print(f"{year} total: {yearly_total:,} tokens ({yearly_r_total:,} reasoning)\n")
 
-    print(f"\nAll-time total: {total} tokens ({r_total} reasoning)")
+    print(f"\nAll-time total: {total:,} tokens ({r_total:,} reasoning)")
 
 
 if __name__ == "__main__":
