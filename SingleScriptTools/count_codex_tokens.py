@@ -13,13 +13,15 @@ Reading archived_sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
 Yearly Sum:
 2026-02: 10,705,490 tokens (32,256 reasoning)
 2026-03: 55,742,045 tokens (86,936 reasoning)
-2026-04: 23,057,875 tokens (42,265 reasoning)
-2026 total: 89,505,410 tokens (161,457 reasoning)
+2026-04: 117,435,491 tokens (148,720 reasoning)
+2026 total: 183,883,026 tokens (267,912 reasoning)
 
-All-time total: 89,505,410 tokens (161,457 reasoning)
+
+All-time total: 183,883,026 tokens (267,912 reasoning)
+Today total   : 14,764,858 tokens (12,671 reasoning)
 ```
 
-:author: jupiterbjy@gmail.com
+:Author: jupiterbjy@gmail.com
 """
 
 import pathlib
@@ -115,18 +117,28 @@ def total_token_delta_gen() -> Iterator[tuple[dt.datetime, int, int]]:
 
 def main():
     # {year: (monthly_token, monthly_reasoning_token)}
-    per_years: dict[int, tuple[dict[int, int], dict[int, int]]] = {}
+    per_years: dict[int, tuple[dict[int, dict[int, int]], dict[int, dict[int, int]]]] = {}
     
     # accumulation pass
     for dt_time, count, reason_count in total_token_delta_gen():
         year = dt_time.year
         month = dt_time.month
+        day = dt_time.day
+        
+        # sanity check...
+        # if count < 0 or reason_count < 0:
+        #     print(f"Got negative token count {count} r:{reason_count}")
+        #     continue
         
         if year not in per_years:
-            per_years[year] = (defaultdict(int), defaultdict(int))
+            per_years[year] = (
+                defaultdict(lambda: defaultdict(int)),
+                defaultdict(lambda: defaultdict(int))
+                # this is cursed but works..
+            )
         
-        per_years[year][0][month] += count
-        per_years[year][1][month] += reason_count
+        per_years[year][0][month][day] += count
+        per_years[year][1][month][day] += reason_count
     
     print("\n\nYearly Sum:")
     
@@ -139,18 +151,35 @@ def main():
         yearly_r_total= 0
         
         for month in sorted(monthly):
-            yearly_total += monthly[month]
-            yearly_r_total += r_monthly[month]
-            print(f"{year}-{month:02}: {monthly[month]:,} tokens ({r_monthly[month]:,} reasoning)")
+            
+            monthly_sum = sum(monthly[month].values())
+            monthly_r_sum = sum(r_monthly[month].values())
+            
+            yearly_total += monthly_sum
+            yearly_r_total += monthly_r_sum
+            
+            print(f"{year}-{month:02}: {monthly_sum:,} tokens ({monthly_r_sum:,} reasoning)")
         
         total += yearly_total
         r_total += yearly_r_total
         print(f"{year} total: {yearly_total:,} tokens ({yearly_r_total:,} reasoning)\n")
 
     print(f"\nAll-time total: {total:,} tokens ({r_total:,} reasoning)")
+    
+    # display today's
+    today = dt.datetime.today()
+
+    try:
+        today_total = per_years[today.year][0][today.month][today.day]
+        today_r_total = per_years[today.year][1][today.month][today.day]
+    
+    except KeyError:
+        today_total = 0
+        today_r_total = 0
+
+    print(f"Today total   : {today_total:,} tokens ({today_r_total:,} reasoning)")
 
 
 if __name__ == "__main__":
     main()
-    input("Press enter to exit: ")
-
+    input("\nPress enter to exit: ")

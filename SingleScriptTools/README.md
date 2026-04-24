@@ -53,10 +53,12 @@ Reading archived_sessions/rollout-yyyy-mm-ddThh-mm-ss-some-hashes.jsonl
 Yearly Sum:
 2026-02: 10,705,490 tokens (32,256 reasoning)
 2026-03: 55,742,045 tokens (86,936 reasoning)
-2026-04: 23,057,875 tokens (42,265 reasoning)
-2026 total: 89,505,410 tokens (161,457 reasoning)
+2026-04: 117,435,491 tokens (148,720 reasoning)
+2026 total: 183,883,026 tokens (267,912 reasoning)
 
-All-time total: 89,505,410 tokens (161,457 reasoning)
+
+All-time total: 183,883,026 tokens (267,912 reasoning)
+Today total   : 14,764,858 tokens (12,671 reasoning)
 ```
 
 
