@@ -857,6 +857,55 @@ Also ignores addon directory.
 
 ---
 
+### [screenshots_2_playtime_▽.py](screenshots_2_playtime_▽.py)
+Dumb script to estimate playtime from screenshots.
+
+<sup>(also first fully nvim written one among these, excl. npp)</sup>
+
+Expects `PREFIXyyyy-mm-dd-hh-mm-ssSUFFIX` format images,
+and support mixed file names as long as dates are ordered.
+
+e.g.:
+```
+❯ foreach ($dir in ls -Directory *세계*) { py ./screenshots_2_playtime_▽.py $dir.name }
+Session info for '형형색색의 세계 공통' w/ 300 sec max gap
+- Session 0 2025-05-26 02:59:18 - 0.00 hr / 1 screenshots
+- Session 1 2025-05-26 03:14:24 - 0.16 hr / 12 screenshots
+- Session 2 2025-05-26 03:37:45 - 3.66 hr / 513 screenshots
+- Session 3 2025-05-26 19:36:07 - 0.07 hr / 7 screenshots
+- Session 4 2025-05-26 20:01:07 - 3.23 hr / 671 screenshots
+- Session 5 2025-05-27 00:17:21 - 4.31 hr / 808 screenshots
+- Session 6 2025-05-29 04:53:05 - 3.53 hr / 972 screenshots
+- Session 7 2025-06-01 11:59:23 - 0.15 hr / 16 screenshots
+- Session 8 2025-08-21 20:05:47 - 0.00 hr / 2 screenshots
+Total 15.10 hr / 3002 screenshots
+
+Session info for '형형색색의 세계 미오' w/ 300 sec max gap
+- Session 0 2025-05-29 08:25:15 - 0.00 hr / 1 screenshots
+- Session 1 2025-05-30 02:06:03 - 3.79 hr / 915 screenshots
+- Session 2 2025-05-30 06:18:29 - 0.23 hr / 43 screenshots
+- Session 3 2025-06-01 08:33:02 - 0.55 hr / 103 screenshots
+- Session 4 2025-06-01 09:25:29 - 2.26 hr / 533 screenshots
+Total 6.83 hr / 1595 screenshots
+
+Session info for '형형색색의 세계 신쿠' w/ 300 sec max gap
+- Session 0 2025-06-03 00:20:33 - 9.51 hr / 2534 screenshots
+- Session 1 2025-06-03 17:37:19 - 1.59 hr / 481 screenshots
+- Session 2 2025-06-03 19:25:50 - 0.41 hr / 102 screenshots
+- Session 3 2025-07-15 11:06:09 - 0.00 hr / 2 screenshots
+- Session 4 2025-08-21 20:05:02 - 0.07 hr / 33 screenshots
+Total 11.58 hr / 3152 screenshots
+
+...
+```
+
+
+<br>
+<br>
+
+
+---
+
 ### [search.py](search.py)
 ![](readme_res/search.png)
 
