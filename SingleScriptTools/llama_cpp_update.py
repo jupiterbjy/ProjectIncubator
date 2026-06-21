@@ -25,7 +25,9 @@ VERSION_FILE_NAME = "llama-cpp-version.txt"
 URL = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
 
 # Download file's tail & destination dir name
+# comment/uncomment to enable/disable platforms
 FILE_DEST_MAP: dict[str, str] = {
+    # macOS probably will not work at all
     "Darwin": {
         "macos-arm64.tar.gz": "cpu",
         "macos-x64.tar.gz": "cpu",
@@ -33,17 +35,19 @@ FILE_DEST_MAP: dict[str, str] = {
     "Windows": {
         # "win-cpu-arm64.zip": "cpu",
         "win-cpu-x64.zip": "cpu",
-        # "win-cuda-12.4-x64.zip": "cuda12",
-        # "win-cuda-13.1-x64.zip": "cuda13",
-        # "win-hip-radeon-x64.zip": "hip",
-        # "win-opencl-adreno-arm64.zip": "opencl-adreno",
-        # "win-sycl-x64.zip": "sycl",
         "win-vulkan-x64.zip": "vulkan",
+        # "win-opencl-adreno-arm64.zip": "opencl-adreno",
+        "win-cuda-12.4-x64.zip": "cuda12",
+        "cudart-llama-bin-win-cuda-12.4-x64.zip": "cuda12",
+        # "win-cuda-13.1-x64.zip": "cuda13",
+        # "cudart-llama-bin-win-cuda-13.1-x64.zip": "cuda13",
+        # "win-hip-radeon-x64.zip": "hip",
+        # "win-sycl-x64.zip": "sycl",
     },
     "Linux": {
         "ubuntu-vulkan-x64.tar.gz": "vulkan",
         "ubuntu-x64.tar.gz": "cpu",
-    }
+    },
 }[platform.system()]
 
 # Memo
@@ -94,6 +98,7 @@ llama-b7898-xcframework.zip
 
 # --- Utils ---
 
+
 def unnest_dir(dir_path: pathlib.Path):
     """Unnest content of given path, basically moving them to parent's"""
 
@@ -102,7 +107,7 @@ def unnest_dir(dir_path: pathlib.Path):
     try:
         for sub_path in dir_path.iterdir():
             sub_path.move_into(parent)
-    
+
     except AttributeError:
         # seems like pathlib.move_into was added in 3.14, yet I use debian
 
@@ -110,29 +115,29 @@ def unnest_dir(dir_path: pathlib.Path):
 
         for sub_path in dir_path.iterdir():
             shutil.move(sub_path.as_posix(), parent_str_path)
-    
+
     dir_path.rmdir()
 
 
 def unpack_archive(archive_path: pathlib.Path, dest_path: pathlib.Path):
-    """Some wrapper for zipfile & tarfile. yeah that's it"""
+    """Some wrapper for zipfile & tarfile. Yeah, that's it"""
 
     match archive_path.suffix:
-        # assumming it's .tar.gz
+        # assuming it's .tar.gz
         case ".gz":
             with tarfile.open(archive_path, "r:gz") as archive:
                 archive.extractall(dest_path)
-            
+
             # linux archive has extra nested path in `llama-b8147` format,
             # so unnest it
             nested_dir: pathlib.Path = next(dest_path.iterdir())
-            
-            assert nested_dir.is_dir() and nested_dir.stem.startswith("llama-b"), (
-                f"Expected nested directory of `llama-bxxxx` format, got `{nested_dir}`"
-            )
+
+            assert nested_dir.is_dir() and nested_dir.stem.startswith(
+                "llama-b"
+            ), f"Expected nested directory of `llama-bxxxx` format, got `{nested_dir}`"
 
             unnest_dir(nested_dir)
-        
+
         case ".zip":
             with zipfile.ZipFile(archive_path) as archive:
                 archive.extractall(dest_path)
@@ -141,7 +146,19 @@ def unpack_archive(archive_path: pathlib.Path, dest_path: pathlib.Path):
 # --- Logics ---
 
 
+def clean_binaries(dir_path: pathlib.Path):
+    """Remove all binaries pending for redownloading"""
+
+    path_names = set(FILE_DEST_MAP.values())
+
+    for path in dir_path.iterdir():
+        if path.name in path_names:
+            print(f"Removing existing directory {path}")
+            shutil.rmtree(path)
+
+
 def get_local_version(root: pathlib.Path) -> int:
+    """Get local version of llama-cpp binaries in dumb way"""
     try:
         version_file = root / VERSION_FILE_NAME
         return int(version_file.read_text("utf8")) if version_file.exists() else 0
@@ -152,36 +169,32 @@ def get_local_version(root: pathlib.Path) -> int:
 def workload(
     root: pathlib.Path, tgt_file_prefix: str, temp_dir: pathlib.Path, asset: dict
 ):
-    name = asset["name"]
+    """Download/unpack workload for each download candidate"""
 
-    if not name.startswith(tgt_file_prefix):
-        return
+    name: str = asset["name"]
 
-    tail = name[len(tgt_file_prefix) :]
+    # try normalizing path w/o prefix
+    tail = name.removeprefix(tgt_file_prefix)
 
+    # skip if not our target
     if tail not in FILE_DEST_MAP:
         return
 
     dl_path: pathlib.Path = temp_dir / tail
-    extension = dl_path.suffix
-
     dest_path = root / FILE_DEST_MAP[tail]
 
-    if dest_path.exists():
-        print(f"Removing existing directory {dest_path}")
-        shutil.rmtree(dest_path)
-
     size = 0
+
     with (
         dl_path.open("wb") as fp,
         urllib.request.urlopen(asset["browser_download_url"]) as resp,
     ):
         while data := resp.read(32768):
             size += len(data)
-            print(f"Downloading {tail} - {size} B", end="\r")
+            print(f"Downloading {tail} - {size:,} B", end="\r")
             fp.write(data)
 
-        print(f"Downloaded  {tail} - {size} B")
+        print(f"Downloaded  {tail} - {size:,} B")
 
     print(f"Extracting  {tail}")
     unpack_archive(dl_path, dest_path)
@@ -198,6 +211,8 @@ def fetch_latest_releases(dest: pathlib.Path, force_redownload: bool):
     if not force_redownload and get_local_version(dest) >= version:
         print(f"Already up to date. (b{version})")
         return
+
+    clean_binaries(dest)
 
     tgt_file_prefix = f"llama-b{version}-bin-"
 
@@ -227,7 +242,6 @@ if __name__ == "__main__":
         action="store_true",
         help="Redownload regardless of existing version check",
     )
-
 
     _args = _parser.parse_args()
 
