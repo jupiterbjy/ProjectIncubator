@@ -719,7 +719,7 @@ Album list: ['abcdefg']
 ---
 
 ### [llama_cpp_update.py](llama_cpp_update.py)
-Dumb script to fetch newest llama-cpp prebuilt binaries
+Dumb script to fetch newest or specific llama-cpp release's prebuilt binaries
 
 
 <br>
@@ -1080,6 +1080,34 @@ There is no safety feature in this, use with caution!
 ### [validate_m3u_▽.py](validate_m3u_▽.py)
 Simply checks if all files in folder is included in m3u file in the same dir
 or if any of listed entry is missing
+
+
+<br>
+<br>
+
+
+---
+
+### [vn_play_route_order_check.py](vn_play_route_order_check.py)
+Typed in vim for quick test to answer reddit comment
+
+I thought I played wakana route first.
+I wasn't, she was 3rd. Meguru was first.
+RIP my memory
+
+Assumes you use parsec, and has moonlight file mixed in.
+Will update this in future (if I ever need to) to expand this for automatic detection
+based on screenshot percentage.
+
+```text
+❯ py .\check_route_order.py 사노바위치
+사노바위치 공통 - 2024-09-22-00-24-58 ~ 2024-09-22-08-04-45 / total 617
+사노바위치 메구루 - 2024-09-22-08-11-38 ~ 2024-09-26-02-54-58 / total 1129
+사노바위치 네네 - 2024-09-23-02-22-53 ~ 2024-09-26-02-18-05 / total 2368
+사노바위치 와카나 - 2024-09-26-03-12-26 ~ 2024-09-29-07-25-48 / total 860
+사노바위치 토오카 - 2025-06-04-02-46-58 ~ 2025-06-06-06-53-56 / total 882
+사노바위치 시바 - 2025-06-06-07-00-39 ~ 2025-06-09-04-51-59 / total 871
+```
 
 
 <br>
