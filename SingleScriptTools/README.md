@@ -566,6 +566,32 @@ Generates hardcoded turtle drawing script drawing contour out of image.
 
 ---
 
+### [img_2_vid_▽.py](img_2_vid_▽.py)
+Dumb script to create vid from images via ffmpeg,
+primarily written to save storage after long rimworld plays.
+
+e.g. output:
+```
+...
+
+Summary:
+ << Encoded 41 images to '...\rockandstone\tile-9819,0\_output.mp4' / 339.7MB -> 44.0MB (13.0%)
+ << Encoded 418 images to '...\desert\tile-52038,0\_output.mp4' / 5.1GB -> 797.9MB (15.2%)
+ << Encoded 162 images to '...\kiiro_valor_and_biotech\tile-114985,0\_output.mp4' / 2.3GB -> 329.0MB (13.7%)
+ << Encoded 346 images to '...\neko!\tile-117003,0\_output.mp4' / 4.0GB -> 677.2MB (16.5%)
+ << Encoded 184 images to '...\ratkin!\tile-17957,0\_output.mp4' / 1.5GB -> 207.7MB (13.8%)
+ << Encoded 206 images to '...\RatkinMiners\tile-31164,0\_output.mp4' / 1.6GB -> 222.5MB (13.7%)
+
+Press Enter to exit:
+```
+
+
+<br>
+<br>
+
+
+---
+
 ### [img_audio_2_vid_▽.py](img_audio_2_vid_▽.py)
 Script to convert image + audio to video via FFMPEG. (Basically bloated bash script)
 Assumes FFMPEG exists in PATH.
