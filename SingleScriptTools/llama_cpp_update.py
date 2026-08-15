@@ -59,7 +59,7 @@ FILE_DL_CONFIG: set[str] = {
         "Windows x64 (Vulkan)",
         # "Windows x64 (OpenVINO)",
         # "Windows x64 (SYCL)",
-        # "Windows x64 (HIP)",
+        # "Windows x64 (ROCm 7.14)",
     },
 }[platform.system()]
 
@@ -178,13 +178,13 @@ def unpack_archive(archive_path: pathlib.Path, dest_path: pathlib.Path):
 
 
 def fetch_release_list() -> list[int]:
-    """Fetches valid lists that has assets without b prefix"""
+    """Fetches valid lists that has assets without b prefix, ascending order"""
 
     all_releases = json.loads(urllib.request.urlopen(RELEASES_URL).read())
 
-    return [
+    return sorted(
         int(release["tag_name"][1:]) for release in all_releases if release["assets"]
-    ]
+    )
 
 
 def fetch_url_map(release_json: dict) -> dict[str, list[str]]:
@@ -287,6 +287,8 @@ def dl_release(dest: pathlib.Path, force_redownload: bool, release: str):
         initial_version = int(release.removeprefix("b"))
         version: int = max(n for n in release_list if n <= int(initial_version))
         # dumb af but oneliner, I don't care for now
+        # note to self on wtf this was I wrote half year ago:
+        # this fetches latest release w/ assets BEFORE target ver
 
         if initial_version != version:
             print(
