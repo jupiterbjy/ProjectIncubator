@@ -1,2 +1,14 @@
+# ide
+.vs
+.idea
+*.*~
+
+# etc
+.cmake
+__pycache__
 *.log
-/DiscordStreamNotifyBot/discord_run.sh
+
+# discarded projects
+/Random Tools/SeleniumTest
+/Random Tools/RCloneMountGUI
+/Random Tools/DumbLocalToolBox
