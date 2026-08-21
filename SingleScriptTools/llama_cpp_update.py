@@ -182,8 +182,14 @@ def fetch_release_list() -> list[int]:
 
     all_releases = json.loads(urllib.request.urlopen(RELEASES_URL).read())
 
+    # they started preparing for semantic versioning
+    # gotta ignore for now until it goes official
+    # https://github.com/ggml-org/llama.cpp/releases/tag/v0.1.2
+
     return sorted(
-        int(release["tag_name"][1:]) for release in all_releases if release["assets"]
+        int(release["tag_name"][1:])
+        for release in all_releases
+        if release["assets"] and "." not in release["tag_name"]
     )
 
 
