@@ -336,6 +336,66 @@ whenever there's input with configurable margin, windows only.
 
 ---
 
+### [embed_img_▽.py](embed_img_▽.py)
+Batch image embedding & querying script.
+
+Written to make my miserable life of searching 500GB screenshots
+w/ specific dialogue of a scene a bit more manageable.
+
+Assumes /v1/embeddings endpoint that support batch embedding,
+tested against llama.cpp EmbeddingGemma2 with ctx=ub=b=4096 / pooling mean
+
+Indexing mode:
+```text
+$ py embed_img_▽.py ".../하나사키워크스프링 히카리"
+
+[VectorDB] open w/ 464 rows
+[EmbedServer] open
+
+Batch: 8
+Resize width: 1280
+Resize threshold: 1536
+
+Checking new/modified images in dir
+Got 2539 new/modified imgs
+...
+Indexed Artemis_2026-09-07-02-22-18.jpg
+Indexed Artemis_2026-09-08-02-04-22.jpg
+
+Indexed 2539 new/modified files in 1872.62 (1.356/s)
+
+[EmbedServer] closed
+[VectorDB] closed
+```
+
+Query mode:
+```text
+$ py embed_img_▽.py ".../하나사키워크스프링 히카리" \
+> -q "image containing monologue '삼각건이 머리에 얹어졌다' with blonde girl making >w< face"
+
+[VectorDB] open w/ 3003 rows
+[EmbedServer] open
+
+Top-5:
+  0.73515  +0.01231  Artemis_2026-09-08-00-57-38.jpg
+  0.72284  +0.00446  Artemis_2026-09-08-00-57-26.jpg
+  0.71838  +0.00357  Artemis_2026-09-07-02-36-38.jpg
+  0.71481  +0.00017  Artemis_2026-09-07-02-40-09.jpg
+  0.71464  --------  Artemis_2026-09-07-02-36-52.jpg
+
+[EmbedServer] closed
+[VectorDB] closed
+```
+
+A bit too long for 'single script' constraint but welp
+
+
+<br>
+<br>
+
+
+---
+
 ### [favorite_save_file_reorder_▽.py](favorite_save_file_reorder_▽.py)
 Script to reorder save files from 'Irotoridori no Sekai'.
 Should work for all visual novels from FAVORITE.
