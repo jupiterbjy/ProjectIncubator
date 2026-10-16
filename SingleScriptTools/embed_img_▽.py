@@ -20,9 +20,9 @@ Resize threshold: 1536
 
 Checking new/modified images in dir
 Got 2539 new/modified imgs
+Batch 0 start
 ...
-Indexed Artemis_2026-09-07-02-22-18.jpg
-Indexed Artemis_2026-09-08-02-04-22.jpg
+Batch 317 start
 
 Indexed 2539 new/modified files in 1872.62 (1.356/s)
 
@@ -53,7 +53,7 @@ A bit too long for 'single script' constraint but welp
 
 :Author: jupiterbjy@gmail.com
 """
-
+import itertools
 import time
 import base64
 import io
@@ -205,9 +205,9 @@ class EmbedServer:
         assert self._client, "Client not initialized"
 
         resp = await self._client.get(self.url + "/v1/health", timeout=timeout)
-
-        # won't do any strict checks, server better be working
         resp.raise_for_status()
+
+        # won't do any strict checks, server better be working at this point
         return resp.json()["status"] == "ok"
 
     async def _post(self, payload: EmbedPayload, timeout: int) -> list[list[float]]:
@@ -248,7 +248,7 @@ class VectorDB:
     _db_create_query = f"""
     CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
         fn text primary key,
-        mtime float,
+        +mtime float,
         v float[{EMBED_DIM}] distance_metric=cosine
     )
     """
@@ -301,6 +301,9 @@ class VectorDB:
 
         print("[VectorDB] closed")
 
+    def commit(self) -> None:
+        self._conn.commit()
+
     @staticmethod
     def _serialize(vec: list[float]) -> list[float]:
         v = np.asarray(vec, dtype=np.float32)
@@ -336,8 +339,12 @@ class VectorDB:
             (key,),
         ).fetchone()
 
-    def query(self, query_vec: list[float], top_k: int = 5):
-        """Perform KNN search for given query vector & return top k results"""
+    def query(self, query_vec: list[float], top_k: int = 5) -> list[tuple[str, float]]:
+        """Perform KNN search for given query vector & return top k results
+
+        Returns:
+            [(key, cosine_similarity), ...]
+        """
 
         assert self._conn, "DB not initialized"
 
@@ -358,11 +365,14 @@ class VectorDB:
 
 # --- Logic ---
 
+# just for reducing chores...
+_PathDataPairs = list[tuple[trio.Path, bytes]]
+
 
 async def _producer_task(
     root: pathlib.Path,
     vector_db: VectorDB,
-    send_ch: trio.MemorySendChannel[tuple[trio.Path, bytes]],
+    send_ch: trio.MemorySendChannel[tuple[int, _PathDataPairs]],
 ) -> int:
     """Asynchronously read & resize img from dir & push to queue.
     Will check for file mtime to determine whether it needs to be updated or not
@@ -386,8 +396,8 @@ async def _producer_task(
     ]
     print(f"Got {len(new_paths)} new/modified imgs")
 
-    for path in new_paths:
-        await send_ch.send(
+    for idx, paths in enumerate(itertools.batched(new_paths, EMBED_BATCH_SIZE)):
+        batch = [
             (
                 path,
                 _resize_img_in_buffer(
@@ -397,7 +407,9 @@ async def _producer_task(
                     IMG_RESIZE_THRESHOLD,
                 ).getvalue(),
             )
-        )
+            for path in paths
+        ]
+        await send_ch.send((idx, batch))
 
     return len(new_paths)
 
@@ -405,56 +417,99 @@ async def _producer_task(
 async def _consumer_task(
     vector_db: VectorDB,
     embed_server: EmbedServer,
-    recv_ch: trio.MemoryReceiveChannel[tuple[trio.Path, bytes]],
+    recv_ch: trio.MemoryReceiveChannel[tuple[int, _PathDataPairs]],
 ) -> None:
     """Get image embedding vector in batch & add to DB"""
 
-    while True:
-        batch: list[tuple[trio.Path, bytes]] = []
+    async for idx, batch in recv_ch:
 
-        for _ in range(EMBED_BATCH_SIZE):
-            try:
-                batch.append(await recv_ch.receive())
-            except trio.EndOfChannel:
-                break
-
-        if not batch:
-            return
-
+        print(f"Batch {idx} start")
         embeddings = await embed_server.embed_images(batch, EMBED_TIMEOUT * EMBED_BATCH_SIZE)
 
         for (path, _), embedding in zip(batch, embeddings):
-            print(f"Indexed {path.name}")
             vector_db.upsert(path.name, (await path.stat()).st_mtime, embedding)
+
+        vector_db.commit()
+
+
+async def query_image(
+    url: str, root: pathlib.Path, query: str, top_k: int,
+) -> list[tuple[pathlib.Path, float]]:
+    """Query top k similar imgs via text query.
+
+    For import use in far future, maybe
+
+    Returns:
+        [(path, similarity), ...]
+    """
+
+    with VectorDB(root / EMBED_DB_NAME) as vec_db:
+        async with EmbedServer(url) as embed_server:
+            vec_key: list[float] = (
+                await embed_server.embed_texts([query], EMBED_TIMEOUT)
+            )[0]
+
+        return [
+            (root / fn, sim) for fn, sim in vec_db.query(vec_key, top_k)
+        ]
+
+
+async def index_image(url: str, root: pathlib.Path) -> int:
+    """Index imgs in given dir and updates/creates db.
+    Uses file mtime to determine if a file need reindexing or not.
+
+    For import use in far future, maybe
+
+    Returns:
+        Newly added/updated entries count.
+    """
+
+    with VectorDB(root / EMBED_DB_NAME) as vec_db:
+        async with (
+            EmbedServer(url) as embed_server,
+            trio.open_nursery() as nursery,
+        ):
+            send_ch, recv_ch = trio.open_memory_channel(EMBED_BATCH_SIZE)
+
+            # start 2 so llama server always have 1 queued behind
+            # this then would mostly eliminate net transfer idle time in gpu
+            for _ in range(2):
+                nursery.start_soon(
+                    _consumer_task, vec_db, embed_server, recv_ch,
+                )
+
+            # ensure channel is closed when producing is done,
+            # iirc then recv channel will drain buffer before closing
+            async with send_ch:
+                file_count: int = await _producer_task(root, vec_db, send_ch)
+
+    return file_count
 
 
 async def _query_mode_flow(
-    embed_server: EmbedServer,
-    vec_db: VectorDB,
-    query: str,
-    top_k: int,
+    url: str, root: pathlib.Path, query: str, top_k: int,
 ) -> None:
-    """DB Querying mode logic"""
 
-    vec_key: list[float] = (await embed_server.embed_texts([query], EMBED_TIMEOUT))[0]
+    key_sim_pairs = await query_image(url, root, query, top_k)
 
     print(f"\nTop-{top_k}:")
 
-    # get cos similarity & display delta so it's a bit easier to read
-    key_sim_pairs = vec_db.query(vec_key, top_k)
-
+    # display cos similarity & delta from prev one so it's a bit easier to read
     for idx, (path, sim) in enumerate(key_sim_pairs[:-1]):
-        print(f"  {sim:.5f}  +{sim - key_sim_pairs[idx + 1][1]:.5f}  {path}")
+        print(f"  {sim:.5f}  +{sim - key_sim_pairs[idx + 1][1]:.5f}  {path.name}")
 
-    print(f"  {key_sim_pairs[-1][1]:.5f}  --------  {key_sim_pairs[-1][0]}\n")
-        
+    print(f"  {key_sim_pairs[-1][1]:.5f}  --------  {key_sim_pairs[-1][0].name}\n")
+
+    # also display full path so I can ctrl click in term to quickly check
+    for path, _ in key_sim_pairs:
+        print(f"  '{path.absolute()}'")
+
+    print()
+
 
 async def _index_mode_flow(
-    embed_server: EmbedServer,
-    vec_db: VectorDB,
-    root: pathlib.Path,
+    url: str, root: pathlib.Path,
 ) -> None:
-    """DB Indexing mode logic"""
 
     print(
         f"\nBatch: {EMBED_BATCH_SIZE}",
@@ -463,23 +518,8 @@ async def _index_mode_flow(
         sep="\n",
     )
 
-    async with trio.open_nursery() as nursery:
-        send_ch, recv_ch = trio.open_memory_channel(EMBED_BATCH_SIZE)
-
-        # start 2 so llama server always have 1 queued behind
-        # this then would mostly eliminate net transfer idle time in gpu
-        for _ in range(2):
-            nursery.start_soon(
-                _consumer_task, vec_db, embed_server, recv_ch,
-            )
-
-        start_t = time.time()
-
-        # ensure channel is closed when producing is done,
-        # iirc then recv channel will drain buffer before closing
-        async with send_ch:
-            file_count: int = await _producer_task(root, vec_db, send_ch)
-
+    start_t = time.time()
+    file_count = await index_image(url, root)
     delta_t = time.time() - start_t
 
     if not file_count:
@@ -494,17 +534,13 @@ async def _index_mode_flow(
 
 # --- Driver ---
 
+async def main(url: str, root: pathlib.Path, query: str, top_k: int):
 
-async def main(remote: str, root: pathlib.Path, query: str, top_k: int):
+    if query:
+        await _query_mode_flow(url, root, query, top_k)
+        return
 
-    with VectorDB(root / EMBED_DB_NAME) as db:
-        async with EmbedServer(remote) as server:
-
-            if query:
-                await _query_mode_flow(server, db, query, top_k)
-                return
-
-            await _index_mode_flow(server, db, root)
+    await _index_mode_flow(url, root)
 
 
 if __name__ == "__main__":
@@ -516,6 +552,7 @@ if __name__ == "__main__":
         help="Directory containing images",
     )
     _parser.add_argument(
+        "-r",
         "--remote",
         type=str,
         default=DEFAULT_URL,
@@ -525,16 +562,14 @@ if __name__ == "__main__":
         "-q",
         "--query",
         type=str,
-        help=(
-            "If provided, will search db with given query instead of indexing directory."
-        ),
+        help="Queries DB with given text instead of indexing",
     )
     _parser.add_argument(
         "-k",
         "--top-k",
         type=int,
         default=5,
-        help="Number of results to return for -q",
+        help="Number of results to return for query",
     )
 
     _args = _parser.parse_args()
