@@ -271,7 +271,10 @@ class VectorDB:
     SELECT mtime, v FROM embeddings WHERE fn = ?
     """
 
-    # noinspection SqlNoDataSourceInspection
+    _db_fetch_all_fn_query = f"""
+    SELECT fn FROM embeddings
+    """
+
     _db_search_query = r"""
     SELECT fn, vec_distance_cosine(v, ?) AS d
     FROM embeddings WHERE v match ? and k = {}
@@ -279,6 +282,10 @@ class VectorDB:
 
     _db_count_query = r"""
     SELECT COUNT(fn) FROM embeddings
+    """
+
+    _db_remove_query = r"""
+    DELETE FROM embeddings WHERE fn = ?
     """
 
     def __init__(self, db_path: pathlib.Path, autocommit: bool = False):
@@ -352,6 +359,16 @@ class VectorDB:
             (key,),
         ).fetchone()
 
+    def fetch_all_keys(self) -> list[str]:
+        """Fetches all keys from DB, used to check removed files"""
+
+        assert self._conn, "DB not initialized"
+
+        return [
+            fn_tuple[0]
+            for fn_tuple in self._conn.execute(self._db_fetch_all_fn_query).fetchall()
+        ]
+
     def query(self, query_vec: list[float], top_k: int = 5) -> list[tuple[str, float]]:
         """Perform KNN search for given query vector & return top k results
 
@@ -375,8 +392,34 @@ class VectorDB:
         assert self._conn, "DB not initialized"
         return self._conn.execute(self._db_count_query).fetchone()[0]
 
+    def remove(self, key: str):
+        """Remove given key & vector from DB"""
+        assert self._conn, "DB not initialized"
+
+        self._conn.execute(
+            self._db_remove_query, (key,)
+        )
+
 
 # --- Logic ---
+
+def _cleanup_missing_in_db(root: pathlib.Path, vector_db: VectorDB) -> None:
+    """Remove records with file missing in root"""
+
+    path_set: set[str] = set(
+        p.name for p in root.iterdir() if p.suffix.lower() in SUFFIX_TO_MIME
+    )
+    missing_filenames: list[str] = [
+        fn for fn in vector_db.fetch_all_keys()
+        if fn not in path_set
+    ]
+
+    print(f"removing {len(missing_filenames)} missing records from DB")
+    for fn in missing_filenames:
+        vector_db.remove(fn)
+
+    vector_db.commit()
+
 
 def _fetch_paths(root: pathlib.Path, vector_db: VectorDB) -> list[trio.Path]:
     """Returns new or updated files"""
@@ -494,6 +537,8 @@ async def index_image(url: str, root: pathlib.Path, force_reindex: bool) -> int:
         if force_reindex:
             print("Truncating DB")
             vec_db.truncate()
+        else:
+            _cleanup_missing_in_db(root, vec_db)
 
         paths = _fetch_paths(root, vec_db)
 
