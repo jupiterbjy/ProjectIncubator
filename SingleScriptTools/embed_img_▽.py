@@ -241,6 +241,7 @@ class EmbedServer:
         return await self._post(payload, timeout)
 
 
+# noinspection SqlNoDataSourceInspection
 class VectorDB:
     """Wraps sqlite DB w/ vector extension"""
 
@@ -253,11 +254,15 @@ class VectorDB:
     )
     """
 
+    # since we can't truc in sqlite
+    _db_del_query = f"""
+    DELETE FROM embeddings;
+    """
+
     _db_upsert_query = r"""
     INSERT OR REPLACE INTO embeddings (fn, mtime, v) VALUES (?, ?, ?)
     """
 
-    # noinspection SqlNoDataSourceInspection
     _db_fetch_query = r"""
     SELECT mtime, v FROM embeddings WHERE fn = ?
     """
@@ -268,7 +273,6 @@ class VectorDB:
     FROM embeddings WHERE v match ? and k = {}
     """
 
-    # noinspection SqlNoDataSourceInspection
     _db_count_query = r"""
     SELECT COUNT(fn) FROM embeddings
     """
@@ -302,6 +306,11 @@ class VectorDB:
         print("[VectorDB] closed")
 
     def commit(self) -> None:
+        self._conn.commit()
+
+    def truncate(self) -> None:
+        self._conn.execute(self._db_del_query)
+        self._conn.execute(self._db_create_query)
         self._conn.commit()
 
     @staticmethod
@@ -454,7 +463,7 @@ async def query_image(
         ]
 
 
-async def index_image(url: str, root: pathlib.Path) -> int:
+async def index_image(url: str, root: pathlib.Path, force_reindex: bool) -> int:
     """Index imgs in given dir and updates/creates db.
     Uses file mtime to determine if a file need reindexing or not.
 
@@ -465,6 +474,10 @@ async def index_image(url: str, root: pathlib.Path) -> int:
     """
 
     with VectorDB(root / EMBED_DB_NAME) as vec_db:
+        if force_reindex:
+            print("Truncating DB")
+            vec_db.truncate()
+
         async with (
             EmbedServer(url) as embed_server,
             trio.open_nursery() as nursery,
@@ -508,7 +521,7 @@ async def _query_mode_flow(
 
 
 async def _index_mode_flow(
-    url: str, root: pathlib.Path,
+    url: str, root: pathlib.Path, force_reindex: bool,
 ) -> None:
 
     print(
@@ -519,7 +532,7 @@ async def _index_mode_flow(
     )
 
     start_t = time.time()
-    file_count = await index_image(url, root)
+    file_count = await index_image(url, root, force_reindex)
     delta_t = time.time() - start_t
 
     if not file_count:
@@ -534,13 +547,13 @@ async def _index_mode_flow(
 
 # --- Driver ---
 
-async def main(url: str, root: pathlib.Path, query: str, top_k: int):
+async def main(url: str, root: pathlib.Path, force_reindex: bool, query: str, top_k: int):
 
     if query:
         await _query_mode_flow(url, root, query, top_k)
         return
 
-    await _index_mode_flow(url, root)
+    await _index_mode_flow(url, root, force_reindex)
 
 
 if __name__ == "__main__":
@@ -557,6 +570,12 @@ if __name__ == "__main__":
         type=str,
         default=DEFAULT_URL,
         help="Embedding server url:port, preferably from llama.cpp",
+    )
+    _parser.add_argument(
+        "-f",
+        "--force-reindex",
+        action="store_true",
+        help="If true, nukes DB & recreate during index. For debugging convenience"
     )
     _parser.add_argument(
         "-q",
@@ -576,4 +595,4 @@ if __name__ == "__main__":
 
     assert _args.dir.is_dir(), f"Given path is not a directory: {_args.dir}"
 
-    trio.run(main, _args.remote, _args.dir, _args.query, _args.top_k)
+    trio.run(main, _args.remote, _args.dir, _args.force_reindex, _args.query, _args.top_k)
