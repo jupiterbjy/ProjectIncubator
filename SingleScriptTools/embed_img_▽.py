@@ -53,17 +53,20 @@ A bit too long for 'single script' constraint but welp
 
 :Author: jupiterbjy@gmail.com
 """
+
 import itertools
 import time
 import base64
 import io
 import sqlite3
 import pathlib
+from math import ceil
 from typing import Iterable, TypedDict
 from argparse import ArgumentParser
 
 import trio
 import httpx
+from tqdm.asyncio import tqdm
 import sqlite_vec
 import numpy as np
 from PIL import Image
@@ -151,7 +154,7 @@ class EmbedServer:
 
         await self._raise_for_health(timeout=10)
 
-        print("[EmbedServer] open")
+        print(f"[EmbedServer] open for {self.url}")
 
         return self
 
@@ -374,21 +377,8 @@ class VectorDB:
 
 # --- Logic ---
 
-# just for reducing chores...
-_PathDataPairs = list[tuple[trio.Path, bytes]]
-
-
-async def _producer_task(
-    root: pathlib.Path,
-    vector_db: VectorDB,
-    send_ch: trio.MemorySendChannel[tuple[int, _PathDataPairs]],
-) -> int:
-    """Asynchronously read & resize img from dir & push to queue.
-    Will check for file mtime to determine whether it needs to be updated or not
-
-    Returns:
-        number of files pushed, used for logging
-    """
+def _fetch_paths(root: pathlib.Path, vector_db: VectorDB) -> list[trio.Path]:
+    """Returns new or updated files"""
 
     print("Checking new/modified images in dir")
 
@@ -405,7 +395,18 @@ async def _producer_task(
     ]
     print(f"Got {len(new_paths)} new/modified imgs")
 
-    for idx, paths in enumerate(itertools.batched(new_paths, EMBED_BATCH_SIZE)):
+    return new_paths
+
+
+async def _producer_task(
+    valid_path_list: list[trio.Path],
+    send_ch: trio.MemorySendChannel[list[tuple[trio.Path, bytes]]],
+) -> None:
+    """Asynchronously read & resize img from dir & push to queue.
+    Will check for file mtime to determine whether it needs to be updated or not
+    """
+
+    for paths in itertools.batched(valid_path_list, EMBED_BATCH_SIZE):
         batch = [
             (
                 path,
@@ -418,27 +419,42 @@ async def _producer_task(
             )
             for path in paths
         ]
-        await send_ch.send((idx, batch))
-
-    return len(new_paths)
+        await send_ch.send(batch)
 
 
 async def _consumer_task(
     vector_db: VectorDB,
     embed_server: EmbedServer,
-    recv_ch: trio.MemoryReceiveChannel[tuple[int, _PathDataPairs]],
+    recv_ch: trio.MemoryReceiveChannel[list[tuple[trio.Path, bytes]]],
+    total_count: int,
 ) -> None:
     """Get image embedding vector in batch & add to DB"""
 
-    async for idx, batch in recv_ch:
+    batch_timeout = EMBED_TIMEOUT * EMBED_BATCH_SIZE
 
-        print(f"Batch {idx} start")
-        embeddings = await embed_server.embed_images(batch, EMBED_TIMEOUT * EMBED_BATCH_SIZE)
+    # flush stdout so tqdm dont mess up lines
+    print(end="", flush=True)
 
-        for (path, _), embedding in zip(batch, embeddings):
-            vector_db.upsert(path.name, (await path.stat()).st_mtime, embedding)
+    # noinspection PyTypeChecker
+    # bar = tqdm(recv_ch, total=ceil(total_count / EMBED_BATCH_SIZE))
+    bar = tqdm(total=ceil(total_count / EMBED_BATCH_SIZE), unit="batch")
 
-        vector_db.commit()
+    async def _task() -> None:
+        async for batch in recv_ch:
+            for (path, _), embedding in zip(
+                batch, await embed_server.embed_images(batch, batch_timeout)
+            ):
+                vector_db.upsert(path.name, (await path.stat()).st_mtime, embedding)
+            vector_db.commit()
+            bar.update(1)
+
+    # run 2 to ensure at least 1 batch is always queued in remote
+    async with trio.open_nursery() as nursery:
+        for _ in range(2):
+            # noinspection PyTypeChecker
+            nursery.start_soon(_task)
+
+    bar.close()
 
 
 async def query_image(
@@ -478,25 +494,24 @@ async def index_image(url: str, root: pathlib.Path, force_reindex: bool) -> int:
             print("Truncating DB")
             vec_db.truncate()
 
+        paths = _fetch_paths(root, vec_db)
+
+        if not len(paths):
+            return 0
+
         async with (
             EmbedServer(url) as embed_server,
             trio.open_nursery() as nursery,
         ):
-            send_ch, recv_ch = trio.open_memory_channel(EMBED_BATCH_SIZE)
+            send_ch, recv_ch = trio.open_memory_channel(0)
 
-            # start 2 so llama server always have 1 queued behind
-            # this then would mostly eliminate net transfer idle time in gpu
-            for _ in range(2):
-                nursery.start_soon(
-                    _consumer_task, vec_db, embed_server, recv_ch,
-                )
-
-            # ensure channel is closed when producing is done,
-            # iirc then recv channel will drain buffer before closing
+            nursery.start_soon(
+                _consumer_task, vec_db, embed_server, recv_ch, len(paths),
+            )
             async with send_ch:
-                file_count: int = await _producer_task(root, vec_db, send_ch)
+                await _producer_task(paths, send_ch)
 
-    return file_count
+    return len(paths)
 
 
 async def _query_mode_flow(
@@ -505,6 +520,7 @@ async def _query_mode_flow(
 
     key_sim_pairs = await query_image(url, root, query, top_k)
 
+    print(f"\nQuery:\n{query}")
     print(f"\nTop-{top_k}:")
 
     # display cos similarity & delta from prev one so it's a bit easier to read
@@ -515,7 +531,7 @@ async def _query_mode_flow(
 
     # also display full path so I can ctrl click in term to quickly check
     for path, _ in key_sim_pairs:
-        print(f"  '{path.absolute()}'")
+        print(f"'{path.absolute()}'")
 
     print()
 
@@ -525,7 +541,7 @@ async def _index_mode_flow(
 ) -> None:
 
     print(
-        f"\nBatch: {EMBED_BATCH_SIZE}",
+        f"Batch: {EMBED_BATCH_SIZE}",
         f"Resize width: {IMG_WIDTH}",
         f"Resize threshold: {IMG_RESIZE_THRESHOLD}\n",
         sep="\n",
@@ -536,7 +552,6 @@ async def _index_mode_flow(
     delta_t = time.time() - start_t
 
     if not file_count:
-        print("No new/modified files to index")
         return
 
     print(
