@@ -4,6 +4,10 @@ Batch image embedding & querying script.
 Written to make my miserable life of searching 500GB screenshots
 w/ specific dialogue of a scene a bit more manageable.
 
+```
+pip install trio httpx tqdm sqlite_vec numpy pillow
+```
+
 Assumes /v1/embeddings endpoint that support batch embedding,
 tested against llama.cpp EmbeddingGemma2 with ctx=ub=b=4096 / pooling mean
 
@@ -53,6 +57,8 @@ Top-5:
 ```
 
 A bit too long for 'single script' constraint but welp
+
+![](readme_res/embed_img.jpg)
 
 :Author: jupiterbjy@gmail.com
 """
