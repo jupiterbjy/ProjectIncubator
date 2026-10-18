@@ -111,12 +111,13 @@ def _resize_img_in_buffer(
     """
 
     pil_img = Image.open(img_buffer)
-    # img_buffer.seek(0)
 
     if pil_img.width > resize_threshold:
         pil_img = pil_img.resize(
             (resize_width, round(pil_img.height * resize_width / pil_img.width))
         )
+        img_buffer.seek(0)
+        img_buffer.truncate()
         # pil_img.save(img_buffer, pil_img.format)
         pil_img.save(img_buffer, ext)
 
