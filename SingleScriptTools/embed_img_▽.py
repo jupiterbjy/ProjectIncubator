@@ -9,44 +9,47 @@ tested against llama.cpp EmbeddingGemma2 with ctx=ub=b=4096 / pooling mean
 
 Indexing mode:
 ```text
-$ py embed_img_▽.py ".../하나사키워크스프링 히카리"
-
-[VectorDB] open w/ 464 rows
-[EmbedServer] open
-
+$ py embed_img_▽.py "test_samples_scaled/"
 Batch: 8
 Resize width: 1280
 Resize threshold: 1536
 
+[VectorDB] open w/ 0 rows
 Checking new/modified images in dir
-Got 2539 new/modified imgs
-Batch 0 start
-...
-Batch 317 start
-
-Indexed 2539 new/modified files in 1872.62 (1.356/s)
-
+Got 38 new/modified imgs
+[EmbedServer] open for http://127.0.0.1:8081
+100%|███████████████████| 5/5 [00:07<00:00,  1.47s/batch]
 [EmbedServer] closed
 [VectorDB] closed
+
+Indexed 38 new/modified files in 7.44 (5.111/s)
 ```
 
 Query mode:
-```text
-$ py embed_img_▽.py ".../하나사키워크스프링 히카리" \
-> -q "image containing monologue '삼각건이 머리에 얹어졌다' with blonde girl making >w< face"
+```bash
+$ py embed_img_▽.py "./하나사키워크스프링 히카리" \
+-q "image with dialog '삼각건이 머리에 얹어졌다' with blonde girl making >< face"
 
 [VectorDB] open w/ 3003 rows
-[EmbedServer] open
-
-Top-5:
-  0.73515  +0.01231  Artemis_2026-09-08-00-57-38.jpg
-  0.72284  +0.00446  Artemis_2026-09-08-00-57-26.jpg
-  0.71838  +0.00357  Artemis_2026-09-07-02-36-38.jpg
-  0.71481  +0.00017  Artemis_2026-09-07-02-40-09.jpg
-  0.71464  --------  Artemis_2026-09-07-02-36-52.jpg
-
+[EmbedServer] open for http://127.0.0.1:8081
 [EmbedServer] closed
 [VectorDB] closed
+
+Query:
+"image with dialog '삼각건이 머리에 얹어졌다' with blonde girl making >< face"
+
+Top-5:
+  0.76813  +0.01052  Artemis_2026-09-08-00-57-38.jpg
+  0.75761  +0.00773  Artemis_2026-09-08-00-57-26.jpg
+  0.74988  +0.00341  Artemis_2026-09-07-02-36-38.jpg
+  0.74647  +0.00067  Artemis_2026-09-07-02-36-52.jpg
+  0.74580  --------  Artemis_2026-09-08-01-58-14.jpg
+
+'.../하나사키워크스프링 히카리/Artemis_2026-09-08-00-57-38.jpg'
+'.../하나사키워크스프링 히카리/Artemis_2026-09-08-00-57-26.jpg'
+'.../하나사키워크스프링 히카리/Artemis_2026-09-07-02-36-38.jpg'
+'.../하나사키워크스프링 히카리/Artemis_2026-09-07-02-36-52.jpg'
+'.../하나사키워크스프링 히카리/Artemis_2026-09-08-01-58-14.jpg'
 ```
 
 A bit too long for 'single script' constraint but welp
@@ -566,7 +569,7 @@ async def _query_mode_flow(
 
     key_sim_pairs = await query_image(url, root, query, top_k)
 
-    print(f"\nQuery:\n{query}")
+    print(f"\nQuery:\n\"{query}\"")
     print(f"\nTop-{top_k}:")
 
     # display cos similarity & delta from prev one so it's a bit easier to read
